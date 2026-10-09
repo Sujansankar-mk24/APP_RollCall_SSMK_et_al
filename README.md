@@ -57,6 +57,19 @@ New Swift files added anywhere inside `ios/RescueSight/` are included in the pro
 - **Location:** the simulator starts out in California. Set a North Texas location in the simulator's menu (Features → Location → Custom Location), or run `xcrun simctl location booted set 33.0712,-96.1043` (next to the demo grass fire, so a fire report there merges into it).
 - **Photos and videos:** add some to the simulator's Photos app by dragging files onto the simulator window, or run `xcrun simctl addmedia booted backend/sample_media/grass_fire_crew.jpg backend/sample_media/grass_fire_clip.mp4`.
 
+## The Incidents tab (responder view)
+
+The second tab is for responders. At the top are four numbers, each a simple count you can check:
+
+| Card | What it counts |
+|---|---|
+| Active incidents | Incidents nobody is responding to yet (and how many are responding) |
+| People detected | The most people the AI has seen at each open incident, added up (and how many may be down) |
+| Unverified | Open incidents with no AI evidence yet. Weather reports count here too, since the AI can't recognize a tornado |
+| Avg. response time | Average time from the first report to a responder tapping "Mark responding" |
+
+Below them, every incident is listed by priority (highest first), with Open / Resolved / All filters. Tap one to open the same detail sheet as on the map, including "Why this priority?". Pull down to refresh. The tab badge shows how many incidents are active and high priority. The Map and Incidents tabs share one copy of the data, so a status change shows up on both immediately.
+
 ## Drone feed
 
 Once the AI confirms fire, the incident's sheet offers **Launch drone feed**. While it's live, the app shows the AI-annotated video and live counts:

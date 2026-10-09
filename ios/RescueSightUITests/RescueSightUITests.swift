@@ -49,6 +49,40 @@ final class RescueSightUITests: XCTestCase {
         XCTAssertTrue(app.buttons["reportIncidentButton"].isHittable)
     }
 
+    // MARK: - Incidents tab
+
+    @MainActor
+    func testIncidentsTabShowsKPIsAndAPrioritySortedList() {
+        let app = launchApp()
+        app.tabBars.buttons["Incidents"].tap()
+
+        // Four key numbers. In the demo data, 4 incidents are active and 3 are responding.
+        let active = app.descendants(matching: .any)["kpi_active"]
+        XCTAssertTrue(active.waitForExistence(timeout: 15), "The KPI cards never appeared")
+        XCTAssertTrue(active.label.hasPrefix("Active incidents: 4"), "Unexpected: \(active.label)")
+        XCTAssertTrue(active.label.contains("3 responding"))
+        for id in ["kpi_people", "kpi_unverified", "kpi_response"] {
+            XCTAssertTrue(app.descendants(matching: .any)[id].exists, "Missing \(id)")
+        }
+
+        // Highest priority first: the Greenville grass fire (score 100, newest report).
+        let rows = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'incidentRow_'"))
+        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertEqual(rows.element(boundBy: 0).identifier, "incidentRow_1")
+
+        // The Resolved filter shows only the 3 resolved incidents.
+        app.buttons["Resolved (3)"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["incidentRow_2"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["incidentRow_1"].exists)
+        app.buttons["Open (7)"].tap()
+
+        // Tapping a row opens the same detail sheet as on the map.
+        let first = app.descendants(matching: .any)["incidentRow_1"]
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        first.tap()
+        XCTAssertTrue(app.staticTexts["AI analysis"].waitForExistence(timeout: 10), "The detail sheet didn't open")
+    }
+
     // MARK: - Reporting
 
     @MainActor
