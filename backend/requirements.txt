@@ -1,0 +1,22 @@
+# RescueSight backend. Install with:  pip install -r requirements.txt
+
+# Web server and API
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32   # lets FastAPI receive file uploads
+
+# Database
+sqlmodel==0.0.48
+
+# AI and image processing (CPU only, no GPU needed)
+ultralytics==8.4.174       # YOLO; also installs PyTorch
+opencv-python-headless==5.0.0.93
+numpy==2.5.3
+
+# Demo data: downloading sample media and converting video to MP4
+requests==2.34.2
+imageio-ffmpeg==0.6.0
+
+# Tests
+pytest==9.1.1
+httpx2==2.13.1
