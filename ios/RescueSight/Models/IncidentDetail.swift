@@ -42,6 +42,8 @@ struct MediaAnalysis: Codable, Hashable {
     let smokeDetected: Bool
     let smokeConfidence: Double
     let peopleCount: Int
+    let peopleDown: Int
+    let peopleNearFire: Int
     let lowLightUsed: Bool
     let brightness: Double?
     let detector: String?         // e.g. "basic detector"
@@ -63,6 +65,8 @@ struct MediaAnalysis: Codable, Hashable {
             if fireDetected { parts.append("Fire \(fireConfidence.formatted(.percent.precision(.fractionLength(0))))") }
             if smokeDetected { parts.append("Smoke \(smokeConfidence.formatted(.percent.precision(.fractionLength(0))))") }
             if peopleCount > 0 { parts.append(peopleCount == 1 ? "1 person" : "\(peopleCount) people") }
+            if peopleDown > 0 { parts.append("\(peopleDown) may be down") }
+            if peopleNearFire > 0 { parts.append("\(peopleNearFire) near flames") }
             return parts.isEmpty ? "Nothing detected" : parts.joined(separator: " · ")
         }
     }

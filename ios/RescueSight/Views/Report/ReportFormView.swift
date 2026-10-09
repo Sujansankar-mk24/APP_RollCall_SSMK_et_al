@@ -5,9 +5,9 @@
 //  The "Report incident" sheet:
 //    911 banner
 //    What's happening?  (type tiles)
-//    Where?             (map with a draggable pin)
+//    Where?             (address search + map with a draggable pin)
 //    Details            (short description)
-//    Photo or video     (optional, checked by the AI)
+//    Photo or video     (take one with the camera or pick one; checked by the AI)
 //    [Send report]
 //
 
@@ -21,7 +21,10 @@ struct ReportFormView: View {
     @State private var viewModel = ReportViewModel()
     @State private var pickedItem: PhotosPickerItem?
     @State private var confirmingDiscard = false
+    @State private var addressSearch = AddressSearch()
+    @State private var isShowingCamera = false
     @FocusState private var isEditingDescription: Bool
+    @FocusState private var isSearchingAddress: Bool
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -56,14 +59,19 @@ struct ReportFormView: View {
                         if viewModel.hasChanges { confirmingDiscard = true } else { dismiss() }
                     }
                 }
-                ToolbarItem(placement: .keyboard) {
-                    HStack {
-                        Spacer()
-                        Button("Done") { isEditingDescription = false }
+                // The "Done" button above the keyboard.
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        isEditingDescription = false
+                        isSearchingAddress = false
                     }
                 }
             }
-            .safeAreaInset(edge: .bottom) { sendBar }
+            .safeAreaInset(edge: .bottom) {
+                // While typing an address, the suggestions need the room.
+                if !isSearchingAddress { sendBar }
+            }
         }
         // Don't let a swipe throw away a half-written report by accident.
         .interactiveDismissDisabled(viewModel.hasChanges)
@@ -74,6 +82,12 @@ struct ReportFormView: View {
         .task { await viewModel.useCurrentLocation() }
         .onChange(of: pickedItem) { _, item in
             Task { await viewModel.loadAttachment(from: item) }
+        }
+        .fullScreenCover(isPresented: $isShowingCamera) {
+            CameraCapture { capture in
+                Task { await viewModel.useCapture(capture) }
+            }
+            .ignoresSafeArea()
         }
     }
 
@@ -98,6 +112,8 @@ struct ReportFormView: View {
 
     private var locationSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
+            addressField
+
             LocationPickerMap(coordinate: viewModel.coordinate, position: $viewModel.mapPosition) {
                 viewModel.movePin(to: $0)
             }
@@ -127,6 +143,7 @@ struct ReportFormView: View {
             Label {
                 Text(viewModel.placeName ?? "Drag the pin or tap the map to mark the spot")
                     .foregroundStyle(viewModel.placeName == nil ? .secondary : .primary)
+                    .accessibilityIdentifier("pinPlaceName")
             } icon: {
                 Image(systemName: "mappin")
                     .foregroundStyle(Color(.systemRed))
@@ -139,6 +156,74 @@ struct ReportFormView: View {
                     .foregroundStyle(Color(.systemOrange))
             }
         }
+    }
+
+    /// Type an address or place; pick a suggestion to move the pin there.
+    private var addressField: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: Spacing.s) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search an address or place", text: $addressSearch.query)
+                    .focused($isSearchingAddress)
+                    .accessibilityIdentifier("addressSearchField")
+                    .textContentType(.fullStreetAddress)
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+                if addressSearch.isLookingUp {
+                    ProgressView()
+                } else if !addressSearch.query.isEmpty {
+                    Button {
+                        addressSearch.clear()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                            .frame(width: minimumTapSize, height: minimumTapSize)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(.leading, Spacing.m)
+            .frame(minHeight: minimumTapSize)
+
+            if isSearchingAddress && !addressSearch.suggestions.isEmpty {
+                Divider()
+                ForEach(addressSearch.suggestions) { suggestion in
+                    Button {
+                        Task {
+                            if let place = await addressSearch.place(for: suggestion) {
+                                viewModel.usePlace(place)
+                                addressSearch.clear()
+                                isSearchingAddress = false
+                            } else {
+                                viewModel.reportLocationLookupFailed()
+                            }
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(suggestion.title)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.primary)
+                            if !suggestion.subtitle.isEmpty {
+                                Text(suggestion.subtitle)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, minHeight: minimumTapSize, alignment: .leading)
+                        .padding(.horizontal, Spacing.m)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    if suggestion.id != addressSearch.suggestions.last?.id {
+                        Divider().padding(.leading, Spacing.m)
+                    }
+                }
+            }
+        }
+        .background(Color(.secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
     }
 
     private var descriptionField: some View {
@@ -171,25 +256,28 @@ struct ReportFormView: View {
         } else if let attachment = viewModel.attachment {
             attachmentPreview(attachment)
         } else {
-            PhotosPicker(selection: $pickedItem, matching: .any(of: [.images, .videos])) {
-                VStack(spacing: Spacing.s) {
-                    Image(systemName: "photo.badge.plus")
-                        .font(.title)
-                    Text("Add a photo or video")
-                        .font(.subheadline.weight(.semibold))
-                    Text("The AI checks it for fire, smoke and people.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            HStack(spacing: Spacing.s) {
+                // The camera only exists on a real iPhone, not in the simulator.
+                if CameraCapture.isAvailable {
+                    Button {
+                        isShowingCamera = true
+                    } label: {
+                        AttachmentChoiceLabel(systemImage: "camera.fill", title: "Take photo or video")
+                    }
+                    .buttonStyle(.plain)
                 }
-                .frame(maxWidth: .infinity, minHeight: 120)
-                .background(
-                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .strokeBorder(Color.accentColor.opacity(0.5), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
-                )
-                .contentShape(Rectangle())
+                PhotosPicker(selection: $pickedItem, matching: .any(of: [.images, .videos])) {
+                    AttachmentChoiceLabel(systemImage: "photo.on.rectangle", title: "Choose from library")
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
             .foregroundStyle(Color.accentColor)
+
+            Text(CameraCapture.isAvailable
+                 ? "The AI checks it for fire, smoke and people."
+                 : "The AI checks it for fire, smoke and people. (The simulator has no camera, so pick from the library.)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             if let error = viewModel.attachmentError {
                 Text(error)
@@ -284,6 +372,7 @@ struct ReportFormView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(!viewModel.canSubmit)
+            .accessibilityIdentifier("sendReportButton")
 
             if viewModel.selectedType == nil {
                 Text("Choose what's happening to send your report.")
@@ -300,4 +389,26 @@ struct ReportFormView: View {
 
 #Preview {
     ReportFormView { _ in }
+}
+
+/// One of the two dashed "add a photo or video" buttons.
+private struct AttachmentChoiceLabel: View {
+    let systemImage: String
+    let title: String
+
+    var body: some View {
+        VStack(spacing: Spacing.s) {
+            Image(systemName: systemImage)
+                .font(.title2)
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, minHeight: 100)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(Color.accentColor.opacity(0.5), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+        )
+        .contentShape(Rectangle())
+    }
 }

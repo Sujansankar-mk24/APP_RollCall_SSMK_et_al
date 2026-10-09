@@ -10,6 +10,7 @@
 //    "Updated ... ago"                  legend
 //    (map with zones and markers)
 //                                       display (light/night) button
+//                                       zoom in / zoom out
 //             [Report incident]         recenter button
 //
 //  Tapping an incident zooms in on it and opens its detail sheet.
@@ -23,6 +24,8 @@ import SwiftUI
 struct IncidentMapView: View {
     @State private var viewModel = MapViewModel()
     @State private var cameraPosition: MapCameraPosition = .region(AppConfig.homeRegion)
+    /// The area currently on screen (updated whenever the map stops moving).
+    @State private var visibleRegion = AppConfig.homeRegion
     @State private var selectedIncidentID: IncidentSummary.ID?
     @State private var sheetDetent: PresentationDetent = .medium
     @State private var isReporting = false
@@ -58,6 +61,9 @@ struct IncidentMapView: View {
             MapCompass()
             MapScaleView()
         }
+        .onMapCameraChange(frequency: .onEnd) { context in
+            visibleRegion = context.region
+        }
         .safeAreaInset(edge: .top) {
             if viewModel.loadState == .loaded {
                 topControls
@@ -68,6 +74,7 @@ struct IncidentMapView: View {
             if viewModel.loadState == .loaded && lastReport == nil {
                 VStack(spacing: Spacing.m) {
                     AppearanceButton()
+                    zoomButtons
                     recenterButton
                 }
                 .padding(Spacing.l)
@@ -242,6 +249,44 @@ struct IncidentMapView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Opens a form to report an emergency")
+        .accessibilityIdentifier("reportIncidentButton")  // lets automated UI tests find it
+    }
+
+    /// + and − buttons (pinching also works; in the simulator, hold Option and drag).
+    private var zoomButtons: some View {
+        VStack(spacing: 0) {
+            zoomButton(systemImage: "plus", label: "Zoom in", factor: 0.5)
+            Divider().frame(width: 28)
+            zoomButton(systemImage: "minus", label: "Zoom out", factor: 2)
+        }
+        .floatingSurface(cornerRadius: 24)
+    }
+
+    private func zoomButton(systemImage: String, label: String, factor: Double) -> some View {
+        Button {
+            zoom(by: factor)
+        } label: {
+            Image(systemName: systemImage)
+                .font(.title3.weight(.medium))
+                .frame(width: 48, height: 48)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color.accentColor)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(factor < 1 ? "zoomInButton" : "zoomOutButton")
+    }
+
+    /// factor 0.5 = show half as much (zoom in), 2 = show twice as much (zoom out).
+    private func zoom(by factor: Double) {
+        let span = MKCoordinateSpan(
+            latitudeDelta: min(max(visibleRegion.span.latitudeDelta * factor, 0.002), 30),
+            longitudeDelta: min(max(visibleRegion.span.longitudeDelta * factor, 0.002), 30))
+        let region = MKCoordinateRegion(center: visibleRegion.center, span: span)
+        visibleRegion = region  // so tapping several times in a row keeps zooming
+        withAnimation(.easeInOut(duration: 0.35)) {
+            cameraPosition = .region(region)
+        }
     }
 
     private var recenterButton: some View {

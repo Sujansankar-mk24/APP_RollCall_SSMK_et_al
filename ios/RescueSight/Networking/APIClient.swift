@@ -82,6 +82,37 @@ struct APIClient {
         return try await send(request)
     }
 
+    // MARK: - Drone / camera feed
+
+    func fetchLiveFeed(incidentID: Int) async throws(APIError) -> LiveFeedStatus {
+        try await send(URLRequest(url: baseURL.appending(path: "incidents/\(incidentID)/camera")))
+    }
+
+    /// Launch the feed: the real drone camera if one is connected, otherwise demo footage.
+    func startLiveFeed(incidentID: Int) async throws(APIError) -> LiveFeedStatus {
+        var request = URLRequest(url: baseURL.appending(path: "incidents/\(incidentID)/camera/start"))
+        request.httpMethod = "POST"
+        return try await send(request)
+    }
+
+    func stopLiveFeed(incidentID: Int) async throws(APIError) -> LiveFeedStatus {
+        var request = URLRequest(url: baseURL.appending(path: "incidents/\(incidentID)/camera/stop"))
+        request.httpMethod = "POST"
+        return try await send(request)
+    }
+
+    /// The newest picture from the feed (with AI boxes drawn on), as JPEG data.
+    func fetchLiveFrame(path: String) async throws(APIError) -> Data {
+        guard let url = AppConfig.mediaURL(path) else { throw .unreadableResponse }
+        do {
+            let (data, response) = try await session.data(from: url)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw APIError.unreadableResponse }
+            return data
+        } catch {
+            throw .serverUnreachable
+        }
+    }
+
     // MARK: - Plumbing
 
     /// Send a request and decode the JSON answer into whatever type the caller expects.

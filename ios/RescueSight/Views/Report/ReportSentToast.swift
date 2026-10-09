@@ -40,7 +40,6 @@ struct ReportSentToast: View {
                     .font(.footnote.weight(.medium))
                     .padding(.top, 2)
             }
-            .animation(.easeOut(duration: 0.25), value: analysis)
 
             Spacer(minLength: Spacing.s)
 
@@ -55,6 +54,7 @@ struct ReportSentToast: View {
         .padding(.horizontal, Spacing.l)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.updatesFrequently)
+        .accessibilityIdentifier("reportSentToast")
     }
 
     @ViewBuilder

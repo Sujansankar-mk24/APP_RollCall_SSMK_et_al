@@ -31,8 +31,9 @@ enum PreviewData {
             respondingAt: nil, resolvedAt: nil,
             priority: Priority(score: score, level: level, factors: []),
             ai: AISummary(verified: score > 20, analyzing: false, fireDetected: type == .fire,
-                          smokeDetected: false, peopleCount: 0, lowLightUsed: false),
-            coverThumbnailUrl: nil
+                          smokeDetected: false, peopleCount: 0, peopleDown: 0, peopleNearFire: 0,
+                          lowLightUsed: false),
+            coverThumbnailUrl: nil, liveFeed: false
         )
     }
 }

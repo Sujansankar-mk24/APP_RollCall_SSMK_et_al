@@ -81,7 +81,7 @@ struct ResponderActionBar: View {
 }
 
 /// Lets one button switch between the filled (main action) and tinted look.
-private struct ProminenceButtonStyle: PrimitiveButtonStyle {
+struct ProminenceButtonStyle: PrimitiveButtonStyle {
     let prominent: Bool
 
     func makeBody(configuration: Configuration) -> some View {

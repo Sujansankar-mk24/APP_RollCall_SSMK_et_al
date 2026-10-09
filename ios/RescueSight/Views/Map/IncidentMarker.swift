@@ -35,6 +35,18 @@ struct IncidentMarker: View {
                 .font(.system(size: isSelected ? 19 : 15, weight: .semibold))
                 .foregroundStyle(.white)
         }
+        .overlay(alignment: .topLeading) {
+            // A drone/camera feed is live for this incident.
+            if incident.liveFeed {
+                Image(systemName: "video.fill")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(4)
+                    .background(Color(.systemRed), in: Circle())
+                    .overlay(Circle().strokeBorder(.white, lineWidth: 1))
+                    .offset(x: -6, y: -6)
+            }
+        }
         .overlay(alignment: .topTrailing) {
             if incident.ai.analyzing {
                 ProgressView()

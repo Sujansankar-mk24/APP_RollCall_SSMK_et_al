@@ -9,7 +9,18 @@
 /* Begin PBXFileReference section */
 		A1B2C3D4E5F6000000000001 /* RescueSight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RescueSight.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D4E5F6000000000010 /* RescueSight-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RescueSight-Info.plist"; sourceTree = "<group>"; };
+		A1B2C3D4E5F6000000000020 /* RescueSightUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RescueSightUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXContainerItemProxy section */
+		A1B2C3D4E5F6000000000027 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A1B2C3D4E5F600000000000A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1B2C3D4E5F6000000000006;
+			remoteInfo = RescueSight;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A1B2C3D4E5F6000000000002 /* RescueSight */ = {
@@ -17,10 +28,22 @@
 			path = RescueSight;
 			sourceTree = "<group>";
 		};
+		A1B2C3D4E5F6000000000021 /* RescueSightUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RescueSightUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A1B2C3D4E5F6000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D4E5F6000000000022 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -34,6 +57,7 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D4E5F6000000000002 /* RescueSight */,
+				A1B2C3D4E5F6000000000021 /* RescueSightUITests */,
 				A1B2C3D4E5F6000000000010 /* RescueSight-Info.plist */,
 				A1B2C3D4E5F6000000000005 /* Products */,
 			);
@@ -43,6 +67,7 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D4E5F6000000000001 /* RescueSight.app */,
+				A1B2C3D4E5F6000000000020 /* RescueSightUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -72,6 +97,29 @@
 			productReference = A1B2C3D4E5F6000000000001 /* RescueSight.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A1B2C3D4E5F6000000000025 /* RescueSightUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C3D4E5F6000000000028 /* Build configuration list for PBXNativeTarget "RescueSightUITests" */;
+			buildPhases = (
+				A1B2C3D4E5F6000000000023 /* Sources */,
+				A1B2C3D4E5F6000000000022 /* Frameworks */,
+				A1B2C3D4E5F6000000000024 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1B2C3D4E5F6000000000026 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A1B2C3D4E5F6000000000021 /* RescueSightUITests */,
+			);
+			name = RescueSightUITests;
+			packageProductDependencies = (
+			);
+			productName = RescueSightUITests;
+			productReference = A1B2C3D4E5F6000000000020 /* RescueSightUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -84,6 +132,10 @@
 				TargetAttributes = {
 					A1B2C3D4E5F6000000000006 = {
 						CreatedOnToolsVersion = 27.0;
+					};
+					A1B2C3D4E5F6000000000025 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = A1B2C3D4E5F6000000000006;
 					};
 				};
 			};
@@ -102,12 +154,20 @@
 			projectRoot = "";
 			targets = (
 				A1B2C3D4E5F6000000000006 /* RescueSight */,
+				A1B2C3D4E5F6000000000025 /* RescueSightUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A1B2C3D4E5F6000000000008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D4E5F6000000000024 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -124,7 +184,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1B2C3D4E5F6000000000023 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A1B2C3D4E5F6000000000026 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1B2C3D4E5F6000000000006 /* RescueSight */;
+			targetProxy = A1B2C3D4E5F6000000000027 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A1B2C3D4E5F600000000000C /* Debug */ = {
@@ -198,6 +273,8 @@
 				INFOPLIST_FILE = "RescueSight-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = RescueSight;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RescueSight uses your location to place the pin for an incident you report.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "RescueSight uses the camera so you can take a photo or video of an incident to report it.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "RescueSight records sound with videos you take of an incident.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -230,6 +307,8 @@
 				INFOPLIST_FILE = "RescueSight-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = RescueSight;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RescueSight uses your location to place the pin for an incident you report.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "RescueSight uses the camera so you can take a photo or video of an incident to report it.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "RescueSight records sound with videos you take of an incident.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -250,6 +329,40 @@
 			};
 			name = Release;
 		};
+		A1B2C3D4E5F6000000000029 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sujansankar.RescueSightUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = RescueSight;
+			};
+			name = Debug;
+		};
+		A1B2C3D4E5F600000000002A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sujansankar.RescueSightUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = RescueSight;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -267,6 +380,15 @@
 			buildConfigurations = (
 				A1B2C3D4E5F600000000000C /* Debug */,
 				A1B2C3D4E5F600000000000D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1B2C3D4E5F6000000000028 /* Build configuration list for PBXNativeTarget "RescueSightUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3D4E5F6000000000029 /* Debug */,
+				A1B2C3D4E5F600000000002A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

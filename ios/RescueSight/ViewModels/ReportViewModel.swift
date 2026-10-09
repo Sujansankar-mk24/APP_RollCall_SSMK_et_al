@@ -74,15 +74,47 @@ final class ReportViewModel {
 
         guard let location = await locationProvider.currentLocation() else {
             locationNote = locationProvider.isDenied
-                ? "Location access is off. Drag the pin to where it's happening."
-                : "Couldn't find your location. Drag the pin to where it's happening."
+                ? "Location access is off. Search for an address or drag the pin."
+                : "Couldn't find your location. Search for an address or drag the pin."
             return
         }
+
+        // RescueSight covers North Texas. A location far away (like the
+        // simulator's default spot in California) would put the report in the
+        // wrong state, so leave the pin where it is and explain.
+        let center = CLLocation(latitude: AppConfig.homeRegion.center.latitude,
+                                longitude: AppConfig.homeRegion.center.longitude)
+        if location.distance(from: center) > Self.serviceAreaRadius {
+            locationNote = "Your location is outside North Texas. Search for an address or drag the pin. (In the simulator, set a location with Features > Location.)"
+            return
+        }
+
         locationNote = nil
         movePin(to: location.coordinate)
+        zoomMap(to: location.coordinate)
+    }
+
+    /// The address search couldn't find the exact spot of a suggestion.
+    func reportLocationLookupFailed() {
+        locationNote = "Couldn't find that place. Try another suggestion, or drag the pin to the spot."
+    }
+
+    /// How far from the middle of North Texas a report can be (250 km).
+    static let serviceAreaRadius: CLLocationDistance = 250_000
+
+    /// Put the pin on a place picked from the address search.
+    func usePlace(_ place: AddressSearch.Place) {
+        placeLookup?.cancel()
+        coordinate = place.coordinate
+        placeName = place.name
+        locationNote = nil
+        zoomMap(to: place.coordinate)
+    }
+
+    private func zoomMap(to coordinate: CLLocationCoordinate2D) {
         withAnimation(.easeInOut) {
             mapPosition = .region(MKCoordinateRegion(
-                center: location.coordinate,
+                center: coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.012, longitudeDelta: 0.012)))
         }
     }
@@ -125,19 +157,36 @@ final class ReportViewModel {
                 attachment = .video(file: movie.url, preview: await Self.firstFrame(of: movie.url))
             } else {
                 guard let data = try await item.loadTransferable(type: Data.self),
-                      let image = UIImage(data: data) else {
+                      let image = UIImage(data: data),
+                      let photo = Self.photoAttachment(from: image) else {
                     throw CocoaError(.fileReadUnknown)
                 }
-                // Shrink big phone photos (and convert HEIC to JPEG) so uploads are quick.
-                let resized = image.preparingThumbnail(of: Self.fittingSize(image.size, maxSide: 2048)) ?? image
-                guard let jpeg = resized.jpegData(compressionQuality: 0.85) else {
-                    throw CocoaError(.fileReadUnknown)
-                }
-                attachment = .photo(jpeg: jpeg, preview: resized)
+                attachment = photo
             }
         } catch {
             attachmentError = "Couldn't load that photo or video. Try a different one."
         }
+    }
+
+    /// A photo or video just taken with the camera.
+    func useCapture(_ capture: CameraCapture.Result) async {
+        attachmentError = nil
+        switch capture {
+        case .photo(let image):
+            attachment = Self.photoAttachment(from: image)
+        case .video(let url):
+            attachment = .video(file: url, preview: await Self.firstFrame(of: url))
+        }
+        if attachment == nil {
+            attachmentError = "Couldn't use that photo. Try taking it again."
+        }
+    }
+
+    /// Shrink big phone photos (and convert HEIC to JPEG) so uploads are quick.
+    private static func photoAttachment(from image: UIImage) -> Attachment? {
+        let resized = image.preparingThumbnail(of: fittingSize(image.size, maxSide: 2048)) ?? image
+        guard let jpeg = resized.jpegData(compressionQuality: 0.85) else { return nil }
+        return .photo(jpeg: jpeg, preview: resized)
     }
 
     func removeAttachment() {

@@ -7,7 +7,7 @@
 //
 //  Sections, top to bottom:
 //    header (type, place, status, priority, quick facts)
-//    AI analysis  ·  Why this priority?  ·  Photos & videos  ·  Camera feed  ·  Timeline
+//    AI analysis  ·  Drone feed  ·  Why this priority?  ·  Photos & videos  ·  Timeline
 //    responder buttons pinned to the bottom
 //
 
@@ -83,9 +83,9 @@ struct IncidentDetailView: View {
 
         case .loaded(let detail):
             AIAnalysisCard(detail: detail) { openMedia = $0 }
+            DroneFeedSection(summary: detail.summary, snapshots: detail.cameraFeed) { openMedia = $0 }
             PriorityBreakdownCard(priority: detail.summary.priority)
             MediaGallerySection(media: detail.uploads) { openMedia = $0 }
-            CameraFeedSection(media: detail.cameraFeed) { openMedia = $0 }
             TimelineSection(events: detail.timeline)
         }
     }

@@ -80,6 +80,16 @@ struct AIAnalysisCard: View {
             findingRow("People", systemImage: "person.2.fill",
                        value: peopleText,
                        highlighted: detail.summary.ai.peopleCount > 0)
+            if detail.summary.ai.peopleDown > 0 {
+                Divider()
+                findingRow("May be down (possible injury)", systemImage: "figure.fall",
+                           value: "\(detail.summary.ai.peopleDown)", highlighted: true)
+            }
+            if detail.summary.ai.peopleNearFire > 0 {
+                Divider()
+                findingRow("Near the flames", systemImage: "flame",
+                           value: "\(detail.summary.ai.peopleNearFire)", highlighted: true)
+            }
             Divider()
             findingRow("Low-light enhancement", systemImage: "moon.stars.fill",
                        value: detail.summary.ai.lowLightUsed ? "Used" : "Not needed",
