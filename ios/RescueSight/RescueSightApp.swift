@@ -2,8 +2,7 @@
 //  RescueSightApp.swift
 //  RescueSight
 //
-//  Where the app starts. It opens straight onto the incident map.
-//  (The Incidents and About tabs are added in later steps.)
+//  Where the app starts: the tab bar (Map, Incidents).
 //
 
 import SwiftUI
@@ -15,7 +14,7 @@ struct RescueSightApp: App {
 
     var body: some Scene {
         WindowGroup {
-            IncidentMapView()
+            RootView()
                 // Apply the saved choice at launch and whenever it changes.
                 .onChange(of: appearance, initial: true) { appearance.apply() }
                 .task { appearance.apply() }

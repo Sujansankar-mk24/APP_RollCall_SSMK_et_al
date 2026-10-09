@@ -58,6 +58,17 @@ enum IncidentType: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Can the AI confirm this type from a photo? It looks for flames, smoke
+    /// and people, so fire, smoke and injury reports can be checked, but a
+    /// tornado or a flooded road can't. (Keep in sync with AI_VERIFIABLE_TYPES
+    /// in backend/app/services/priority.py.)
+    var canBeVerifiedByAI: Bool {
+        switch self {
+        case .fire, .smoke, .injury: true
+        default: false
+        }
+    }
+
     /// Which group ("mode") this type belongs to.
     var category: IncidentCategory {
         switch self {

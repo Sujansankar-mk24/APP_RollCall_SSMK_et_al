@@ -57,6 +57,25 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// The same display choices as a plain toolbar menu (used on the Incidents tab).
+struct AppearanceToolbarMenu: View {
+    @AppStorage(AppearanceMode.storageKey) private var mode: AppearanceMode = .system
+
+    var body: some View {
+        Menu {
+            Picker("Display", selection: $mode) {
+                ForEach(AppearanceMode.allCases) { option in
+                    Label(option.title, systemImage: option.symbol).tag(option)
+                }
+            }
+        } label: {
+            Image(systemName: mode.symbol)
+        }
+        .accessibilityLabel("Display")
+        .accessibilityValue(mode.title)
+    }
+}
+
 /// The round button on the map that opens the display menu.
 struct AppearanceButton: View {
     @AppStorage(AppearanceMode.storageKey) private var mode: AppearanceMode = .system

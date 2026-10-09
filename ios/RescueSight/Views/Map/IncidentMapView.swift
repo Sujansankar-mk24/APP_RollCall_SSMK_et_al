@@ -22,7 +22,7 @@ import MapKit
 import SwiftUI
 
 struct IncidentMapView: View {
-    @State private var viewModel = MapViewModel()
+    @State private var viewModel: MapViewModel
     @State private var cameraPosition: MapCameraPosition = .region(AppConfig.homeRegion)
     /// The area currently on screen (updated whenever the map stops moving).
     @State private var visibleRegion = AppConfig.homeRegion
@@ -33,6 +33,10 @@ struct IncidentMapView: View {
     @State private var lastReport: ReportCreated?
     /// What the AI found in that report's photo/video (updates live).
     @State private var lastReportAnalysis: ReportAnalysisState = .noMedia
+
+    init(store: IncidentStore) {
+        _viewModel = State(initialValue: MapViewModel(store: store))
+    }
 
     /// The incident whose detail sheet is open (looked up from the latest data).
     private var selectedIncident: IncidentSummary? {
@@ -356,5 +360,5 @@ struct IncidentMapView: View {
 }
 
 #Preview {
-    IncidentMapView()
+    IncidentMapView(store: IncidentStore())
 }

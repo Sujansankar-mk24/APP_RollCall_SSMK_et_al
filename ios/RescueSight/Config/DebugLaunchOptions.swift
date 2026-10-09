@@ -24,6 +24,15 @@ enum DebugLaunchOptions {
         #endif
     }
 
+    /// Start on the Incidents tab instead of the map.
+    static var startsOnIncidentsTab: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "RSIncidentsTab")
+        #else
+        return false
+        #endif
+    }
+
     /// Open the "Report incident" form as soon as the map loads.
     static var opensReportForm: Bool {
         #if DEBUG
