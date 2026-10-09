@@ -36,6 +36,8 @@ class AISummaryOut(BaseModel):
     fire_detected: bool
     smoke_detected: bool
     people_count: int       # most people seen in a single photo/video
+    people_down: int        # most people who may be lying down, in a single photo/video
+    people_near_fire: int   # most people close to the flames, in a single photo/video
     low_light_used: bool
 
 
@@ -48,6 +50,8 @@ class AnalysisOut(BaseModel):
     smoke_detected: bool
     smoke_confidence: float
     people_count: int
+    people_down: int
+    people_near_fire: int
     low_light_used: bool
     brightness: Optional[float]
     detector: Optional[str]  # which fire detector ran
@@ -101,6 +105,7 @@ class IncidentSummaryOut(BaseModel):
     priority: PriorityOut
     ai: AISummaryOut
     cover_thumbnail_url: Optional[str]  # a preview picture for list rows
+    live_feed: bool = False             # a drone/camera feed is running right now
 
 
 class IncidentDetailOut(IncidentSummaryOut):
@@ -109,6 +114,36 @@ class IncidentDetailOut(IncidentSummaryOut):
     reports: list[ReportOut]
     media: list[MediaOut]
     timeline: list[TimelineEventOut]
+
+
+class LiveStatsOut(BaseModel):
+    """What the AI sees in the drone feed right now."""
+
+    people_count: int
+    people_down: int
+    people_near_fire: int
+    fire_detected: bool
+    fire_confidence: float
+    fire_coverage: float  # share of the view that is flames, 0.0 to 1.0
+    smoke_detected: bool
+    low_light_used: bool
+
+
+class LiveFeedOut(BaseModel):
+    active: bool
+    camera_connected: bool   # True if a real drone/camera stream URL is set up
+    source_label: Optional[str] = None
+    is_demo: bool = False
+    started_at: Optional[datetime] = None
+    frames_analyzed: int = 0
+    frame_url: Optional[str] = None
+    now: Optional[LiveStatsOut] = None
+    peak_people: int = 0
+    peak_people_down: int = 0
+    peak_people_near_fire: int = 0
+    fire_seen: bool = False
+    snapshots_saved: int = 0
+    error: Optional[str] = None
 
 
 class StatusUpdateIn(BaseModel):

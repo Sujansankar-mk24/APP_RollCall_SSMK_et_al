@@ -16,3 +16,5 @@ Photos are resized copies; the video is trimmed and converted to MP4. No other c
 | crash_medical.jpg | Jason Bain | CC BY 2.0 | https://commons.wikimedia.org/wiki/File:Medical_evacuation_after_car_accident_Kawartha_Lakes_Ontario.jpg |
 | downed_power_lines.jpg | Arlington County | CC BY-SA 2.0 | https://commons.wikimedia.org/wiki/File:Storm_Downed_power_lines_and_trees_from_Storm_Sandy_(8138919297).jpg |
 | grass_fire_clip.mp4 | blm_mtdks | Public domain | https://commons.wikimedia.org/wiki/File:Burning_grass_and_trees_-_5_shot_sequence_(49802810636).webm |
+| drone_fire_line.mp4 | BLM Oregon & Washington | Public domain | https://commons.wikimedia.org/wiki/File:Prescribed_burning_during_eastern_Oregon_snowfall!_(31193972482).webm |
+| drone_crew.mp4 | BLM Oregon & Washington | Public domain | https://commons.wikimedia.org/wiki/File:Women_and_wildfire_2018_(45881357061).webm |

@@ -22,4 +22,5 @@ class FireSmokeResult:
     fire_confidence: float = 0.0
     smoke_detected: bool = False
     smoke_confidence: float = 0.0
+    fire_area: float = 0.0  # share of the picture covered by flames, 0.0 to 1.0
     boxes: list[Detection] = field(default_factory=list)

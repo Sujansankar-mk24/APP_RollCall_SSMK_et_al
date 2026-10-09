@@ -15,10 +15,10 @@ def make_incident(type=IncidentType.fire, created_at=AFTERNOON):
     return Incident(id=1, type=type, latitude=33.0, longitude=-96.0, created_at=created_at, last_report_at=created_at)
 
 
-def analyzed(fire=False, smoke=False, people=0, low_light=False):
+def analyzed(fire=False, smoke=False, people=0, low_light=False, down=0, near_fire=0):
     return Media(id=1, incident_id=1, kind=MediaKind.photo, file_name="x.jpg",
                  analysis_status=AnalysisStatus.done, fire_detected=fire, smoke_detected=smoke,
-                 people_count=people, low_light_used=low_light)
+                 people_count=people, low_light_used=low_light, people_down=down, people_near_fire=near_fire)
 
 
 def labels(result):
@@ -72,6 +72,12 @@ def test_weather_reports_are_not_marked_down_for_missing_ai_evidence():
 
 def test_multi_word_type_labels():
     assert "Severe storm report" in labels(compute_priority(make_incident(IncidentType.severe_storm), 1, []))
+
+
+def test_people_who_may_need_help_add_points():
+    result = labels(compute_priority(make_incident(), 1, [analyzed(fire=True, people=2, down=1, near_fire=1)]))
+    assert result["Someone may be down (lying on the ground)"] == 15
+    assert result["People close to the flames"] == 10
 
 
 def test_is_night_uses_central_time():

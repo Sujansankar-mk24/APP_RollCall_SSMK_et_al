@@ -72,3 +72,21 @@ VIDEO_MAX_SAMPLES = 30
 
 # Incidents are in North Texas, so "night" is judged on Central Time.
 LOCAL_TIMEZONE = "America/Chicago"
+
+# ---------------------------------------------------------------------------
+# Drone / camera feed
+# ---------------------------------------------------------------------------
+# When your drone (or an ESP32-CAM, or a phone running an IP-camera app) is
+# streaming, put its address here, for example:
+#     export RESCUESIGHT_CAMERA_URL="http://192.168.1.50:81/stream"
+# then restart the server. Without it, the feed plays the demo clips below,
+# so everything works with no hardware.
+CAMERA_STREAM_URL = os.environ.get("RESCUESIGHT_CAMERA_URL") or None
+
+# Demo "drone footage": real public-domain fire videos played one after
+# another, as if a drone were flying over the fire and then the crew.
+DRONE_DEMO_CLIPS = ["grass_fire_clip.mp4", "drone_fire_line.mp4", "drone_crew.mp4"]
+
+LIVE_ANALYSES_PER_SECOND = 2.5   # how often the live feed is checked by the AI
+LIVE_SNAPSHOT_SECONDS = 20       # save a snapshot to the incident at most this often
+LIVE_MAX_MINUTES = 10            # stop a feed automatically after this long

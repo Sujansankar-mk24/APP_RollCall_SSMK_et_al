@@ -13,13 +13,15 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import MEDIA_DIR
 from app.database import create_tables
-from app.routers import incidents, reports
+from app.camera.live import live_feeds
+from app.routers import camera, incidents, reports
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()  # runs once when the server starts
     yield
+    live_feeds.stop_all()  # stop any drone feeds when the server shuts down
 
 
 app = FastAPI(
@@ -31,6 +33,7 @@ app = FastAPI(
 
 app.include_router(incidents.router)
 app.include_router(reports.router)
+app.include_router(camera.router)
 
 # Photos, videos and AI-annotated images are served as plain files, e.g.
 # http://localhost:8000/media/annotated/12.jpg

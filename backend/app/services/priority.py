@@ -12,6 +12,8 @@ Rules (points):
   Fire confirmed by AI ....... +40
   Smoke confirmed by AI ...... +20
   People seen by AI .......... +15 each, up to +45 (3 people)
+  Someone may be down ........ +15   (a person lying on the ground: possible injury)
+  People near the flames ..... +10
   Extra reports .............. +5 each, up to +25
   Low light / night .......... +5
   Not verified by AI ......... -20   (fire, smoke and injury reports only: no photo/video
@@ -54,6 +56,8 @@ FIRE_POINTS = 40
 SMOKE_POINTS = 20
 POINTS_PER_PERSON = 15
 MAX_PEOPLE_POINTS = 45
+PERSON_DOWN_POINTS = 15
+NEAR_FIRE_POINTS = 10
 POINTS_PER_EXTRA_REPORT = 5
 MAX_EXTRA_REPORT_POINTS = 25
 LOW_LIGHT_POINTS = 5
@@ -118,6 +122,12 @@ def compute_priority(incident: Incident, report_count: int, media: Sequence[Medi
         points = min(most_people * POINTS_PER_PERSON, MAX_PEOPLE_POINTS)
         noun = "person" if most_people == 1 else "people"
         factors.append(PriorityFactor(f"{most_people} {noun} detected by AI", points))
+
+    # People who may need help first.
+    if any(m.people_down for m in analyzed):
+        factors.append(PriorityFactor("Someone may be down (lying on the ground)", PERSON_DOWN_POINTS))
+    if any(m.people_near_fire for m in analyzed):
+        factors.append(PriorityFactor("People close to the flames", NEAR_FIRE_POINTS))
 
     # 3. More independent reports = more likely real and probably bigger.
     extra_reports = max(report_count - 1, 0)

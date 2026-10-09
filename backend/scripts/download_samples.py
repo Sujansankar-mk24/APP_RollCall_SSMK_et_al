@@ -11,6 +11,8 @@ Files that are already downloaded are skipped.
 """
 
 import re
+import shutil
+from html import unescape
 import subprocess
 import sys
 import time
@@ -41,6 +43,9 @@ PHOTOS = [
 # Videos: (file name, Commons title, which smaller copy to download, seconds to keep, what it's used for)
 VIDEOS = [
     ("grass_fire_clip.mp4", "Burning grass and trees - 5 shot sequence (49802810636).webm", "480p.vp9.webm", 30, "grass fire video"),
+    # Played (with the clip above) as the demo drone feed.
+    ("drone_fire_line.mp4", "Prescribed burning during eastern Oregon snowfall! (31193972482).webm", "360p.vp9.webm", 36, "fire line with crew"),
+    ("drone_crew.mp4", "Women and wildfire 2018 (45881357061).webm", "360p.vp9.webm", 12, "fire crew on the line"),
 ]
 
 
@@ -86,7 +91,7 @@ def commons_info(titles: list[str], video: bool) -> dict[str, dict]:
 
 def plain_text(html: str) -> str:
     """Commons returns author names as HTML; keep just the text."""
-    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", html)).strip()
+    return unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", html)).strip())
 
 
 def credit_line(file_name: str, title: str, info: dict) -> str:
@@ -97,6 +102,20 @@ def credit_line(file_name: str, title: str, info: dict) -> str:
 
 
 def download(url: str, destination: Path) -> None:
+    """
+    Download one file. Uses the `curl` program when available: Wikimedia's
+    media server rate-limits Python's HTTP library much more strictly than curl.
+    """
+    curl = shutil.which("curl")
+    if curl:
+        result = subprocess.run(
+            [curl, "--silent", "--show-error", "--fail", "--location", "--retry", "4", "--retry-delay", "10",
+             "--user-agent", HEADERS["User-Agent"], "--output", str(destination), url],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            return
+        destination.unlink(missing_ok=True)
     destination.write_bytes(polite_get(url, timeout=120).content)
 
 
@@ -109,7 +128,7 @@ def convert_to_mp4(source: Path, destination: Path, seconds: int) -> None:
 
     subprocess.run(
         [imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-i", str(source),
-         "-t", str(seconds), "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+         "-t", str(seconds), "-an", "-c:v", "libx264", "-crf", "26", "-preset", "veryfast", "-pix_fmt", "yuv420p",
          "-movflags", "+faststart", str(destination)],
         check=True,
     )

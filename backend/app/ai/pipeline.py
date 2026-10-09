@@ -6,6 +6,7 @@ For every photo or video:
   2. Measure brightness; if it's dark, enhance it (low_light.py).
   3. Find people with YOLO (people.py).
   4. Look for fire and smoke (fire.py).
+  4b. Flag people who may be down or are close to the flames (scene.py).
   5. Draw boxes on a copy of the image so responders can see what the AI saw.
   6. Save the results to the database and add a line to the incident timeline.
 
@@ -31,6 +32,7 @@ from app.ai.detections import Detection, FireSmokeResult
 from app.ai.fire import get_fire_detector
 from app.ai.low_light import prepare_for_detection
 from app.ai.people import get_people_detector
+from app.ai.scene import label_people
 from app.ai.video import sample_frames
 from app.config import ANALYSIS_MAX_SIDE, ANNOTATED_DIR, MEDIA_DIR, THUMBS_DIR
 from app.database import engine
@@ -45,9 +47,11 @@ _analysis_lock = threading.Lock()
 
 # Box colors (OpenCV uses Blue, Green, Red order).
 BOX_COLORS = {
-    "person": (255, 180, 0),   # bright blue
-    "fire": (0, 60, 255),      # red-orange
-    "smoke": (200, 200, 200),  # light gray
+    "person": (255, 180, 0),            # bright blue
+    "person down?": (255, 0, 255),      # magenta: stands out as "check on this person"
+    "person near fire": (0, 200, 255),  # amber
+    "fire": (0, 60, 255),               # red-orange
+    "smoke": (200, 200, 200),           # light gray
 }
 
 
@@ -60,11 +64,14 @@ class FrameFindings:
     brightness: float
     low_light_used: bool
     annotated: np.ndarray  # the frame with boxes drawn on it
+    people_down: int = 0       # people who may be lying on the ground
+    people_near_fire: int = 0  # people close to the flames
 
     @property
     def importance(self) -> float:
         """Used to pick the single most informative frame of a video."""
-        return self.fire.fire_confidence * 2 + self.fire.smoke_confidence + 0.5 * len(self.people)
+        return (self.fire.fire_confidence * 2 + self.fire.smoke_confidence + 0.5 * len(self.people)
+                + self.people_down + 0.5 * self.people_near_fire)
 
 
 @dataclass
@@ -76,6 +83,8 @@ class MediaFindings:
     smoke_detected: bool
     smoke_confidence: float
     people_count: int
+    people_down: int
+    people_near_fire: int
     low_light_used: bool
     brightness: float
     frames_analyzed: int
@@ -136,11 +145,15 @@ def analyze_frame(frame: np.ndarray, next_frame: Optional[np.ndarray] = None) ->
     people = get_people_detector().detect(enhanced)
 
     # ...but fire is judged on the original colors, because brightening
-    # changes colors and flames are already bright.
-    fire = get_fire_detector().detect(frame, next_frame)
+    # changes colors and flames are already bright. Knowing where people
+    # are lets it ignore flame-colored safety gear.
+    fire = get_fire_detector().detect(frame, next_frame, people)
 
-    annotated = draw_findings(enhanced, people + fire.boxes, low_light_used)
-    return FrameFindings(people, fire, brightness, low_light_used, annotated)
+    # Who might need help first?
+    labeled_people, people_down, people_near_fire = label_people(people, fire.boxes)
+
+    annotated = draw_findings(enhanced, labeled_people + fire.boxes, low_light_used)
+    return FrameFindings(people, fire, brightness, low_light_used, annotated, people_down, people_near_fire)
 
 
 def combine_frames(frames: list[FrameFindings], thumbnail: np.ndarray) -> MediaFindings:
@@ -163,6 +176,8 @@ def combine_frames(frames: list[FrameFindings], thumbnail: np.ndarray) -> MediaF
         smoke_detected=len(smoke_frames) >= needed,
         smoke_confidence=max((f.fire.smoke_confidence for f in smoke_frames), default=0.0),
         people_count=max(len(f.people) for f in frames),
+        people_down=max(f.people_down for f in frames),
+        people_near_fire=max(f.people_near_fire for f in frames),
         low_light_used=any(f.low_light_used for f in frames),
         brightness=round(sum(f.brightness for f in frames) / len(frames), 1),
         frames_analyzed=len(frames),
@@ -200,6 +215,10 @@ def describe(media: Media) -> str:
         found.append(f"smoke ({media.smoke_confidence:.0%})")
     if media.people_count:
         found.append(f"{media.people_count} {'person' if media.people_count == 1 else 'people'}")
+    if media.people_down:
+        found.append(f"{media.people_down} may be down")
+    if media.people_near_fire:
+        found.append(f"{media.people_near_fire} near the flames")
 
     message = f"AI checked {what}: " + (", ".join(found) + " detected" if found else "no fire, smoke or people detected")
     if media.low_light_used:
@@ -240,6 +259,8 @@ def analyze_media(media_id: int, event_time: Optional[datetime] = None) -> None:
             media.smoke_detected = findings.smoke_detected
             media.smoke_confidence = findings.smoke_confidence
             media.people_count = findings.people_count
+            media.people_down = findings.people_down
+            media.people_near_fire = findings.people_near_fire
             media.low_light_used = findings.low_light_used
             media.brightness = findings.brightness
             media.frames_analyzed = findings.frames_analyzed

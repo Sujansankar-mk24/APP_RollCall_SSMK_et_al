@@ -26,6 +26,25 @@ def create_tables() -> None:
     from app import models  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
+    _add_missing_columns()
+
+
+def _add_missing_columns() -> None:
+    """
+    create_all() makes new tables but never changes existing ones. When a new
+    field is added to a model (like people_down), add the matching column to
+    an older database file so it keeps working without a reset.
+    """
+    with engine.begin() as connection:
+        for table in SQLModel.metadata.sorted_tables:
+            existing = {row[1] for row in connection.exec_driver_sql(f"PRAGMA table_info('{table.name}')")}
+            for column in table.columns:
+                if column.name in existing:
+                    continue
+                column_type = column.type.compile(dialect=engine.dialect)
+                default = column.default.arg if column.default is not None and not callable(column.default.arg) else None
+                default_sql = f" DEFAULT {int(default) if isinstance(default, bool) else repr(default)}" if default is not None else ""
+                connection.exec_driver_sql(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {column_type}{default_sql}')
 
 
 def get_session() -> Iterator[Session]:

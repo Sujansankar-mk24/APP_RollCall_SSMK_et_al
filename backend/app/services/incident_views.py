@@ -9,6 +9,7 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
+from app.camera.live import live_feeds
 from app.models import AnalysisStatus, Incident, Media, Report, TimelineEvent
 from app.schemas import (
     AISummaryOut,
@@ -90,9 +91,12 @@ def to_summary(incident: Incident, reports: list[Report], media: list[Media]) ->
             fire_detected=any(m.fire_detected for m in analyzed),
             smoke_detected=any(m.smoke_detected for m in analyzed),
             people_count=max((m.people_count for m in analyzed), default=0),
+            people_down=max((m.people_down for m in analyzed), default=0),
+            people_near_fire=max((m.people_near_fire for m in analyzed), default=0),
             low_light_used=any(m.low_light_used for m in analyzed),
         ),
         cover_thumbnail_url=media_url(cover.thumbnail_name) if cover else None,
+        live_feed=live_feeds.is_live(incident.id),
     )
 
 
@@ -112,6 +116,8 @@ def to_media_out(item: Media) -> MediaOut:
             smoke_detected=item.smoke_detected,
             smoke_confidence=item.smoke_confidence,
             people_count=item.people_count,
+            people_down=item.people_down,
+            people_near_fire=item.people_near_fire,
             low_light_used=item.low_light_used,
             brightness=item.brightness,
             detector=item.fire_detector,

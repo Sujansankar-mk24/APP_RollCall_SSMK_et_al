@@ -11,7 +11,7 @@ and doesn't care which detector is behind it.
 """
 
 from functools import lru_cache
-from typing import Optional, Protocol
+from typing import Optional, Protocol, Sequence
 
 import cv2
 import numpy as np
@@ -27,10 +27,12 @@ class FireDetector(Protocol):
 
     name: str
 
-    def detect(self, frame: np.ndarray, next_frame: Optional[np.ndarray] = None) -> FireSmokeResult:
+    def detect(self, frame: np.ndarray, next_frame: Optional[np.ndarray] = None,
+               people: Sequence[Detection] = ()) -> FireSmokeResult:
         """
         frame: the image to check.
         next_frame: (videos only) a frame ~0.1 s later, used to see flames flicker.
+        people: where YOLO found people, so flame-colored clothing can be ignored.
         """
         ...
 
@@ -50,6 +52,9 @@ class BasicFireDetector:
          - uneven brightness: flames fade from bright to dim, while a painted
            orange surface is evenly lit.
       In video, flames also flicker, while an orange sign stays still.
+      Firefighters wear bright yellow jackets and helmets, which are flame
+      colored too. So a patch that sits mostly on top of a person YOLO found
+      is treated as clothing and ignored.
 
     SMOKE: a large, smooth, grayish area (a little color, medium brightness,
     almost no texture) in the upper part of the picture, because smoke rises.
@@ -69,9 +74,11 @@ class BasicFireDetector:
     FIRE_MIN_VALUE = 150         # flames give off light, so they are bright
     FIRE_MIN_RED = 180
     # Pass 2: what a patch must look like to count as flames.
-    PATCH_MIN_SATURATION = 140   # median saturation (skin is ~90-120, flames 140+)
+    PATCH_MIN_SATURATION = 125   # median saturation (sunlit grass ~115-120, flames 125+; skin is
+                                 # also ~90-120, but patches on people are ignored anyway)
     PATCH_MIN_RED_VS_BLUE = 75   # median Cr - Cb (skin ~45-65, flames 75+)
     PATCH_MIN_BRIGHTNESS_SPREAD = 12  # standard deviation of brightness inside the patch
+    PATCH_MAX_ON_PEOPLE = 0.6    # ignore a patch if 60%+ of it is on a detected person
     FIRE_MIN_AREA = 0.01         # flames must cover at least 1% of the frame in total
 
     SMOKE_BLOCK = 24             # smoke is judged on 24x24 pixel blocks
@@ -83,11 +90,22 @@ class BasicFireDetector:
     SMOKE_TOP_SHARE = 0.6        # only look in the top 60% of the picture
     SMOKE_MIN_AREA = 0.06        # the smoky region must cover at least 6% of the frame
 
-    def detect(self, frame: np.ndarray, next_frame: Optional[np.ndarray] = None) -> FireSmokeResult:
+    def detect(self, frame: np.ndarray, next_frame: Optional[np.ndarray] = None,
+               people: Sequence[Detection] = ()) -> FireSmokeResult:
         result = FireSmokeResult()
-        self._detect_fire(frame, next_frame, result)
+        people_mask = self._people_mask(frame, people)
+        self._detect_fire(frame, next_frame, people_mask, result)
         self._detect_smoke(frame, result)
         return result
+
+    @staticmethod
+    def _people_mask(frame: np.ndarray, people: Sequence[Detection]) -> np.ndarray:
+        """White inside every person's box, black elsewhere."""
+        mask = np.zeros(frame.shape[:2], dtype=np.uint8)
+        for person in people:
+            x1, y1, x2, y2 = person.box
+            mask[max(y1, 0):max(y2, 0), max(x1, 0):max(x2, 0)] = 255
+        return mask
 
     # ---- fire --------------------------------------------------------------
 
@@ -107,7 +125,8 @@ class BasicFireDetector:
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
         return mask
 
-    def _flame_patches(self, frame: np.ndarray) -> tuple[np.ndarray, list[tuple[int, int, int, int]]]:
+    def _flame_patches(self, frame: np.ndarray,
+                       people_mask: Optional[np.ndarray] = None) -> tuple[np.ndarray, list[tuple[int, int, int, int]]]:
         """
         Pass 2: group flame-colored pixels into patches and keep the ones that
         look like real flames. Returns (mask of kept pixels, box of each kept patch).
@@ -135,13 +154,16 @@ class BasicFireDetector:
                 continue
             if brightness[pixels].std() < self.PATCH_MIN_BRIGHTNESS_SPREAD:
                 continue
+            if people_mask is not None and (people_mask[pixels] > 0).mean() >= self.PATCH_MAX_ON_PEOPLE:
+                continue  # mostly on a person: probably a yellow jacket or helmet
             kept_mask[pixels] = 255
             x, y, w, h = (int(v) for v in stats[patch, :4])
             boxes.append((x, y, x + w, y + h))
         return kept_mask, boxes
 
-    def _detect_fire(self, frame: np.ndarray, next_frame: Optional[np.ndarray], result: FireSmokeResult) -> None:
-        mask, boxes = self._flame_patches(frame)
+    def _detect_fire(self, frame: np.ndarray, next_frame: Optional[np.ndarray],
+                     people_mask: np.ndarray, result: FireSmokeResult) -> None:
+        mask, boxes = self._flame_patches(frame, people_mask)
         fire_area = cv2.countNonZero(mask) / mask.size
         if fire_area < self.FIRE_MIN_AREA:
             return
@@ -150,7 +172,7 @@ class BasicFireDetector:
 
         # Flicker check (videos only): how much of the flame area changed shape?
         if next_frame is not None:
-            next_mask, _ = self._flame_patches(next_frame)
+            next_mask, _ = self._flame_patches(next_frame, people_mask)
             changed = cv2.countNonZero(cv2.bitwise_xor(mask, next_mask))
             union = cv2.countNonZero(cv2.bitwise_or(mask, next_mask))
             flicker = changed / max(union, 1)
@@ -161,6 +183,7 @@ class BasicFireDetector:
 
         result.fire_detected = True
         result.fire_confidence = round(min(confidence, 0.95), 2)
+        result.fire_area = round(fire_area, 4)
         # Box the biggest patches (at most 5, to keep the picture readable).
         boxes.sort(key=lambda b: (b[2] - b[0]) * (b[3] - b[1]), reverse=True)
         for box in boxes[:5]:
@@ -234,7 +257,8 @@ class ModelFireDetector:
         self._model = YOLO(str(model_path))
         self.name = f"model: {model_path.name}"
 
-    def detect(self, frame: np.ndarray, next_frame: Optional[np.ndarray] = None) -> FireSmokeResult:
+    def detect(self, frame: np.ndarray, next_frame: Optional[np.ndarray] = None,
+               people: Sequence[Detection] = ()) -> FireSmokeResult:
         result = FireSmokeResult()
         prediction = self._model.predict(frame, conf=self.MIN_CONFIDENCE, device="cpu", verbose=False)[0]
         for box in prediction.boxes:
@@ -243,6 +267,7 @@ class ModelFireDetector:
             x1, y1, x2, y2 = (int(v) for v in box.xyxy[0].tolist())
             if "fire" in class_name or "flame" in class_name:
                 result.fire_detected = True
+                result.fire_area += (x2 - x1) * (y2 - y1) / (frame.shape[0] * frame.shape[1])
                 result.fire_confidence = max(result.fire_confidence, round(confidence, 2))
                 result.boxes.append(Detection("fire", confidence, (x1, y1, x2, y2)))
             elif "smoke" in class_name:
