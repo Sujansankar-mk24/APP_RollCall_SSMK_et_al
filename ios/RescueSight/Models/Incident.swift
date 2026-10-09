@@ -53,6 +53,15 @@ enum IncidentStatus: String, Codable, CaseIterable, Identifiable {
         case .resolved: "Resolved"
         }
     }
+
+    /// An icon for each status, so status never depends on color alone.
+    var symbol: String {
+        switch self {
+        case .active: "exclamationmark.circle.fill"
+        case .responding: "arrow.triangle.turn.up.right.circle.fill"
+        case .resolved: "checkmark.circle.fill"
+        }
+    }
 }
 
 enum PriorityLevel: String, Codable {

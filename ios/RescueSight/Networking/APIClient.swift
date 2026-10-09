@@ -33,18 +33,32 @@ struct APIClient {
     /// All incidents, highest priority first. (Filtering happens in the app,
     /// so changing a filter is instant and doesn't need the network.)
     func fetchIncidents() async throws(APIError) -> [IncidentSummary] {
-        try await get("incidents")
+        try await send(URLRequest(url: baseURL.appending(path: "incidents")))
+    }
+
+    /// One incident with its reports, media, AI results and timeline.
+    func fetchIncident(id: Int) async throws(APIError) -> IncidentDetail {
+        try await send(URLRequest(url: baseURL.appending(path: "incidents/\(id)")))
+    }
+
+    /// A responder marks an incident responding / resolved (or active again).
+    /// The server answers with the updated incident.
+    func updateStatus(incidentID: Int, to status: IncidentStatus) async throws(APIError) -> IncidentDetail {
+        var request = URLRequest(url: baseURL.appending(path: "incidents/\(incidentID)/status"))
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data(#"{"status": "\#(status.rawValue)"}"#.utf8)
+        return try await send(request)
     }
 
     // MARK: - Plumbing
 
-    /// Download a path and decode the JSON into whatever type the caller expects.
-    private func get<Response: Decodable>(_ path: String) async throws(APIError) -> Response {
-        let url = baseURL.appending(path: path)
+    /// Send a request and decode the JSON answer into whatever type the caller expects.
+    private func send<Response: Decodable>(_ request: URLRequest) async throws(APIError) -> Response {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(from: url)
+            (data, response) = try await session.data(for: request)
         } catch {
             throw .serverUnreachable
         }
