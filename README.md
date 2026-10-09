@@ -53,8 +53,41 @@ The app reads the server address from `ios/RescueSight/Config/AppConfig.swift` (
 New Swift files added anywhere inside `ios/RescueSight/` are included in the project automatically.
 
 **Testing reports in the simulator:**
+- **Address search:** type an address or place in the report form and pick a suggestion to move the pin. **Take photo or video** only appears on a real iPhone; the simulator has no camera.
 - **Location:** the simulator starts out in California. Set a North Texas location in the simulator's menu (Features → Location → Custom Location), or run `xcrun simctl location booted set 33.0712,-96.1043` (next to the demo grass fire, so a fire report there merges into it).
 - **Photos and videos:** add some to the simulator's Photos app by dragging files onto the simulator window, or run `xcrun simctl addmedia booted backend/sample_media/grass_fire_crew.jpg backend/sample_media/grass_fire_clip.mp4`.
+
+## Drone feed
+
+Once the AI confirms fire, the incident's sheet offers **Launch drone feed**. While it's live, the app shows the AI-annotated video and live counts:
+
+- **People in view**
+- **May be down:** a person whose outline is much wider than it is tall is probably lying on the ground and could be injured
+- **Near the flames:** a person whose outline touches the area around a fire
+- **Fire in view:** how much of the picture is flames
+
+The feed saves a snapshot to the incident (with a timeline entry) when something important changes and every 20 seconds, so there's a record after it stops.
+
+**Connecting real hardware.** The backend reads any MJPEG or RTSP stream with OpenCV, such as an ESP32-CAM on a drone or a phone running an IP-camera app. Set the stream address, then restart the server:
+
+```bash
+export RESCUESIGHT_CAMERA_URL="http://192.168.1.50:81/stream"
+uvicorn app.main:app --reload
+```
+
+Without it, the feed plays demo footage of real fires (public domain, labeled "Demo footage" in the app), and the AI results are real. See `backend/app/camera/sources.py`.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/incidents/{id}/camera` | Is a feed running, and what does the AI see right now? |
+| `POST` | `/incidents/{id}/camera/start` | Launch the feed |
+| `POST` | `/incidents/{id}/camera/stop` | Stop it |
+| `GET` | `/incidents/{id}/camera/frame.jpg` | The newest picture with AI boxes |
+
+## Automated tests
+
+- **Backend:** `cd backend && python -m pytest`
+- **iPhone app (UI tests):** start the backend with fresh demo data (`python -m scripts.reset_demo`, then `uvicorn app.main:app`), then press **⌘U** in Xcode. The tests tap through the real app: zooming the map, reporting a fire that merges into an existing one, searching an address, attaching a photo and waiting for the AI result, and launching the drone feed.
 
 ## Incident types
 
@@ -87,8 +120,9 @@ Every photo or video is analyzed in the background right after upload, so the ap
 
 1. **Low-light check.** The average brightness is measured. If the picture is dark, its contrast is boosted with CLAHE before detection, and that is recorded.
 2. **People.** YOLOv8n, a small pretrained neural network, finds people. It runs on a normal laptop CPU.
-3. **Fire and smoke.** If a trained model exists at `backend/models/fire.pt`, it is used. Otherwise a hand-written OpenCV rule (the **basic detector**) looks for deeply saturated, red-dominant, unevenly lit flame patches and, in video, flicker. Smoke is a large, smooth, grayish area in the upper part of the picture.
-4. **Video.** About one frame per second is checked (up to 30 seconds). Fire or smoke must appear in at least 2 frames, and the most informative frame is saved with its boxes drawn on.
+3. **Fire and smoke.** If a trained model exists at `backend/models/fire.pt`, it is used. Otherwise a hand-written OpenCV rule (the **basic detector**) looks for deeply saturated, red-dominant, unevenly lit flame patches and, in video, flicker. Flame-colored patches that sit on a detected person are ignored, because firefighters' yellow jackets and helmets are flame colored. Smoke is a large, smooth, grayish area in the upper part of the picture.
+4. **Who might need help.** People lying down ("may be down") and people close to the flames are flagged from YOLO's boxes (`backend/app/ai/scene.py`).
+5. **Video.** About one frame per second is checked (up to 30 seconds). Fire or smoke must appear in at least 2 frames, and the most informative frame is saved with its boxes drawn on.
 
 ## How priority scoring works
 
@@ -100,6 +134,8 @@ Simple rules that anyone can check, not a black box. The app shows each one unde
 | Fire confirmed by AI | +40 |
 | Smoke confirmed by AI | +20 |
 | Each person detected | +15 (up to +45) |
+| Someone may be down (lying on the ground) | +15 |
+| People close to the flames | +10 |
 | Each extra report | +5 (up to +25) |
 | Low light / night (8 PM–6 AM) | +5 |
 | Not yet verified by AI (fire, smoke and injury reports only) | −20 |
@@ -110,6 +146,7 @@ The −20 only applies to types the AI can check. It looks for flames, smoke and
 
 ## Known limitations
 
+- "May be down" is a hint, not a diagnosis: someone resting on the ground looks the same, and a camera angle can make distances look shorter than they are.
 - The basic fire detector was tuned on a small set of photos. In testing it mistook a yellow "Water over road" sign for fire, a gray indoor wall and a hazy overcast sky for smoke, and missed a distant smoke plume and some small flames. A trained model at `models/fire.pt` fixes most of this.
 - The AI cannot recognize tornadoes, floods, storms or ice. For those reports it can still count people in the photo, but the weather itself is confirmed by how many people report it.
 
