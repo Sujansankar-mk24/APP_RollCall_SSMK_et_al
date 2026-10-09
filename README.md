@@ -146,6 +146,7 @@ The −20 only applies to types the AI can check. It looks for flames, smoke and
 
 ## Known limitations
 
+- The app logs one intermittent SwiftUI layout warning ("Invalid frame dimension") while using the address search in the report form. It doesn't affect how anything works, and its source is still being tracked down.
 - "May be down" is a hint, not a diagnosis: someone resting on the ground looks the same, and a camera angle can make distances look shorter than they are.
 - The basic fire detector was tuned on a small set of photos. In testing it mistook a yellow "Water over road" sign for fire, a gray indoor wall and a hazy overcast sky for smoke, and missed a distant smoke plume and some small flames. A trained model at `models/fire.pt` fixes most of this.
 - The AI cannot recognize tornadoes, floods, storms or ice. For those reports it can still count people in the photo, but the weather itself is confirmed by how many people report it.
