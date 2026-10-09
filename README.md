@@ -10,7 +10,7 @@ A community emergency map for North Texas. Residents report incidents with a pin
 
 ```
 backend/   Python FastAPI server, SQLite database, AI pipeline
-ios/       SwiftUI iPhone app (coming next)
+ios/       SwiftUI iPhone app (iOS 17+, no third-party packages)
 ```
 
 ## Running the backend
@@ -41,6 +41,16 @@ In a new terminal, run `source .venv/bin/activate` again before using `python` o
 | `python -m scripts.reset_demo` | Wipes everything and reloads the 8 demo incidents |
 | `python -m scripts.download_samples` | Downloads the sample media only |
 | `python -m pytest` | Runs the automated tests |
+
+## Running the iPhone app
+
+1. Start the backend (above) and leave it running.
+2. Open `ios/RescueSight.xcodeproj` in Xcode.
+3. Pick an iPhone simulator at the top of the window (for example, iPhone 18 Pro) and press **Run** (⌘R).
+
+The app reads the server address from `ios/RescueSight/Config/AppConfig.swift` (`http://localhost:8000`). If the backend isn't running, the app shows "Can't reach RescueSight" with a **Try again** button.
+
+New Swift files added anywhere inside `ios/RescueSight/` are included in the project automatically.
 
 ## API
 
