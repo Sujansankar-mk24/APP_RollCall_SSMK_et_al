@@ -52,6 +52,20 @@ The app reads the server address from `ios/RescueSight/Config/AppConfig.swift` (
 
 New Swift files added anywhere inside `ios/RescueSight/` are included in the project automatically.
 
+**Testing reports in the simulator:**
+- **Location:** the simulator starts out in California. Set a North Texas location in the simulator's menu (Features → Location → Custom Location), or run `xcrun simctl location booted set 33.0712,-96.1043` (next to the demo grass fire, so a fire report there merges into it).
+- **Photos and videos:** add some to the simulator's Photos app by dragging files onto the simulator window, or run `xcrun simctl addmedia booted backend/sample_media/grass_fire_crew.jpg backend/sample_media/grass_fire_clip.mp4`.
+
+## Incident types
+
+Reports can be about any of these, grouped into "modes" so the map can show one kind of disaster at a time:
+
+| Mode | Types |
+|---|---|
+| Fire & smoke | Fire, Smoke |
+| Severe weather | Tornado, Severe storm (wind, hail, downed lines), Heavy rain, Flood, Hurricane, Winter storm |
+| Medical & other | Injury, Other |
+
 ## API
 
 | Method | Path | Purpose |
@@ -82,20 +96,22 @@ Simple rules that anyone can check, not a black box. The app shows each one unde
 
 | Rule | Points |
 |---|---|
-| Starting points by type | fire +20, injury +20, flood +15, smoke +10, other +5 |
+| Starting points by type | tornado +40, hurricane +40, fire +20, injury +20, flood +20, severe storm +20, winter storm +20, heavy rain +10, smoke +10, other +5 |
 | Fire confirmed by AI | +40 |
 | Smoke confirmed by AI | +20 |
 | Each person detected | +15 (up to +45) |
 | Each extra report | +5 (up to +25) |
 | Low light / night (8 PM–6 AM) | +5 |
-| Not yet verified by AI | −20 |
+| Not yet verified by AI (fire, smoke and injury reports only) | −20 |
 
 The total is kept between 0 and 100: 60+ is high, 30–59 medium, below 30 low. See `backend/app/services/priority.py`.
+
+The −20 only applies to types the AI can check. It looks for flames, smoke and people, so for a fire report "no evidence yet" means something. It can't recognize a tornado or a flooded road, so weather reports aren't marked down for that; the number of independent reports counts instead.
 
 ## Known limitations
 
 - The basic fire detector was tuned on a small set of photos. In testing it mistook a yellow "Water over road" sign for fire, a gray indoor wall and a hazy overcast sky for smoke, and missed a distant smoke plume and some small flames. A trained model at `models/fire.pt` fixes most of this.
-- The AI cannot confirm floods, injuries without visible people, or downed power lines, so those reports stay "not yet verified" until someone reviews them.
+- The AI cannot recognize tornadoes, floods, storms or ice. For those reports it can still count people in the photo, but the weather itself is confirmed by how many people report it.
 
 ## Credits
 

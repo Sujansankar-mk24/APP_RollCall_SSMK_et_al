@@ -35,6 +35,11 @@ def test_first_report_creates_incident_and_second_merges():
     assert len(incidents) == 1 and incidents[0]["report_count"] == 2
 
 
+def test_missing_location_name_gets_coordinates():
+    incident_id = report(location_name="").json()["incident_id"]
+    assert client.get(f"/incidents/{incident_id}").json()["location_name"] == "Near 33.0705, -96.1050"
+
+
 def test_different_type_creates_separate_incident():
     report()
     report(type="flood")

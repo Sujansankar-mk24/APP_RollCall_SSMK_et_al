@@ -41,6 +41,8 @@ def create_report(
     The caller commits the session.
     """
     now = at or utc_now()
+    # If the app couldn't look up a street name, still give people something to read.
+    location_name = location_name or f"Near {latitude:.4f}, {longitude:.4f}"
     incident = find_merge_target(session, incident_type, latitude, longitude, now)
     merged = incident is not None
 

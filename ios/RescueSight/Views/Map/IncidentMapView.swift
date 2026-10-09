@@ -10,9 +10,11 @@
 //    "Updated ... ago"                  legend
 //    (map with zones and markers)
 //                                       display (light/night) button
-//                                       recenter button
+//             [Report incident]         recenter button
 //
 //  Tapping an incident zooms in on it and opens its detail sheet.
+//  "Report incident" opens the report form; after sending, a message
+//  confirms it and the map moves to the incident.
 //
 
 import MapKit
@@ -23,6 +25,9 @@ struct IncidentMapView: View {
     @State private var cameraPosition: MapCameraPosition = .region(AppConfig.homeRegion)
     @State private var selectedIncidentID: IncidentSummary.ID?
     @State private var sheetDetent: PresentationDetent = .medium
+    @State private var isReporting = false
+    /// The server's answer to the last report sent, shown as a confirmation message.
+    @State private var lastReport: ReportCreated?
 
     /// The incident whose detail sheet is open (looked up from the latest data).
     private var selectedIncident: IncidentSummary? {
@@ -65,8 +70,35 @@ struct IncidentMapView: View {
                 .padding(Spacing.l)
             }
         }
+        .overlay(alignment: .bottom) {
+            if viewModel.loadState == .loaded {
+                VStack(spacing: Spacing.m) {
+                    if let report = lastReport {
+                        ReportSentToast(result: report) {
+                            selectedIncidentID = report.incidentId
+                            lastReport = nil
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    reportButton
+                }
+                .padding(.bottom, Spacing.l)
+            }
+        }
         .overlay {
             stateOverlay
+        }
+        .animation(.spring(duration: 0.35), value: lastReport)
+        .task(id: lastReport) {
+            // Hide the confirmation after a few seconds.
+            guard lastReport != nil else { return }
+            try? await Task.sleep(for: .seconds(6))
+            lastReport = nil
+        }
+        .sheet(isPresented: $isReporting) {
+            ReportFormView { result in
+                Task { await reportWasSent(result) }
+            }
         }
         .animation(.easeOut(duration: 0.2), value: viewModel.loadState)
         .onChange(of: selectedIncidentID) { _, newValue in
@@ -109,20 +141,40 @@ struct IncidentMapView: View {
         )
     }
 
+    /// After a report is sent: refresh the map, fly to the incident, and confirm.
+    private func reportWasSent(_ result: ReportCreated) async {
+        await viewModel.load()
+        if let incident = viewModel.incidents.first(where: { $0.id == result.incidentId }) {
+            // Make sure the new incident isn't hidden by the current filters.
+            if !viewModel.filters.matches(incident) { viewModel.clearFilters() }
+            focus(on: incident, leavingRoomForSheet: false)
+        }
+        lastReport = result
+    }
+
     /// Debug builds only: open an incident at launch (for screenshots and testing).
     private func openDebugSelectionIfRequested() {
+        if DebugLaunchOptions.opensReportForm {
+            isReporting = true
+            return
+        }
         guard let id = DebugLaunchOptions.incidentToSelect else { return }
         if DebugLaunchOptions.opensLargeSheet { sheetDetent = .large }
         selectedIncidentID = id
     }
 
-    /// Zoom in on the selected incident, placing it in the strip of map
-    /// between the top controls and the half-height sheet.
     private func focusOnSelectedIncident() {
         guard let incident = selectedIncident else { return }
+        focus(on: incident, leavingRoomForSheet: true)
+    }
+
+    /// Zoom in on an incident. With `leavingRoomForSheet`, it's placed in the
+    /// strip of map between the top controls and the half-height sheet.
+    private func focus(on incident: IncidentSummary, leavingRoomForSheet: Bool) {
         let height = 0.06  // degrees of latitude shown top to bottom (about 6.5 km)
         // Moving the map's center south pushes the incident up the screen.
-        let center = CLLocationCoordinate2D(latitude: incident.latitude - height * 0.35,
+        let shift = leavingRoomForSheet ? height * 0.35 : 0
+        let center = CLLocationCoordinate2D(latitude: incident.latitude - shift,
                                             longitude: incident.longitude)
         withAnimation(.easeInOut(duration: 0.6)) {
             // The tiny longitude span makes the map fit the height exactly,
@@ -151,6 +203,26 @@ struct IncidentMapView: View {
             .padding(.horizontal, Spacing.l)
         }
         .padding(.top, Spacing.xs)
+    }
+
+    /// The main action on the map.
+    private var reportButton: some View {
+        Button {
+            selectedIncidentID = nil
+            lastReport = nil
+            isReporting = true
+        } label: {
+            Label("Report incident", systemImage: "exclamationmark.bubble.fill")
+                .font(.headline)
+                .foregroundStyle(.white)
+                .padding(.horizontal, Spacing.xl)
+                .frame(minHeight: 52)
+                .background(Color.accentColor, in: Capsule())
+                .shadow(color: .black.opacity(0.2), radius: 10, y: 4)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens a form to report an emergency")
     }
 
     private var recenterButton: some View {

@@ -6,6 +6,7 @@
 //  models call these functions and get back Swift structs or an APIError.
 //
 
+import CoreLocation
 import Foundation
 
 struct APIClient {
@@ -48,6 +49,36 @@ struct APIClient {
         request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = Data(#"{"status": "\#(status.rawValue)"}"#.utf8)
+        return try await send(request)
+    }
+
+    /// Send a new report, with its photo or video if there is one. The server
+    /// either adds it to a nearby matching incident or starts a new one.
+    func submitReport(_ report: ReportSubmission) async throws(APIError) -> ReportCreated {
+        var form = MultipartForm()
+        form.addField("type", report.type.rawValue)
+        form.addField("latitude", String(report.coordinate.latitude))
+        form.addField("longitude", String(report.coordinate.longitude))
+        form.addField("description", report.description)
+        form.addField("location_name", report.locationName)
+
+        switch report.attachment {
+        case .photo(let jpeg, _):
+            form.addFile("file", fileName: "photo.jpg", mimeType: "image/jpeg", data: jpeg)
+        case .video(let file, _):
+            guard let data = try? Data(contentsOf: file) else { throw .unreadableAttachment }
+            let isMOV = file.pathExtension.lowercased() == "mov"
+            form.addFile("file", fileName: isMOV ? "video.mov" : "video.mp4",
+                         mimeType: isMOV ? "video/quicktime" : "video/mp4", data: data)
+        case nil:
+            break
+        }
+
+        var request = URLRequest(url: baseURL.appending(path: "reports"))
+        request.httpMethod = "POST"
+        request.setValue(form.contentType, forHTTPHeaderField: "Content-Type")
+        request.httpBody = form.finished()
+        request.timeoutInterval = 120  // videos can take a little while to upload
         return try await send(request)
     }
 

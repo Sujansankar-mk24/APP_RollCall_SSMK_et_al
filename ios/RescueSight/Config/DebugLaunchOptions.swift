@@ -6,6 +6,7 @@
 //  Launch arguments become UserDefaults values, so you can start the app with:
 //
 //      xcrun simctl launch booted com.sujansankar.RescueSight -RSSelectIncident 1 -RSLargeSheet YES
+//      xcrun simctl launch booted com.sujansankar.RescueSight -RSOpenReport YES
 //
 //  (or add them in Xcode: Product > Scheme > Edit Scheme > Run > Arguments).
 //
@@ -20,6 +21,15 @@ enum DebugLaunchOptions {
         return id > 0 ? id : nil
         #else
         return nil
+        #endif
+    }
+
+    /// Open the "Report incident" form as soon as the map loads.
+    static var opensReportForm: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "RSOpenReport")
+        #else
+        return false
         #endif
     }
 

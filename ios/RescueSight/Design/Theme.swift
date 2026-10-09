@@ -15,7 +15,8 @@
 import SwiftUI
 
 /// Spacing on a 4-point grid.
-enum Spacing {
+/// (nonisolated: plain constant numbers, safe to read from any thread.)
+nonisolated enum Spacing {
     static let xs: CGFloat = 4
     static let s: CGFloat = 8
     static let m: CGFloat = 12
@@ -25,14 +26,14 @@ enum Spacing {
 }
 
 /// Corner radii: small controls, cards, and large panels.
-enum Radius {
+nonisolated enum Radius {
     static let control: CGFloat = 10
     static let card: CGFloat = 16
     static let panel: CGFloat = 22
 }
 
 /// Apple's minimum comfortable tap target (Human Interface Guidelines).
-let minimumTapSize: CGFloat = 44
+nonisolated let minimumTapSize: CGFloat = 44
 
 // MARK: - Meaning colors
 

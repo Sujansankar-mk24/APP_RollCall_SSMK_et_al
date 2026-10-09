@@ -15,12 +15,15 @@ enum APIError: Error, Equatable {
     case badResponse(statusCode: Int)
     /// The server's answer wasn't in the shape the app expected.
     case unreadableResponse
+    /// The app couldn't read the photo/video it was about to upload.
+    case unreadableAttachment
 
     var title: String {
         switch self {
         case .serverUnreachable: "Can't reach RescueSight"
         case .badResponse: "Something went wrong"
         case .unreadableResponse: "Something went wrong"
+        case .unreadableAttachment: "Couldn't read the video"
         }
     }
 
@@ -32,6 +35,8 @@ enum APIError: Error, Equatable {
             "The server returned an error (code \(statusCode)). Try again in a moment."
         case .unreadableResponse:
             "The server sent data this version of the app doesn't understand."
+        case .unreadableAttachment:
+            "Remove the video and choose it again, then try sending."
         }
     }
 }
