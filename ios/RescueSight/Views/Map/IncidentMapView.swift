@@ -9,7 +9,10 @@
 //    filter chips
 //    "Updated ... ago"                  legend
 //    (map with zones and markers)
+//                                       display (light/night) button
 //                                       recenter button
+//
+//  Tapping an incident zooms in on it and opens its detail sheet.
 //
 
 import MapKit
@@ -19,6 +22,12 @@ struct IncidentMapView: View {
     @State private var viewModel = MapViewModel()
     @State private var cameraPosition: MapCameraPosition = .region(AppConfig.homeRegion)
     @State private var selectedIncidentID: IncidentSummary.ID?
+    @State private var sheetDetent: PresentationDetent = .medium
+
+    /// The incident whose detail sheet is open (looked up from the latest data).
+    private var selectedIncident: IncidentSummary? {
+        viewModel.incidents.first { $0.id == selectedIncidentID }
+    }
 
     var body: some View {
         Map(position: $cameraPosition, selection: $selectedIncidentID) {
@@ -49,18 +58,77 @@ struct IncidentMapView: View {
         }
         .overlay(alignment: .bottomTrailing) {
             if viewModel.loadState == .loaded {
-                recenterButton
-                    .padding(Spacing.l)
+                VStack(spacing: Spacing.m) {
+                    AppearanceButton()
+                    recenterButton
+                }
+                .padding(Spacing.l)
             }
         }
         .overlay {
             stateOverlay
         }
         .animation(.easeOut(duration: 0.2), value: viewModel.loadState)
+        .onChange(of: selectedIncidentID) { _, newValue in
+            if newValue != nil { focusOnSelectedIncident() }
+        }
+        .sheet(isPresented: isShowingDetail) {
+            if let incident = selectedIncident {
+                IncidentDetailView(summary: incident) {
+                    Task { await viewModel.load() }  // update the map's colors after a status change
+                }
+                .id(incident.id)  // a different incident gets a fresh sheet
+                .presentationDetents([.medium, .large], selection: $sheetDetent)
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(Radius.panel)
+                // Keep the map usable behind a half-height sheet (tap another incident).
+                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                .presentationContentInteraction(.scrolls)
+            }
+        }
         .task {
             // Runs when the screen appears; SwiftUI cancels it when it goes away.
             await viewModel.load()
+            openDebugSelectionIfRequested()
             await viewModel.keepRefreshing()
+        }
+    }
+
+    // MARK: - Selection
+
+    /// The sheet is open whenever an incident is selected; closing it clears the selection.
+    private var isShowingDetail: Binding<Bool> {
+        Binding(
+            get: { selectedIncidentID != nil },
+            set: { isOpen in
+                if !isOpen {
+                    selectedIncidentID = nil
+                    sheetDetent = .medium  // next sheet opens at half height again
+                }
+            }
+        )
+    }
+
+    /// Debug builds only: open an incident at launch (for screenshots and testing).
+    private func openDebugSelectionIfRequested() {
+        guard let id = DebugLaunchOptions.incidentToSelect else { return }
+        if DebugLaunchOptions.opensLargeSheet { sheetDetent = .large }
+        selectedIncidentID = id
+    }
+
+    /// Zoom in on the selected incident, placing it in the strip of map
+    /// between the top controls and the half-height sheet.
+    private func focusOnSelectedIncident() {
+        guard let incident = selectedIncident else { return }
+        let height = 0.06  // degrees of latitude shown top to bottom (about 6.5 km)
+        // Moving the map's center south pushes the incident up the screen.
+        let center = CLLocationCoordinate2D(latitude: incident.latitude - height * 0.35,
+                                            longitude: incident.longitude)
+        withAnimation(.easeInOut(duration: 0.6)) {
+            // The tiny longitude span makes the map fit the height exactly,
+            // so the 0.35 shift above always lands in the same place.
+            cameraPosition = .region(MKCoordinateRegion(
+                center: center, span: MKCoordinateSpan(latitudeDelta: height, longitudeDelta: 0.001)))
         }
     }
 
