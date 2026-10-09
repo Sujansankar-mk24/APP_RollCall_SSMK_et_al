@@ -70,14 +70,34 @@ final class MapViewModel {
         await load()
     }
 
-    /// Re-download every 30 seconds while the map is on screen. SwiftUI
-    /// cancels this loop automatically when the screen goes away.
+    /// Re-download every 30 seconds while the map is on screen, or every
+    /// 2 seconds while the AI is still checking a photo/video (so results
+    /// appear as soon as they're ready). SwiftUI cancels this loop
+    /// automatically when the screen goes away.
     func keepRefreshing() async {
         while !Task.isCancelled {
-            try? await Task.sleep(for: AppConfig.refreshInterval)
+            let isAnalyzing = incidents.contains { $0.ai.analyzing }
+            try? await Task.sleep(for: isAnalyzing ? AppConfig.analysisPollInterval : AppConfig.refreshInterval)
             guard !Task.isCancelled else { return }
             await load()
         }
+    }
+
+    /// After someone sends a photo/video: check every couple of seconds until
+    /// the AI has finished with it, then return what it found (nil if it
+    /// takes longer than a minute or the server can't be reached).
+    func waitForAnalysis(incidentID: Int, mediaID: Int) async -> MediaAnalysis? {
+        let deadline = Date.now.addingTimeInterval(60)
+        while !Task.isCancelled, Date.now < deadline {
+            if let detail = try? await api.fetchIncident(id: incidentID),
+               let media = detail.media.first(where: { $0.id == mediaID }),
+               !media.analysis.status.isInProgress {
+                await load()  // update the map with the new evidence and priority
+                return media.analysis
+            }
+            try? await Task.sleep(for: AppConfig.analysisPollInterval)
+        }
+        return nil
     }
 
     func clearFilters() {

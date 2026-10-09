@@ -192,6 +192,7 @@ struct IncidentSummary: Codable, Identifiable, Hashable {
     /// "Fire, active, high priority, 3 reports. FM 1570 south of Greenville".
     var accessibilityDescription: String {
         let reports = reportCount == 1 ? "1 report" : "\(reportCount) reports"
-        return "\(type.title), \(status.title), \(priority.level.title) priority, \(reports). \(locationName)"
+        let analyzing = ai.analyzing ? " AI is analyzing a photo or video." : ""
+        return "\(type.title), \(status.title), \(priority.level.title) priority, \(reports). \(locationName).\(analyzing)"
     }
 }

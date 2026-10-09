@@ -32,6 +32,17 @@ struct AIAnalysisCard: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                if !failed.isEmpty {
+                    Label {
+                        Text(failed.count == 1
+                             ? "1 file couldn't be analyzed: \(failed[0].analysis.error ?? "unknown error")"
+                             : "\(failed.count) files couldn't be analyzed.")
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Color(.systemOrange))
+                    }
+                    .font(.subheadline)
+                }
                 findings
                 if !analyzed.isEmpty {
                     annotatedImages
@@ -41,6 +52,10 @@ struct AIAnalysisCard: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var failed: [MediaItem] {
+        detail.media.filter { $0.analysis.status == .failed }
     }
 
     private var verifiedNote: String? {

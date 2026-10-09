@@ -28,6 +28,8 @@ struct IncidentMapView: View {
     @State private var isReporting = false
     /// The server's answer to the last report sent, shown as a confirmation message.
     @State private var lastReport: ReportCreated?
+    /// What the AI found in that report's photo/video (updates live).
+    @State private var lastReportAnalysis: ReportAnalysisState = .noMedia
 
     /// The incident whose detail sheet is open (looked up from the latest data).
     private var selectedIncident: IncidentSummary? {
@@ -62,7 +64,8 @@ struct IncidentMapView: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            if viewModel.loadState == .loaded {
+            // Step aside while the report confirmation is showing (they'd overlap).
+            if viewModel.loadState == .loaded && lastReport == nil {
                 VStack(spacing: Spacing.m) {
                     AppearanceButton()
                     recenterButton
@@ -74,7 +77,7 @@ struct IncidentMapView: View {
             if viewModel.loadState == .loaded {
                 VStack(spacing: Spacing.m) {
                     if let report = lastReport {
-                        ReportSentToast(result: report) {
+                        ReportSentToast(result: report, analysis: lastReportAnalysis) {
                             selectedIncidentID = report.incidentId
                             lastReport = nil
                         }
@@ -90,10 +93,7 @@ struct IncidentMapView: View {
         }
         .animation(.spring(duration: 0.35), value: lastReport)
         .task(id: lastReport) {
-            // Hide the confirmation after a few seconds.
-            guard lastReport != nil else { return }
-            try? await Task.sleep(for: .seconds(6))
-            lastReport = nil
+            await followLastReport()
         }
         .sheet(isPresented: $isReporting) {
             ReportFormView { result in
@@ -150,6 +150,25 @@ struct IncidentMapView: View {
             focus(on: incident, leavingRoomForSheet: false)
         }
         lastReport = result
+    }
+
+    /// While the confirmation is showing: if a photo/video was sent, wait for
+    /// the AI's answer and show it. Then hide the confirmation after a few seconds.
+    private func followLastReport() async {
+        guard let report = lastReport else { return }
+        if let mediaID = report.mediaId {
+            lastReportAnalysis = .analyzing
+            if let analysis = await viewModel.waitForAnalysis(incidentID: report.incidentId, mediaID: mediaID) {
+                lastReportAnalysis = .finished(analysis)
+            } else {
+                lastReportAnalysis = .unknown
+            }
+        } else {
+            lastReportAnalysis = .noMedia
+        }
+        try? await Task.sleep(for: .seconds(7))
+        guard !Task.isCancelled else { return }
+        lastReport = nil
     }
 
     /// Debug builds only: open an incident at launch (for screenshots and testing).

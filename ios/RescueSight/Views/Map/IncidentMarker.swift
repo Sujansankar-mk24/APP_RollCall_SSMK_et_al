@@ -4,6 +4,7 @@
 //
 //  The round icon drawn at the center of each incident zone.
 //  Color = status, symbol = type. Active high-priority incidents pulse.
+//  A small spinner shows while the AI is still checking a photo/video.
 //
 
 import SwiftUI
@@ -34,6 +35,17 @@ struct IncidentMarker: View {
                 .font(.system(size: isSelected ? 19 : 15, weight: .semibold))
                 .foregroundStyle(.white)
         }
+        .overlay(alignment: .topTrailing) {
+            if incident.ai.analyzing {
+                ProgressView()
+                    .controlSize(.mini)
+                    .padding(3)
+                    .background(.regularMaterial, in: Circle())
+                    .offset(x: 6, y: -6)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: incident.ai.analyzing)
         .frame(width: minimumTapSize, height: minimumTapSize)  // easy to tap even when small
         .contentShape(Circle())
         .animation(.spring(duration: 0.25), value: isSelected)

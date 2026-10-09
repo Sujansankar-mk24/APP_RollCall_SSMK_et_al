@@ -49,6 +49,18 @@ final class IncidentDetailViewModel {
         }
     }
 
+    /// Keep the sheet up to date while it's open: every 2 seconds while the
+    /// AI is still analyzing (so "Analyzing…" turns into results by itself),
+    /// otherwise every 15 seconds (to pick up new reports).
+    func keepUpdating() async {
+        while !Task.isCancelled {
+            let isAnalyzing = detail?.summary.ai.analyzing ?? false
+            try? await Task.sleep(for: isAnalyzing ? AppConfig.analysisPollInterval : .seconds(15))
+            guard !Task.isCancelled else { return }
+            await load()
+        }
+    }
+
     func retry() async {
         loadState = .loading
         await load()

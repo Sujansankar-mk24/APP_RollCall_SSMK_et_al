@@ -20,6 +20,9 @@ enum AppConfig {
     /// How often the map quietly re-downloads incidents.
     static let refreshInterval: Duration = .seconds(30)
 
+    /// How often to check again while the AI is analyzing a photo/video.
+    static let analysisPollInterval: Duration = .seconds(2)
+
     /// The area the map opens on (and returns to with the recenter button):
     /// North Texas, from McKinney and Sherman east to Paris and Sulphur Springs.
     static let homeRegion = MKCoordinateRegion(

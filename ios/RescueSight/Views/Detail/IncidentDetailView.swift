@@ -47,7 +47,10 @@ struct IncidentDetailView: View {
         }
         .sensoryFeedback(.success, trigger: viewModel.summary.status)  // a little tap when the status changes
         .animation(.easeOut(duration: 0.2), value: viewModel.summary)
-        .task { await viewModel.load() }
+        .task {
+            await viewModel.load()
+            await viewModel.keepUpdating()
+        }
         .refreshable { await viewModel.load() }
         .fullScreenCover(item: $openMedia) { item in
             MediaViewer(item: item)
