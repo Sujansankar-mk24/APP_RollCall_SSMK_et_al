@@ -28,11 +28,24 @@ def utc_now() -> datetime:
 # ---------------------------------------------------------------------------
 
 class IncidentType(str, Enum):
+    # Fire
     fire = "fire"
     smoke = "smoke"
+    # Weather
+    tornado = "tornado"
+    severe_storm = "severe_storm"  # thunderstorm, hail, damaging wind, downed lines
+    heavy_rain = "heavy_rain"
     flood = "flood"
+    hurricane = "hurricane"        # hurricanes and tropical storms
+    winter_storm = "winter_storm"  # ice and snow
+    # Medical and other
     injury = "injury"
     other = "other"
+
+    @property
+    def label(self) -> str:
+        """Human-friendly name, e.g. "Severe storm"."""
+        return self.value.replace("_", " ").capitalize()
 
 
 class IncidentStatus(str, Enum):

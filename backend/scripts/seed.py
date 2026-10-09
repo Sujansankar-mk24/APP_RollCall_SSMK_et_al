@@ -129,11 +129,28 @@ def build_demo_incidents() -> list[DemoIncident]:
             status_changes=[(IncidentStatus.responding, 105)],
         ),
         DemoIncident(
-            IncidentType.other, "Church St, Sulphur Springs", 33.1385, -95.6010,
+            IncidentType.severe_storm, "Church St, Sulphur Springs", 33.1385, -95.6010,
             [
-                DemoReport(360, "Storm knocked a tree and power lines down across the street. Lines are on the ground.",
+                DemoReport(360, "Strong winds knocked a tree and power lines down across the street. Lines are on the ground.",
                            sample="downed_power_lines.jpg"),
+                DemoReport(345, "Power is out on this whole block and hail is coming down.", north_m=110, east_m=-60),
             ],
+            status_changes=[(IncidentStatus.responding, 300)],
+        ),
+        DemoIncident(
+            IncidentType.tornado, "FM 815 east of Leonard", 33.3830, -96.2150,
+            [
+                DemoReport(50, "Funnel cloud touching down southwest of town, moving northeast. Debris in the air."),
+                DemoReport(44, "Tornado on the ground, crossed FM 815. Sirens are going off.", north_m=180, east_m=120),
+                DemoReport(38, "Barn roof torn off and trees down along the road.", north_m=90, east_m=210),
+            ],
+        ),
+        DemoIncident(
+            IncidentType.heavy_rain, "US 380 in Princeton", 33.1800, -96.4980,
+            [
+                DemoReport(1500, "Very heavy rain, water pooling in the right lane and cars hydroplaning."),
+            ],
+            status_changes=[(IncidentStatus.resolved, 1380)],
         ),
     ]
 
@@ -210,12 +227,12 @@ def print_summary() -> None:
         failed = [m for items in media.values() for m in items if m.analysis_error]
 
     rows.sort(key=lambda s: -s.priority.score)
-    print(f"\n{'Priority':<12}{'Type':<8}{'Status':<12}{'Reports':<9}{'AI found':<28}Location")
+    print(f"\n{'Priority':<12}{'Type':<14}{'Status':<12}{'Reports':<9}{'AI found':<28}Location")
     for s in rows:
         found = [name for name, hit in (("fire", s.ai.fire_detected), ("smoke", s.ai.smoke_detected)) if hit]
         if s.ai.people_count:
             found.append(f"{s.ai.people_count} {'person' if s.ai.people_count == 1 else 'people'}")
-        print(f"{s.priority.score:>3} {s.priority.level:<8}{s.type.value:<8}{s.status.value:<12}"
+        print(f"{s.priority.score:>3} {s.priority.level:<8}{s.type.label:<14}{s.status.value:<12}"
               f"{s.report_count:<9}{', '.join(found) or 'nothing':<28}{s.location_name}")
     if failed:
         print(f"\nWARNING: {len(failed)} file(s) could not be analyzed: {[m.analysis_error for m in failed]}")

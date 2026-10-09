@@ -6,13 +6,22 @@ machine-learning model, RescueSight adds up simple rules that anyone can check.
 Every rule that applies becomes one line in the app's "Why this priority?" list.
 
 Rules (points):
-  Starting points by type .... fire +20, injury +20, flood +15, smoke +10, other +5
+  Starting points by type .... tornado +40, hurricane +40, fire +20, injury +20,
+                               flood +20, severe storm +20, winter storm +20,
+                               heavy rain +10, smoke +10, other +5
   Fire confirmed by AI ....... +40
   Smoke confirmed by AI ...... +20
   People seen by AI .......... +15 each, up to +45 (3 people)
   Extra reports .............. +5 each, up to +25
   Low light / night .......... +5
-  Not verified by AI ......... -20   (no photo/video shows fire, smoke, or people yet)
+  Not verified by AI ......... -20   (fire, smoke and injury reports only: no photo/video
+                                      shows fire, smoke, or people yet)
+
+Why is the -20 only for fire, smoke and injury? The AI can look for flames,
+smoke and people, so for those reports "no evidence yet" means something. It
+cannot recognize a tornado, a flood or ice on a road, so weather reports are
+not marked down just because the AI can't confirm them; the number of
+independent reports counts instead.
 
 The total is kept between 0 and 100.
   60+ = high, 30-59 = medium, under 30 = low.
@@ -27,12 +36,20 @@ from app.config import LOCAL_TIMEZONE
 from app.models import AnalysisStatus, Incident, IncidentType, Media
 
 TYPE_BASE_POINTS = {
+    IncidentType.tornado: 40,
+    IncidentType.hurricane: 40,
     IncidentType.fire: 20,
     IncidentType.injury: 20,
-    IncidentType.flood: 15,
+    IncidentType.flood: 20,
+    IncidentType.severe_storm: 20,
+    IncidentType.winter_storm: 20,
+    IncidentType.heavy_rain: 10,
     IncidentType.smoke: 10,
     IncidentType.other: 5,
 }
+
+# Types the AI can actually confirm from a photo (flames, smoke, or people).
+AI_VERIFIABLE_TYPES = {IncidentType.fire, IncidentType.smoke, IncidentType.injury}
 FIRE_POINTS = 40
 SMOKE_POINTS = 20
 POINTS_PER_PERSON = 15
@@ -86,8 +103,7 @@ def compute_priority(incident: Incident, report_count: int, media: Sequence[Medi
     factors: list[PriorityFactor] = []
 
     # 1. Some emergencies are more dangerous to begin with.
-    type_name = incident.type.value.capitalize()
-    factors.append(PriorityFactor(f"{type_name} report", TYPE_BASE_POINTS[incident.type]))
+    factors.append(PriorityFactor(f"{incident.type.label} report", TYPE_BASE_POINTS[incident.type]))
 
     # 2. What the AI actually saw in the photos/videos.
     if any(m.fire_detected for m in analyzed):
@@ -114,8 +130,9 @@ def compute_priority(incident: Incident, report_count: int, media: Sequence[Medi
     if any(m.low_light_used for m in analyzed) or is_night(incident.created_at):
         factors.append(PriorityFactor("Low light / night", LOW_LIGHT_POINTS))
 
-    # 5. No visual evidence yet: could be a false alarm, so rank it lower.
-    if not is_verified(media):
+    # 5. No visual evidence yet for a type the AI can check: could be a false
+    #    alarm, so rank it lower.
+    if incident.type in AI_VERIFIABLE_TYPES and not is_verified(media):
         factors.append(PriorityFactor("Not yet verified by AI", UNVERIFIED_POINTS))
 
     total = sum(f.points for f in factors)

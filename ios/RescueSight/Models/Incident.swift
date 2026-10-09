@@ -13,8 +13,16 @@ import Foundation
 
 // MARK: - Fixed lists of values
 
+/// The kind of emergency. The raw values match the backend exactly
+/// (for example "severe_storm"), so JSON converts automatically.
 enum IncidentType: String, Codable, CaseIterable, Identifiable {
-    case fire, smoke, flood, injury, other
+    case fire, smoke
+    case tornado
+    case severeStorm = "severe_storm"
+    case heavyRain = "heavy_rain"
+    case flood, hurricane
+    case winterStorm = "winter_storm"
+    case injury, other
 
     var id: Self { self }
 
@@ -23,7 +31,12 @@ enum IncidentType: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .fire: "Fire"
         case .smoke: "Smoke"
+        case .tornado: "Tornado"
+        case .severeStorm: "Severe storm"
+        case .heavyRain: "Heavy rain"
         case .flood: "Flood"
+        case .hurricane: "Hurricane"
+        case .winterStorm: "Winter storm"
         case .injury: "Injury"
         case .other: "Other"
         }
@@ -34,10 +47,52 @@ enum IncidentType: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .fire: "flame.fill"
         case .smoke: "smoke.fill"
+        case .tornado: "tornado"
+        case .severeStorm: "cloud.bolt.rain.fill"
+        case .heavyRain: "cloud.heavyrain.fill"
         case .flood: "water.waves"
+        case .hurricane: "hurricane"
+        case .winterStorm: "snowflake"
         case .injury: "cross.case.fill"
         case .other: "exclamationmark.triangle.fill"
         }
+    }
+
+    /// Which group ("mode") this type belongs to.
+    var category: IncidentCategory {
+        switch self {
+        case .fire, .smoke: .fire
+        case .tornado, .severeStorm, .heavyRain, .flood, .hurricane, .winterStorm: .weather
+        case .injury, .other: .medicalAndOther
+        }
+    }
+}
+
+/// Groups of incident types. The map's type filter can switch to one group
+/// at a time, for example "Weather only" during a storm.
+enum IncidentCategory: String, CaseIterable, Identifiable {
+    case fire, weather, medicalAndOther
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .fire: "Fire & smoke"
+        case .weather: "Severe weather"
+        case .medicalAndOther: "Medical & other"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .fire: "flame.fill"
+        case .weather: "cloud.bolt.rain.fill"
+        case .medicalAndOther: "cross.case.fill"
+        }
+    }
+
+    var types: [IncidentType] {
+        IncidentType.allCases.filter { $0.category == self }
     }
 }
 

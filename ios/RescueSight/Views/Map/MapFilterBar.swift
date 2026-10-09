@@ -31,13 +31,27 @@ struct MapFilterBar: View {
 
     private var typeMenu: some View {
         Menu {
-            ForEach(IncidentType.allCases) { type in
-                Toggle(isOn: toggleBinding(type, in: \.types)) {
-                    Label(type.title, systemImage: type.symbol)
+            // Quick "modes": show one group of disasters at a time.
+            Section("Modes") {
+                Button("All incidents", systemImage: "square.grid.2x2") {
+                    filters.types = Set(IncidentType.allCases)
+                }
+                ForEach(IncidentCategory.allCases) { category in
+                    Button("\(category.title) only", systemImage: category.symbol) {
+                        filters.types = Set(category.types)
+                    }
                 }
             }
-            Divider()
-            Button("Show all types") { filters.types = Set(IncidentType.allCases) }
+            // Or pick individual types, grouped the same way.
+            ForEach(IncidentCategory.allCases) { category in
+                Section(category.title) {
+                    ForEach(category.types) { type in
+                        Toggle(isOn: toggleBinding(type, in: \.types)) {
+                            Label(type.title, systemImage: type.symbol)
+                        }
+                    }
+                }
+            }
         } label: {
             FilterChipLabel(
                 title: filters.typesLabel,

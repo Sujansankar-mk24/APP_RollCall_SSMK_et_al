@@ -53,14 +53,19 @@ struct MapFilters: Equatable {
     // MARK: Chip labels
 
     var typesLabel: String {
-        label(for: types, all: IncidentType.allCases, name: "Type", plural: "types") { $0.title }
+        // If exactly one whole group is selected, name the group.
+        if let category = IncidentCategory.allCases.first(where: { Set($0.types) == types }), types.count > 1 {
+            return category.title
+        }
+        return label(for: types, all: IncidentType.allCases, name: "Type", plural: "types") { $0.title }
     }
 
     var statusesLabel: String {
         label(for: statuses, all: IncidentStatus.allCases, name: "Status", plural: "statuses") { $0.title }
     }
 
-    /// "Type" (nothing filtered), "Fire" (one picked), or "2 types".
+    /// "Type" (nothing filtered), a mode name like "Severe weather",
+    /// "Fire" (one picked), or "2 types".
     private func label<Item: Hashable>(for selected: Set<Item>, all: [Item], name: String, plural: String,
                                        title: (Item) -> String) -> String {
         if selected.count == all.count || selected.isEmpty { return name }

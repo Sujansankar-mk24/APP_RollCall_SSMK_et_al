@@ -60,7 +60,18 @@ def test_media_still_being_analyzed_does_not_count_yet():
 def test_score_stays_between_0_and_100():
     everything = [analyzed(fire=True, smoke=True, people=5, low_light=True)]
     assert compute_priority(make_incident(created_at=NIGHT), 10, everything).score == 100
-    assert compute_priority(make_incident(IncidentType.other), 1, []).score == 0
+    assert compute_priority(make_incident(IncidentType.smoke), 1, []).score == 0
+
+
+def test_weather_reports_are_not_marked_down_for_missing_ai_evidence():
+    # The AI can't recognize a tornado, so there is no "Not yet verified" penalty.
+    result = compute_priority(make_incident(IncidentType.tornado), report_count=3, media=[])
+    assert labels(result) == {"Tornado report": 40, "2 more reports from the area": 10}
+    assert result.score == 50 and result.level == "medium"
+
+
+def test_multi_word_type_labels():
+    assert "Severe storm report" in labels(compute_priority(make_incident(IncidentType.severe_storm), 1, []))
 
 
 def test_is_night_uses_central_time():
