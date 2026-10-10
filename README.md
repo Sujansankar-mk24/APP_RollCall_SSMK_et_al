@@ -107,7 +107,7 @@ Without it, the feed plays demo footage of real fires (public domain, labeled "D
 `tools/record_demo.sh` records a narrated walkthrough of the whole app on the iPhone simulator, with no screen-recording software needed:
 
 ```bash
-tools/record_demo.sh        # about 25 minutes; result: demo_video/RescueSight-walkthrough.mp4
+tools/record_demo.sh        # about 25 minutes; results: demo_video/RescueSight-2min.mp4 and RescueSight-walkthrough.mp4 (full, ~14 min)
 ```
 
 It resets the demo data, then runs `ios/RescueSightUITests/DemoWalkthrough.swift`, a UI test that taps through every feature while the simulator's screen is recorded. Next it records the offline state with the backend switched off. Finally, `tools/make_demo_video.py` adds captions ("what is being shown" and "what I'm doing"), a ring wherever something is tapped, a progress strip, chapter markers and a voice-over (macOS's built-in Samantha voice). The walkthrough test is skipped in normal test runs. Close other heavy apps first: the simulator, recording and AI all run at once.

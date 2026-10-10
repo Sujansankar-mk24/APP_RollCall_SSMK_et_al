@@ -9,7 +9,7 @@
 #   5. builds the final video with captions, tap rings and a voice-over
 #
 # Run from anywhere:   tools/record_demo.sh
-# Result:              demo_video/RescueSight-walkthrough.mp4  (about 10 minutes long)
+# Results:             demo_video/RescueSight-2min.mp4 (short) and RescueSight-walkthrough.mp4 (full, ~14 min)
 #
 set -euo pipefail
 
@@ -117,10 +117,15 @@ echo "6/6  Building the video (captions, tap rings, voice-over)"
 for clip in clip1 clip2; do
     avconvert --source "$WORK/$clip.mov" --preset Preset1920x1080 --output "$WORK/${clip}_fixed.mov" --replace > /dev/null
 done
+echo "$STOP1" > "$WORK/stop1.txt"
+echo "$STOP2" > "$WORK/stop2.txt"
 "$PY" "$ROOT/tools/make_demo_video.py" \
     --clip "$WORK/clip1_fixed.mov" "$WORK/events1.jsonl" "$STOP1" \
     --clip "$WORK/clip2_fixed.mov" "$WORK/events2.jsonl" "$STOP2" \
     --out "$OUT_DIR/RescueSight-walkthrough.mp4"
+
+# The ~2 minute version, cut from the same recordings.
+"$PY" "$ROOT/tools/make_short_video.py"
 
 # Leave the demo data clean for next time.
 (cd "$ROOT/backend" && "$PY" -m scripts.reset_demo > /dev/null)
