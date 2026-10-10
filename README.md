@@ -102,6 +102,16 @@ Without it, the feed plays demo footage of real fires (public domain, labeled "D
 - **Backend:** `cd backend && python -m pytest`
 - **iPhone app (UI tests):** start the backend with fresh demo data (`python -m scripts.reset_demo`, then `uvicorn app.main:app`), then press **⌘U** in Xcode. The tests tap through the real app: zooming the map, reporting a fire that merges into an existing one, searching an address, attaching a photo and waiting for the AI result, and launching the drone feed.
 
+## Recording the walkthrough video
+
+`tools/record_demo.sh` records a narrated walkthrough of the whole app on the iPhone simulator, with no screen-recording software needed:
+
+```bash
+tools/record_demo.sh        # about 25 minutes; result: demo_video/RescueSight-walkthrough.mp4
+```
+
+It resets the demo data, then runs `ios/RescueSightUITests/DemoWalkthrough.swift`, a UI test that taps through every feature while the simulator's screen is recorded. Next it records the offline state with the backend switched off. Finally, `tools/make_demo_video.py` adds captions ("what is being shown" and "what I'm doing"), a ring wherever something is tapped, a progress strip, chapter markers and a voice-over (macOS's built-in Samantha voice). The walkthrough test is skipped in normal test runs. Close other heavy apps first: the simulator, recording and AI all run at once.
+
 ## Incident types
 
 Reports can be about any of these, grouped into "modes" so the map can show one kind of disaster at a time:
