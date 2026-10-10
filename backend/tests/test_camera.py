@@ -49,6 +49,7 @@ def test_feed_analyzes_frames_saves_snapshots_and_stops(tmp_path):
     feed = manager.start(incident_id, UploadedClipSource([clip], label="Test camera"))
     time.sleep(1.5)
     assert feed.running and feed.frames_analyzed > 0
+    assert manager.is_simulated(incident_id)  # recorded clips are always labeled as simulated
     assert feed.latest_jpeg and feed.latest_jpeg[:2] == b"\xff\xd8"  # a real JPEG
 
     manager.stop(incident_id)

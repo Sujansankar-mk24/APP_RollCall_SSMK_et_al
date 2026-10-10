@@ -242,6 +242,11 @@ class LiveFeedManager:
         feed = self._feeds.get(incident_id)
         return bool(feed and feed.running)
 
+    def is_simulated(self, incident_id: int) -> bool:
+        """A feed is running, but it is recorded demo footage rather than a real camera."""
+        feed = self._feeds.get(incident_id)
+        return bool(feed and feed.running and feed.source.is_demo)
+
     def stop_all(self) -> None:
         for feed in self._feeds.values():
             feed.stop()

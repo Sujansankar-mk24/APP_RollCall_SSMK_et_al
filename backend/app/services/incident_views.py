@@ -97,6 +97,7 @@ def to_summary(incident: Incident, reports: list[Report], media: list[Media]) ->
         ),
         cover_thumbnail_url=media_url(cover.thumbnail_name) if cover else None,
         live_feed=live_feeds.is_live(incident.id),
+        live_feed_simulated=live_feeds.is_simulated(incident.id),
     )
 
 

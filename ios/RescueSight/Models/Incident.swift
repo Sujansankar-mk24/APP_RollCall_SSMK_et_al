@@ -186,6 +186,7 @@ struct IncidentSummary: Codable, Identifiable, Hashable {
     let ai: AISummary
     let coverThumbnailUrl: String?
     let liveFeed: Bool  // a drone/camera feed is running right now
+    let liveFeedSimulated: Bool  // ...and it is recorded demo footage, not a real camera
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
@@ -207,7 +208,7 @@ struct IncidentSummary: Codable, Identifiable, Hashable {
     var accessibilityDescription: String {
         let reports = reportCount == 1 ? "1 report" : "\(reportCount) reports"
         let analyzing = ai.analyzing ? " AI is analyzing a photo or video." : ""
-        let live = liveFeed ? " Live drone feed." : ""
+        let live = liveFeed ? (liveFeedSimulated ? " Simulated drone feed." : " Live drone feed.") : ""
         return "\(type.title), \(status.title), \(priority.level.title) priority, \(reports). \(locationName).\(analyzing)\(live)"
     }
 }

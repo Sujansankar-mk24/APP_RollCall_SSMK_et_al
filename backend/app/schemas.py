@@ -106,6 +106,7 @@ class IncidentSummaryOut(BaseModel):
     ai: AISummaryOut
     cover_thumbnail_url: Optional[str]  # a preview picture for list rows
     live_feed: bool = False             # a drone/camera feed is running right now
+    live_feed_simulated: bool = False   # ...and it is recorded demo footage, NOT a real camera
 
 
 class IncidentDetailOut(IncidentSummaryOut):

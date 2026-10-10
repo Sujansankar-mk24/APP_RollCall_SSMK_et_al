@@ -104,7 +104,7 @@ struct DroneFeedSection: View {
 
             Text(viewModel.status?.cameraConnected == true
                  ? "Drone camera connected."
-                 : "No drone connected yet, so this plays demo footage of a real fire (public domain). The AI results are real.")
+                 : "No drone connected yet, so this plays simulated footage: recorded real fires (public domain), not a live camera. The AI results are real.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -211,14 +211,17 @@ struct LiveFrameView: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             .overlay(alignment: .topLeading) {
+                // A real camera says LIVE (red). Recorded demo footage says
+                // SIMULATED (amber) and is never presented as live.
                 HStack(spacing: 6) {
-                    Circle().fill(.white).frame(width: 7, height: 7)
-                    Text("LIVE").font(.caption.weight(.bold))
+                    Image(systemName: status.isDemo ? "play.rectangle.fill" : "circle.fill")
+                        .font(.system(size: status.isDemo ? 10 : 7))
+                    Text(status.isDemo ? "SIMULATED" : "LIVE").font(.caption.weight(.bold))
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(status.isDemo ? Color.black : Color.white)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color(.systemRed), in: Capsule())
+                .background(status.isDemo ? Color(.systemYellow) : Color(.systemRed), in: Capsule())
                 .padding(Spacing.s)
             }
             .overlay(alignment: .topTrailing) {
@@ -242,7 +245,7 @@ struct LiveFrameView: View {
                 }
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Live drone video with AI boxes")
+            .accessibilityLabel(status.isDemo ? "Simulated drone video with AI boxes. Recorded demo footage." : "Live drone video with AI boxes")
             .accessibilityIdentifier("liveDroneFrame")
     }
 }

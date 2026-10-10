@@ -49,6 +49,7 @@ struct MapFilterBar: View {
                         Toggle(isOn: toggleBinding(type, in: \.types)) {
                             Label(type.title, systemImage: type.symbol)
                         }
+                        .menuActionDismissBehavior(.disabled)  // keep the menu open to pick several
                     }
                 }
             }
@@ -59,7 +60,6 @@ struct MapFilterBar: View {
                 isActive: filters.types.count != IncidentType.allCases.count
             )
         }
-        .menuActionDismissBehavior(.disabled)  // keep the menu open to pick several
         .accessibilityLabel("Incident type filter")
         .accessibilityValue(filters.types.count == IncidentType.allCases.count ? "All types" : filters.typesLabel)
     }
@@ -68,6 +68,7 @@ struct MapFilterBar: View {
         Menu {
             ForEach(IncidentStatus.allCases) { status in
                 Toggle(status.title, isOn: toggleBinding(status, in: \.statuses))
+                    .menuActionDismissBehavior(.disabled)
             }
             Divider()
             Button("Show all statuses") { filters.statuses = Set(IncidentStatus.allCases) }
@@ -78,7 +79,6 @@ struct MapFilterBar: View {
                 isActive: filters.statuses.count != IncidentStatus.allCases.count
             )
         }
-        .menuActionDismissBehavior(.disabled)
         .accessibilityLabel("Status filter")
         .accessibilityValue(filters.statuses.count == IncidentStatus.allCases.count ? "All statuses" : filters.statusesLabel)
     }

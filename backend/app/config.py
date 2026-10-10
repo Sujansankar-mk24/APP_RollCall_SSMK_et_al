@@ -84,8 +84,9 @@ LOCAL_TIMEZONE = "America/Chicago"
 CAMERA_STREAM_URL = os.environ.get("RESCUESIGHT_CAMERA_URL") or None
 
 # Demo "drone footage": real public-domain fire videos played one after
-# another, as if a drone were flying over the fire and then the crew.
-DRONE_DEMO_CLIPS = ["grass_fire_clip.mp4", "drone_fire_line.mp4", "drone_crew.mp4"]
+# another, as if a drone were flying over the crew at the staging area and
+# then over the fire. Always labeled "Simulated" in the app.
+DRONE_DEMO_CLIPS = ["drone_crew.mp4", "grass_fire_clip.mp4", "drone_fire_line.mp4"]
 
 LIVE_ANALYSES_PER_SECOND = 2.5   # how often the live feed is checked by the AI
 LIVE_SNAPSHOT_SECONDS = 20       # save a snapshot to the incident at most this often
