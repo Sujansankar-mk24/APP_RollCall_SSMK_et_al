@@ -20,3 +20,9 @@ backend/models/*.pt
 xcuserdata/
 DerivedData/
 *.xcuserstate
+
+#AI
+.claude
+.codex
+.vercel
+.env
