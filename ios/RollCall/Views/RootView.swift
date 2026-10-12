@@ -2,22 +2,56 @@
 //  RootView.swift
 //  RollCall
 //
-//  The tab bar along the bottom of the app:
+//  If an account is saved on this phone, the app opens straight to the tab
+//  bar; otherwise it shows the sign-in screen.
+//
+//  The tab bar along the bottom:
 //    Map        incidents on a map; report one with a photo or video
 //    Incidents  the same incidents as a priority list for responders
-//    Roll Call  households check in during an emergency (resident, buddy, responder)
-//    About      what RollCall is, how privacy works, and "call 911"
+//    Roll Call  your household and the neighbors you check on (purple)
+//    Community  your neighborhood (purple; not shown to responders)
+//    About      what RollCall is, how privacy works, your account
 //  Map and Incidents share one IncidentStore, so they always show the same data.
 //
 
 import SwiftUI
 
 struct RootView: View {
+    @Environment(AuthStore.self) private var auth
+
+    var body: some View {
+        Group {
+            switch auth.state {
+            case .checking:
+                ProgressView()
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .signedOut:
+                SignInView()
+            case .offline(let error):
+                // There's a saved account, but the server can't be reached.
+                VStack(spacing: Spacing.l) {
+                    MessageCard(error: error, action: { Task { await auth.restore() } })
+                    Button("Sign out") { Task { await auth.signOut() } }
+                }
+                .padding(Spacing.l)
+                .frame(maxHeight: .infinity)
+            case .signedIn(let me):
+                MainTabView(me: me)
+            }
+        }
+        .animation(.snappy(duration: 0.3), value: auth.state)
+        .task { await auth.restore() }
+    }
+}
+
+struct MainTabView: View {
+    let me: Me
     @State private var store = IncidentStore()
     @State private var selection: RootTab = DebugLaunchOptions.startTab
 
     enum RootTab: String, Hashable {
-        case map, incidents, rollCall, about
+        case map, incidents, rollCall, community, about
     }
 
     var body: some View {
@@ -32,17 +66,21 @@ struct RootView: View {
                 .tag(RootTab.incidents)
 
             RollCallTabView()
+                .rollCallBrand()
                 .tabItem { Label("Roll Call", systemImage: "person.crop.circle.badge.checkmark") }
                 .tag(RootTab.rollCall)
+
+            if !me.isResponder {
+                CommunityTabView()
+                    .rollCallBrand()
+                    .tabItem { Label("Community", systemImage: "house.and.flag.fill") }
+                    .badge(me.community?.status == .pending ? 1 : 0)
+                    .tag(RootTab.community)
+            }
 
             AboutView()
                 .tabItem { Label("About", systemImage: "info.circle.fill") }
                 .tag(RootTab.about)
         }
     }
-}
-
-#Preview {
-    RootView()
-        .environment(AppSession())
 }

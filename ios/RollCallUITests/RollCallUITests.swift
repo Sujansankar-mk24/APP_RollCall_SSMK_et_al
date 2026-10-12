@@ -5,7 +5,9 @@
 //  End-to-end tests that tap through the real app, exactly like a person
 //  would, against the real backend: the Map, Incidents and Roll Call tabs.
 //
-//  Before running them, start the backend with fresh demo data:
+//  Most tests open a fictional demo account from the sign-in screen; a few
+//  create a brand-new account. Before running them, start the backend with
+//  fresh demo data:
 //      cd backend
 //      source .venv/bin/activate
 //      python -m scripts.reset_demo
@@ -167,22 +169,75 @@ final class RollCallUITests: XCTestCase {
         waitForExpectations(timeout: 30)
     }
 
+    // MARK: - Accounts
+
+    @MainActor
+    func testCreatingAnAccountThenSigningOutAndBackIn() {
+        let app = launch()
+        let email = uniqueEmail()
+        signUp(app, name: "Test Person", email: email)
+        XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 20), "Didn't open the app after signing up")
+
+        open(tab: "About", in: app)
+        let signOut = app.buttons["signOut"]
+        scrollTo(signOut, in: app)
+        signOut.tap()
+        XCTAssertTrue(app.textFields["emailField"].waitForExistence(timeout: 10), "Didn't return to sign-in")
+
+        // A wrong password is refused with a clear message...
+        signIn(app, email: email, password: "not my password")
+        XCTAssertTrue(app.descendants(matching: .any)["signInError"].waitForExistence(timeout: 10))
+        // ...and the right one opens the app.
+        signIn(app, email: email, password: password)
+        XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 20))
+    }
+
+    @MainActor
+    func testTheAppRemembersWhoIsSignedIn() {
+        let app = launch()
+        signUp(app, name: "Test Person", email: uniqueEmail())
+        XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 20))
+        // Open the app again, WITHOUT signing out: it goes straight in.
+        app.terminate()
+        let again = XCUIApplication()
+        again.launch()
+        XCTAssertTrue(again.buttons["reportIncidentButton"].waitForExistence(timeout: 20))
+        XCTAssertFalse(again.textFields["emailField"].exists)
+    }
+
     // MARK: - Roll Call tab: resident
 
     @MainActor
-    func testRegisteringAHouseholdStepByStep() {
-        let app = launchFresh()
-        app.buttons["role_resident"].tap()
-        app.buttons["registerHousehold"].tap()
+    func testNotNowSkipsTheRollCall() {
+        let app = launch(tab: "rollCall")
+        signUp(app, name: "Test Person", email: uniqueEmail())
+        let notNow = app.buttons["notNow"]
+        XCTAssertTrue(notNow.waitForExistence(timeout: 15))
+        scrollTo(notNow, in: app)
+        notNow.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["optedOut"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["joinRollCall"].exists, "Should still be able to join later")
+    }
 
-        // 1. Home
+    @MainActor
+    func testRegisteringAHouseholdStepByStep() {
+        let app = launch(tab: "rollCall")
+        signUp(app, name: "Test Resident", email: uniqueEmail())
+        let join = app.buttons["joinRollCall"]
+        XCTAssertTrue(join.waitForExistence(timeout: 15))
+        snapshot(app, "roll call join card")
+        scrollTo(join, in: app)
         let name = app.textFields["nameField"]
-        XCTAssertTrue(name.waitForExistence(timeout: 10))
-        name.tap()
-        name.typeText("Test Resident\n")   // Return closes the keyboard, which brings back Next
+        tap(join, until: name, in: app)
+
+        // 1. Home: the name comes from the account; the location button fills in
+        //    the address (street, town and ZIP), which can still be edited.
+        XCTAssertEqual(name.value as? String, "Test Resident")
         app.buttons["Use my current location"].tap()
-        let address = app.textFields["addressField"]
-        expect(address, valueContains: "", notEqualTo: "Fills in from the map, or type it", timeout: 20)
+        let zip = app.textFields["zipField"]
+        let fiveDigits = NSPredicate(format: "value MATCHES '[0-9]{5}'")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: fiveDigits, object: zip)], timeout: 20),
+                       .completed, "The ZIP code never filled in from the location")
         snapshot(app, "wizard 1 home")
         app.buttons["wizardNext"].tap()
 
@@ -215,78 +270,236 @@ final class RollCallUITests: XCTestCase {
         app.buttons["wizardNext"].tap()
 
         // 5. Review: Join is disabled until the resident agrees
-        let join = app.buttons["wizardNext"]
-        XCTAssertFalse(join.isEnabled)
+        let finish = app.buttons["wizardNext"]
+        XCTAssertFalse(finish.isEnabled)
         let consent = app.switches["consentToggle"]
         XCTAssertTrue(consent.waitForExistence(timeout: 5))
         consent.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()   // the switch itself
         snapshot(app, "wizard 5 review")
-        XCTAssertTrue(join.isEnabled)
-        join.tap()
+        XCTAssertTrue(finish.isEnabled)
+        finish.tap()
 
         XCTAssertTrue(app.staticTexts["Hi, Test"].waitForExistence(timeout: 15), "The new household's home didn't open")
         snapshot(app, "resident home after joining")
 
-        // Delete my data really deletes it, and returns to the welcome screen.
-        app.buttons["privacyLink"].tap()
+        // Delete my data really deletes it, and offers to join again.
+        let privacy = app.buttons["privacyLink"]
+        scrollTo(privacy, in: app)
+        privacy.tap()
         let delete = app.buttons["deleteMyData"]
         scrollTo(delete, in: app)
         snapshot(app, "privacy")
         delete.tap()
         app.buttons["Delete everything"].tap()
-        XCTAssertTrue(app.buttons["role_resident"].waitForExistence(timeout: 15), "Didn't return to the welcome screen")
+        XCTAssertTrue(app.buttons["joinRollCall"].waitForExistence(timeout: 15), "Didn't return to the join card")
     }
 
     @MainActor
-    func testActingAsADemoHousehold() {
-        let app = launchFresh()
-        app.buttons["role_resident"].tap()
-        let greenvilleGroup = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Greenville'")).firstMatch
-        XCTAssertTrue(greenvilleGroup.waitForExistence(timeout: 10))
-        greenvilleGroup.tap()
-        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'household_'")).firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["You're on the roll call"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["editHousehold"].exists)
+    func testResidentAcceptsAVolunteersOffer() {
+        let app = launch(tab: "rollCall")
+        openDemoAccount(app, kind: "resident")
+        let accept = app.buttons["acceptBuddy"]
+        XCTAssertTrue(accept.waitForExistence(timeout: 15), "The demo resident should have a buddy request (reset the demo data)")
+        snapshot(app, "buddy request")
+        accept.tap()
+        XCTAssertTrue(app.staticTexts["Your buddy"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["acceptBuddy"].exists)
     }
 
-    // MARK: - Roll Call tab: buddy and responder
+    // MARK: - Roll Call tab: volunteer and responder
 
     @MainActor
-    func testBuddySeesOnlyTheirNeighbors() {
-        let app = launchFresh()
-        app.buttons["role_buddy"].tap()
-        let first = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'volunteer_'")).firstMatch
-        XCTAssertTrue(first.waitForExistence(timeout: 10))
-        first.tap()
-        XCTAssertTrue(app.staticTexts["Your neighbors"].waitForExistence(timeout: 10))
-        snapshot(app, "buddy home")
+    func testVolunteerAsksToCheckOnSomeoneByAddress() {
+        let app = launch(tab: "rollCall")
+        openDemoAccount(app, kind: "volunteer")
+        let section = app.segmentedControls["rollCallSection"]
+        XCTAssertTrue(section.waitForExistence(timeout: 15))
+        section.buttons["I check on"].tap()
+        XCTAssertTrue(app.staticTexts["Neighbors you check on"].waitForExistence(timeout: 10))
+        snapshot(app, "volunteer")
+
+        let ask = app.buttons["askByAddress"]
+        scrollTo(ask, in: app)
+        ask.tap()
+        type("999 Nowhere Rd", into: app.textFields["buddyAddressField"])
+        type("Greenville", into: app.textFields["buddyCityField"])
+        type("75401", into: app.textFields["buddyZipField"])
+        app.buttons["sendBuddyRequest"].tap()
+        // The same answer whether or not anyone lives there.
+        XCTAssertTrue(app.descendants(matching: .any)["buddyRequestSent"].waitForExistence(timeout: 10))
     }
 
     @MainActor
     func testResponderSeesNoHouseholdsWithoutAnEmergency() {
-        let app = launchFresh()
-        app.buttons["role_responder"].tap()
-        XCTAssertTrue(app.staticTexts["No active emergency"].waitForExistence(timeout: 10))
-        // Switching roles goes back to the welcome screen.
-        app.buttons["roleButton"].tap()
-        app.buttons["Switch role"].tap()
-        XCTAssertTrue(app.buttons["role_resident"].waitForExistence(timeout: 5))
+        let app = launch(tab: "rollCall")
+        openDemoAccount(app, kind: "responder")
+        XCTAssertTrue(app.staticTexts["No active emergency"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.tabBars.buttons["Community"].exists, "Responders don't join communities")
+    }
+
+    // MARK: - Community tab
+
+    @MainActor
+    func testAskingToJoinACommunity() {
+        let app = launch(tab: "community")
+        signUp(app, name: "New Neighbor", email: uniqueEmail())
+        let search = app.textFields["communitySearch"]
+        XCTAssertTrue(search.waitForExistence(timeout: 15))
+        type("Pecan", into: search)
+        let join = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'join_'")).firstMatch
+        XCTAssertTrue(join.waitForExistence(timeout: 10), "Pecan Hollow wasn't found")
+        join.tap()
+        XCTAssertTrue(app.staticTexts["pendingCommunity"].waitForExistence(timeout: 10), "Should be waiting for the admin")
+    }
+
+    @MainActor
+    func testStartingACommunityMakesYouItsAdmin() {
+        let app = launch(tab: "community")
+        signUp(app, name: "Founder", email: uniqueEmail())
+        let create = app.buttons["createCommunity"]
+        XCTAssertTrue(create.waitForExistence(timeout: 15))
+        scrollTo(create, in: app)
+        create.tap()
+        type("Test Hollow \(Int(Date().timeIntervalSince1970))", into: app.textFields["communityNameField"])
+        type("Greenville", into: app.textFields["communityCityField"])
+        app.buttons["confirmCreateCommunity"].tap()
+        let header = app.descendants(matching: .any)["communityHeader"]
+        XCTAssertTrue(header.waitForExistence(timeout: 10))
+        XCTAssertTrue(header.label.contains("You're the admin"), "Unexpected: \(header.label)")
+    }
+
+    @MainActor
+    func testAdminApprovesAJoinRequest() {
+        let app = launch(tab: "community")
+        openDemoAccount(app, kind: "resident")   // the demo resident runs Pecan Hollow
+        let approve = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'approve_'")).firstMatch
+        XCTAssertTrue(approve.waitForExistence(timeout: 15), "The demo community should have a join request (reset the demo data)")
+        snapshot(app, "community admin")
+        approve.tap()
+        XCTAssertTrue(approve.waitForNonExistence(timeout: 10))
     }
 
     // MARK: - Helpers
 
+    private let password = "correct horse battery"
+
+    /// Start the app signed out, optionally opening on a tab after signing in.
+    @MainActor
+    private func launch(tab: String? = nil) -> XCUIApplication {
+        XCUIDevice.shared.location = XCUILocation(location: greenville)
+        let app = XCUIApplication()
+        app.launchArguments = ["-RCSignOut", "YES"] + (tab.map { ["-RSTab", $0] } ?? [])
+        app.launch()
+        if !app.textFields["emailField"].waitForExistence(timeout: 20) {
+            XCTFail("The sign-in screen didn't appear. Is the backend running? (uvicorn app.main:app)")
+        }
+        return app
+    }
+
+    /// For the Map/Incidents tests: signed in as the demo resident, on the map.
     @MainActor
     private func launchApp(arguments: [String] = []) -> XCUIApplication {
         XCUIDevice.shared.location = XCUILocation(location: besideGreenvilleFire)
         let app = XCUIApplication()
-        app.launchArguments = arguments
+        app.launchArguments = ["-RCSignOut", "YES"] + arguments
         app.launch()
-
-        let reportButton = app.buttons["reportIncidentButton"]
-        if !reportButton.waitForExistence(timeout: 20) {
+        openDemoAccount(app, kind: "resident")
+        if !app.buttons["reportIncidentButton"].waitForExistence(timeout: 20) {
             XCTFail("The map didn't load. Is the backend running? (uvicorn app.main:app)")
         }
         return app
+    }
+
+    /// Tap a tab. If a late system prompt swallowed the tap, close it and try again.
+    @MainActor
+    private func open(tab: String, in app: XCUIApplication) {
+        tap(app.tabBars.buttons[tab], until: app.navigationBars[tab], in: app)
+    }
+
+    /// Tap `button` until `result` appears, closing a late "Save Password?"
+    /// prompt in between if it swallowed the tap.
+    @MainActor
+    private func tap(_ button: XCUIElement, until result: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<3 {
+            button.tap()
+            if result.waitForExistence(timeout: 4) { return }
+            dismissSavePasswordPrompt(app)
+        }
+        XCTFail("Tapping \(button) didn't work")
+    }
+
+    @MainActor
+    private func openDemoAccount(_ app: XCUIApplication, kind: String) {
+        let button = app.buttons["demo_\(kind)"]
+        XCTAssertTrue(button.waitForExistence(timeout: 20), "No demo \(kind) account. Run python -m scripts.reset_demo")
+        scrollTo(button, in: app)
+        button.tap()
+    }
+
+    @MainActor
+    private func signUp(_ app: XCUIApplication, name: String, email: String) {
+        app.segmentedControls["authMode"].buttons["Create account"].tap()
+        type(name, into: app.textFields["signUpName"])
+        type(email, into: app.textFields["emailField"])
+        let secret = app.secureTextFields["passwordField"]
+        XCTAssertTrue(secret.waitForExistence(timeout: 10))
+        secret.tap()
+        dismissStrongPasswordSheet(app)
+        secret.tap()
+        secret.typeText(password)
+        app.buttons["submitAuth"].tap()
+        dismissSavePasswordPrompt(app)
+    }
+
+    /// After a new account, iOS may ask "Save Password?" a moment after the app
+    /// opens. The test waits for the app, then answers Not Now if it's asked.
+    @MainActor
+    private func dismissSavePasswordPrompt(_ app: XCUIApplication) {
+        _ = app.tabBars.firstMatch.waitForExistence(timeout: 20)
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let deadline = Date().addingTimeInterval(12)
+        while Date() < deadline {
+            for place in [app, springboard] where place.buttons["Not Now"].exists {
+                place.buttons["Not Now"].tap()
+                return
+            }
+            _ = XCTWaiter.wait(for: [XCTestExpectation(description: "poll")], timeout: 0.5)
+        }
+    }
+
+    /// When creating an account, iOS offers "Use Strong Password?". A person
+    /// could accept it; the test closes it and types its own password.
+    @MainActor
+    private func dismissStrongPasswordSheet(_ app: XCUIApplication) {
+        let offer = app.buttons["Fill Strong Password"]
+        guard offer.waitForExistence(timeout: 3) else { return }
+        let close = app.buttons["xmark"]   // the sheet's X button
+        let hittable = NSPredicate(format: "hittable == true")
+        _ = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: hittable, object: close)], timeout: 5)
+        close.tap()
+        XCTAssertTrue(offer.waitForNonExistence(timeout: 5), "Couldn't close the Strong Password sheet")
+    }
+
+    @MainActor
+    private func signIn(_ app: XCUIApplication, email: String, password: String) {
+        let emailField = app.textFields["emailField"]
+        if (emailField.value as? String) != email {   // after a failed try, the email is still there
+            type(email, into: emailField)
+        }
+        // A password field empties itself when tapped again, like on any iPhone.
+        type(password, into: app.secureTextFields["passwordField"])
+        app.buttons["submitAuth"].tap()
+    }
+
+    @MainActor
+    private func type(_ text: String, into field: XCUIElement) {
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        field.tap()
+        field.typeText(text)
+    }
+
+    private func uniqueEmail() -> String {
+        "test\(Int(Date().timeIntervalSince1970 * 1000))@example.com"
     }
 
     @MainActor
@@ -297,17 +510,6 @@ final class RollCallUITests: XCTestCase {
         waitForExpectations(timeout: 20)
     }
 
-    /// Open the Roll Call tab with no saved role, as if using it for the first time.
-    @MainActor
-    private func launchFresh() -> XCUIApplication {
-        XCUIDevice.shared.location = XCUILocation(location: greenville)
-        let app = XCUIApplication()
-        app.launchArguments = ["-RCRole", "none", "-RSTab", "rollCall"]
-        app.launch()
-        XCTAssertTrue(app.buttons["role_resident"].waitForExistence(timeout: 15))
-        return app
-    }
-
     @MainActor
     private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {
         var swipes = 0
@@ -315,13 +517,6 @@ final class RollCallUITests: XCTestCase {
             app.swipeUp()
             swipes += 1
         }
-    }
-
-    @MainActor
-    private func expect(_ element: XCUIElement, valueContains: String, notEqualTo placeholder: String, timeout: Double) {
-        let predicate = NSPredicate(format: "value != %@ AND value != ''", placeholder)
-        let found = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: timeout)
-        XCTAssertEqual(found, .completed, "The address never filled in from the location")
     }
 
     /// Each wizard step slides in; tapping mid-slide can miss the button.

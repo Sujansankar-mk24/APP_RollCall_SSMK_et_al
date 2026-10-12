@@ -57,13 +57,14 @@ struct FlowLayout: Layout {
 /// A row of chips that wraps, e.g. "2 people · 65+ · Oxygen · No vehicle".
 struct TagChips: View {
     let tags: [NeedTag]
+    @Environment(\.brand) private var brand
 
     var body: some View {
         FlowLayout(spacing: 6) {
             ForEach(tags) { tag in
                 HStack(spacing: 4) {
                     Image(systemName: tag.symbol)
-                        .foregroundStyle(tag.tint)
+                        .foregroundStyle(tag.tint == .accentColor ? brand : tag.tint)   // brand-colored in Roll Call
                         .imageScale(.small)
                     Text(tag.text)
                 }

@@ -2,7 +2,8 @@
 //  ResidentHomeViewModel.swift
 //  RollCall
 //
-//  Loads the resident's own household, and deletes it ("Delete my data").
+//  Loads the resident's own household and any volunteers asking to be their
+//  buddy; answers those requests; and deletes everything ("Delete my data").
 //
 
 import Foundation
@@ -12,11 +13,12 @@ import Observation
 final class ResidentHomeViewModel {
     let householdID: Int
     private(set) var state: LoadState<Household> = .loading
+    private(set) var buddyRequests: [BuddyRequestToMe] = []
     private(set) var isDeleting = false
-    var deleteError: APIError?
+    private(set) var isAnswering = false
+    var actionError: APIError?
 
     private let api: APIClient
-    private var viewer: Viewer { Viewer(role: .resident, id: householdID) }
 
     init(householdID: Int, api: APIClient = .shared) {
         self.householdID = householdID
@@ -27,9 +29,13 @@ final class ResidentHomeViewModel {
 
     func load() async {
         do {
-            state = .loaded(try await api.fetchHousehold(id: householdID, as: viewer))
+            async let household = api.fetchHousehold(id: householdID)
+            async let requests = api.fetchBuddyRequestsToMe()
+            state = .loaded(try await household)
+            buddyRequests = (try? await requests) ?? []
         } catch {
-            if household == nil { state = .failed(error) }
+            // (async let forgets that only APIErrors can be thrown, so convert back.)
+            if household == nil { state = .failed(error as? APIError ?? .serverUnreachable) }
         }
     }
 
@@ -43,15 +49,36 @@ final class ResidentHomeViewModel {
         state = .loaded(household)
     }
 
+    /// Accept or decline a volunteer who asked to check on this household.
+    func answer(_ request: BuddyRequestToMe, accept: Bool) async {
+        isAnswering = true
+        defer { isAnswering = false }
+        do {
+            try await api.answerBuddyRequest(id: request.id, accept: accept)
+            await load()
+        } catch {
+            actionError = error
+        }
+    }
+
+    func removeBuddy() async {
+        do {
+            try await api.removeMyBuddy()
+            await load()
+        } catch {
+            actionError = error
+        }
+    }
+
     /// Returns true once everything is deleted on the server.
     func deleteMyData() async -> Bool {
         isDeleting = true
         defer { isDeleting = false }
         do {
-            try await api.deleteHousehold(id: householdID, as: viewer)
+            try await api.deleteHousehold(id: householdID)
             return true
         } catch {
-            deleteError = error
+            actionError = error
             return false
         }
     }

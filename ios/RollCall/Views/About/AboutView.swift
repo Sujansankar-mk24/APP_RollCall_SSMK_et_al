@@ -3,12 +3,14 @@
 //  RollCall
 //
 //  The About tab: what RollCall does, what each tab is for, who can see your
-//  information, and where the demo data comes from.
+//  information, where the demo data comes from, and your account.
 //
 
 import SwiftUI
 
 struct AboutView: View {
+    @Environment(AuthStore.self) private var auth
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -18,6 +20,7 @@ struct AboutView: View {
                     tabsSection
                     privacySection
                     projectSection
+                    accountSection
                 }
                 .padding(Spacing.l)
             }
@@ -55,7 +58,9 @@ struct AboutView: View {
                 infoRow("list.bullet.rectangle.fill", "Incidents",
                         "For responders: every incident sorted by priority, with a \"Why this priority?\" breakdown anyone can check.")
                 infoRow("person.crop.circle.badge.checkmark", "Roll Call",
-                        "Households sign up ahead of time. When an emergency hits, everyone in the area is asked if they're safe, a volunteer buddy checks on anyone who doesn't answer, and responders see who still needs help.")
+                        "Households sign up ahead of time (or choose \"Not now\"). When an emergency hits, everyone in the area is asked if they're safe, a volunteer buddy checks on anyone who doesn't answer, and responders see who still needs help.")
+                infoRow("house.and.flag.fill", "Community",
+                        "Join your neighborhood. The admin approves who joins, and neighbors in the same community can be buddies for each other.")
             }
             .card()
         }
@@ -70,11 +75,11 @@ struct AboutView: View {
                 infoRow("person.fill", "You",
                         "Always. You can edit your household or delete it completely at any time.")
                 infoRow("person.2.wave.2.fill", "Your volunteer buddy",
-                        "Only if you ask for one, and only the households they agreed to check on.")
+                        "Only after you accept them. Volunteers outside your community can only ask by typing your exact address, if your community allows it.")
                 infoRow("cross.case.fill", "Responders",
                         "Only during an active emergency, and only for homes inside the emergency zone.")
                 infoRow("eye.slash.fill", "Everyone else",
-                        "Never. Incident reports on the map don't show who sent them.")
+                        "Never. Neighbors in your community see only your first name and street, and only if you asked for a buddy. Incident reports on the map don't show who sent them.")
             }
             .card()
             Text("These rules are checked by the server, not just hidden in the app.")
@@ -95,6 +100,43 @@ struct AboutView: View {
                         "Every household, volunteer, name, street and phone number is fictional. Sample photos and videos are public domain or Creative Commons, from Wikimedia Commons.")
             }
             .card()
+        }
+    }
+
+    // MARK: - Account
+
+    @ViewBuilder
+    private var accountSection: some View {
+        if let me = auth.me {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                sectionTitle("Your account")
+                VStack(alignment: .leading, spacing: Spacing.m) {
+                    HStack(spacing: Spacing.m) {
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(Color.accentColor)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(verbatim: me.name).font(.headline)
+                            Text(verbatim: me.email).font(.subheadline).foregroundStyle(.secondary)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    Button(role: .destructive) {
+                        Task { await auth.signOut() }
+                    } label: {
+                        Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                            .font(.body.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 30)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .accessibilityIdentifier("signOut")
+                }
+                .card()
+                Text("You stay signed in on this phone until you sign out.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
         }
     }
 

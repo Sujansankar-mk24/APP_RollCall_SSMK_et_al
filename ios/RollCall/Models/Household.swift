@@ -70,6 +70,7 @@ struct Household: Codable, Identifiable, Hashable {
     let phone: String
     let address: String
     let city: String
+    let zipCode: String
     let latitude: Double
     let longitude: Double
     let children: Int
@@ -145,6 +146,7 @@ struct HouseholdInput: Codable, Equatable {
     var phone = ""
     var address = ""
     var city = ""
+    var zipCode = ""
     var latitude = AppConfig.homeRegion.center.latitude
     var longitude = AppConfig.homeRegion.center.longitude
     var children = 0
@@ -167,7 +169,7 @@ struct HouseholdInput: Codable, Equatable {
 
     /// Start editing from an existing profile.
     init(_ h: Household) {
-        contactName = h.contactName; phone = h.phone; address = h.address; city = h.city
+        contactName = h.contactName; phone = h.phone; address = h.address; city = h.city; zipCode = h.zipCode
         latitude = h.latitude; longitude = h.longitude
         children = h.children; adults = h.adults; seniors = h.seniors
         mobilityNeeds = h.mobilityNeeds; medicalEquipment = h.medicalEquipment
@@ -176,21 +178,4 @@ struct HouseholdInput: Codable, Equatable {
         emergencyContactName = h.emergencyContactName; emergencyContactPhone = h.emergencyContactPhone
         wantsBuddy = h.wantsBuddy
     }
-}
-
-/// For the role switcher: the fictional people you can act as.
-struct DemoIdentities: Decodable {
-    struct HouseholdEntry: Decodable, Identifiable, Hashable {
-        let id: Int
-        let contactName: String
-        let city: String
-    }
-    struct VolunteerEntry: Decodable, Identifiable, Hashable {
-        let id: Int
-        let name: String
-        let city: String
-        let assigned: Int
-    }
-    let households: [HouseholdEntry]
-    let volunteers: [VolunteerEntry]
 }

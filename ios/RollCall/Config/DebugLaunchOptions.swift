@@ -24,11 +24,11 @@ enum DebugLaunchOptions {
         #endif
     }
 
-    /// Which tab to open on: -RSTab incidents / rollCall / about (the map otherwise).
-    static var startTab: RootView.RootTab {
+    /// Which tab to open on: -RSTab incidents / rollCall / community / about (the map otherwise).
+    static var startTab: MainTabView.RootTab {
         #if DEBUG
         if UserDefaults.standard.bool(forKey: "RSIncidentsTab") { return .incidents }
-        return UserDefaults.standard.string(forKey: "RSTab").flatMap(RootView.RootTab.init) ?? .map
+        return UserDefaults.standard.string(forKey: "RSTab").flatMap(MainTabView.RootTab.init) ?? .map
         #else
         return .map
         #endif

@@ -5,9 +5,8 @@
 //  The only place in the app that talks to the backend. Views and view
 //  models call these functions and get back Swift structs or an APIError.
 //
-//  Roll Call requests also say who the app is acting as (X-Demo-Role / X-Demo-Id
-//  headers). The SERVER decides what that person may see, so privacy doesn't
-//  depend on the app hiding things.
+//  Every request carries the signed-in account's token. The SERVER decides
+//  what that person may see, so privacy doesn't depend on the app hiding things.
 //
 
 import CoreLocation
@@ -84,47 +83,151 @@ struct APIClient {
         return try await send(request)
     }
 
+    // MARK: - Accounts
+
+    func signUp(name: String, email: String, password: String) async throws(APIError) -> AuthResponse {
+        try await send(request("auth/signup", method: "POST", body: ["name": name, "email": email, "password": password]))
+    }
+
+    func signIn(email: String, password: String) async throws(APIError) -> AuthResponse {
+        try await send(request("auth/signin", method: "POST", body: ["email": email, "password": password]))
+    }
+
+    func signOut() async throws(APIError) {
+        try await sendWithoutAnswer(request("auth/signout", method: "POST"))
+    }
+
+    func fetchMe() async throws(APIError) -> Me {
+        try await send(request("me"))
+    }
+
+    func updateMe(rollCallOptOut: Bool) async throws(APIError) -> Me {
+        try await send(request("me", method: "PATCH", body: ["roll_call_opt_out": rollCallOptOut]))
+    }
+
+    func becomeVolunteer(city: String) async throws(APIError) -> Me {
+        try await send(request("me/volunteer", method: "PUT", body: ["city": city]))
+    }
+
+    func stopVolunteering() async throws(APIError) -> Me {
+        try await send(request("me/volunteer", method: "DELETE"))
+    }
+
+    // MARK: - Demo accounts
+
+    func fetchDemoAccounts() async throws(APIError) -> [DemoAccount] {
+        try await send(request("demo/accounts"))
+    }
+
+    func signInDemo(userID: Int) async throws(APIError) -> AuthResponse {
+        try await send(request("demo/signin", method: "POST", body: ["user_id": userID]))
+    }
+
     // MARK: - Households (Roll Call tab)
 
-    /// Opt in: create a household profile. The answer includes its new id.
+    /// Join the roll call: create this account's household profile.
     func registerHousehold(_ input: HouseholdInput) async throws(APIError) -> Household {
         try await send(request("households", method: "POST", body: input))
     }
 
-    func fetchHousehold(id: Int, as viewer: Viewer) async throws(APIError) -> Household {
-        try await send(request("households/\(id)", viewer: viewer))
+    func fetchHousehold(id: Int) async throws(APIError) -> Household {
+        try await send(request("households/\(id)"))
     }
 
-    func updateHousehold(id: Int, _ input: HouseholdInput, as viewer: Viewer) async throws(APIError) -> Household {
-        try await send(request("households/\(id)", method: "PUT", body: input, viewer: viewer))
+    func updateHousehold(id: Int, _ input: HouseholdInput) async throws(APIError) -> Household {
+        try await send(request("households/\(id)", method: "PUT", body: input))
     }
 
     /// "Delete my data": removes the household and everything attached to it.
-    func deleteHousehold(id: Int, as viewer: Viewer) async throws(APIError) {
-        try await sendWithoutAnswer(request("households/\(id)", method: "DELETE", viewer: viewer))
+    func deleteHousehold(id: Int) async throws(APIError) {
+        try await sendWithoutAnswer(request("households/\(id)", method: "DELETE"))
     }
 
-    // MARK: - Volunteer buddies
+    // MARK: - Buddies: the resident's side
 
-    func fetchBuddyResidents(volunteerID: Int, as viewer: Viewer) async throws(APIError) -> [Household] {
-        try await send(request("volunteers/\(volunteerID)/households", viewer: viewer))
+    func fetchBuddyRequestsToMe() async throws(APIError) -> [BuddyRequestToMe] {
+        try await send(request("me/buddy-requests"))
     }
 
-    // MARK: - Demo
+    func answerBuddyRequest(id: Int, accept: Bool) async throws(APIError) {
+        try await sendWithoutAnswer(request("me/buddy-requests/\(id)/\(accept ? "accept" : "decline")", method: "POST"))
+    }
 
-    func fetchDemoIdentities() async throws(APIError) -> DemoIdentities {
-        try await send(request("demo/identities"))
+    func removeMyBuddy() async throws(APIError) {
+        try await sendWithoutAnswer(request("me/buddy", method: "DELETE"))
+    }
+
+    // MARK: - Buddies: the volunteer's side
+
+    func fetchBuddyResidents() async throws(APIError) -> [Household] {
+        try await send(request("buddy/residents"))
+    }
+
+    func fetchNeighborsWantingBuddy() async throws(APIError) -> [NeighborWantingBuddy] {
+        try await send(request("buddy/neighbors"))
+    }
+
+    func fetchSentBuddyRequests() async throws(APIError) -> [BuddyRequestSent] {
+        try await send(request("buddy/requests"))
+    }
+
+    func askToCheckOn(neighbor: NeighborWantingBuddy) async throws(APIError) -> BuddyRequestSent {
+        try await send(request("buddy/requests/community", method: "POST", body: ["household_id": neighbor.householdId]))
+    }
+
+    func askToCheckOn(address: AddressInput) async throws(APIError) -> BuddyRequestSent {
+        try await send(request("buddy/requests/address", method: "POST", body: address))
+    }
+
+    func cancelBuddyRequest(id: Int) async throws(APIError) {
+        try await sendWithoutAnswer(request("buddy/requests/\(id)", method: "DELETE"))
+    }
+
+    // MARK: - Communities
+
+    func searchCommunities(_ text: String) async throws(APIError) -> [CommunitySummary] {
+        var request = request("communities")
+        request.url = request.url?.appending(queryItems: [URLQueryItem(name: "q", value: text)])
+        return try await send(request)
+    }
+
+    func fetchCommunity(id: Int) async throws(APIError) -> CommunityDetail {
+        try await send(request("communities/\(id)"))
+    }
+
+    func createCommunity(name: String, city: String) async throws(APIError) -> CommunityDetail {
+        try await send(request("communities", method: "POST", body: ["name": name, "city": city]))
+    }
+
+    func joinCommunity(id: Int) async throws(APIError) {
+        try await sendWithoutAnswer(request("communities/\(id)/join", method: "POST"))
+    }
+
+    func leaveCommunity(id: Int) async throws(APIError) {
+        try await sendWithoutAnswer(request("communities/\(id)/leave", method: "POST"))
+    }
+
+    func answerJoinRequest(communityID: Int, userID: Int, approve: Bool) async throws(APIError) -> CommunityDetail {
+        try await send(request("communities/\(communityID)/requests/\(userID)/\(approve ? "approve" : "decline")", method: "POST"))
+    }
+
+    func setOutsideBuddies(communityID: Int, allowed: Bool) async throws(APIError) -> CommunityDetail {
+        try await send(request("communities/\(communityID)", method: "PATCH", body: ["allow_outside_buddies": allowed]))
     }
 
     // MARK: - Plumbing
 
-    private func request(_ path: String, method: String = "GET", body: (some Encodable)? = Optional<Int>.none,
-                         viewer: Viewer? = nil) -> URLRequest {
+    /// The signed-in account's token (kept in the Keychain by AuthStore).
+    static var token: String?
+
+    /// Posted when the server says the saved sign-in is no longer valid.
+    static let signedOutNotification = Notification.Name("RollCallSignedOut")
+
+    private func request(_ path: String, method: String = "GET", body: (some Encodable)? = Optional<Int>.none) -> URLRequest {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = method
-        if let viewer {
-            request.setValue(viewer.role.rawValue, forHTTPHeaderField: "X-Demo-Role")
-            if let id = viewer.id { request.setValue(String(id), forHTTPHeaderField: "X-Demo-Id") }
+        if let token = Self.token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let body, let data = try? encoder.encode(body) {
             request.httpBody = data
@@ -158,9 +261,17 @@ struct APIClient {
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             // The server explains refusals in plain words ({"detail": "..."}); pass that on.
             let detail = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["detail"] as? String
-            if http.statusCode == 403 { throw .notShared(detail ?? "") }
-            if http.statusCode == 404 { throw .notFound }
-            throw .badResponse(statusCode: http.statusCode)
+            let isSignIn = request.url?.path().hasPrefix("/auth/sign") ?? false
+            switch http.statusCode {
+            case 401 where !isSignIn:
+                NotificationCenter.default.post(name: Self.signedOutNotification, object: nil)
+                throw .signedOut
+            case 403: throw .notShared(detail ?? "")
+            case 404: throw .notFound
+            case 400, 401, 409: throw .refused(detail ?? "")
+            case 422: throw .refused(String(localized: "Please check what you typed."))
+            default: throw .badResponse(statusCode: http.statusCode)
+            }
         }
         return data
     }

@@ -10,9 +10,14 @@
 import SwiftUI
 
 struct PrivacyView: View {
+    @Environment(\.brand) private var brand
     let household: Household
     let isDeleting: Bool
-    let onDelete: () async -> Void
+    /// Deletes everything on the server; true if it worked.
+    let onDelete: () async -> Bool
+    /// Runs after this screen closes, once the data is gone.
+    let onDeleted: () async -> Void
+    @Environment(\.dismiss) private var dismiss
 
     @State private var confirmingDelete = false
 
@@ -21,16 +26,16 @@ struct PrivacyView: View {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 header
                 VStack(spacing: Spacing.m) {
-                    audienceCard(symbol: "person.fill", tint: .accentColor, who: "You", when: "Always",
+                    audienceCard(symbol: "person.fill", tint: brand, who: "You", when: "Always",
                                  what: "Everything in your profile. You can change it or delete it anytime.")
                     audienceCard(symbol: "person.2.wave.2.fill", tint: Color(.systemTeal), who: "Your volunteer buddy",
-                                 when: household.wantsBuddy ? "Because you asked for one" : "Only if you ask for one",
+                                 when: household.buddy != nil ? "Because you accepted them" : "Only after you accept one",
                                  what: "Your name, address, phone, needs, and whether you've checked in.")
                     audienceCard(symbol: "cross.case.fill", tint: Color(.systemOrange), who: "Responders",
                                  when: "Only during an emergency in your area",
                                  what: "What they need to reach and help you: your address, who lives there, medical equipment, mobility, and your check-in.")
                     audienceCard(symbol: "eye.slash.fill", tint: .secondary, who: "Everyone else", when: "Never",
-                                 what: "Other residents, other volunteers and the public never see your information. It is never sold or shared.")
+                                 what: "Other residents, other volunteers and the public never see your information. If you asked for a buddy, people in your community see only your first name and street. It is never sold or shared.")
                 }
                 collected
                 deleteButton
@@ -41,7 +46,13 @@ struct PrivacyView: View {
         .navigationTitle("Your privacy")
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Delete all of your data?", isPresented: $confirmingDelete, titleVisibility: .visible) {
-            Button("Delete everything", role: .destructive) { Task { await onDelete() } }
+            Button("Delete everything", role: .destructive) {
+                Task {
+                    guard await onDelete() else { return }
+                    dismiss()            // back to the Roll Call tab...
+                    await onDeleted()    // ...which now offers to join again
+                }
+            }
             Button("Keep my data", role: .cancel) {}
         } message: {
             Text("Your household, needs and history are removed from RollCall right away. This can't be undone.")
@@ -52,7 +63,7 @@ struct PrivacyView: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 40))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(brand)
                 .accessibilityHidden(true)
             Text("Only what helps, only when it helps")
                 .font(.title2.weight(.bold)).fontDesign(.rounded)
@@ -100,7 +111,7 @@ struct PrivacyView: View {
 
     private func reason(_ what: LocalizedStringKey, _ why: LocalizedStringKey) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
-            Image(systemName: "checkmark").font(.footnote.weight(.bold)).foregroundStyle(Color.accentColor)
+            Image(systemName: "checkmark").font(.footnote.weight(.bold)).foregroundStyle(brand)
             Text("\(Text(what).bold()) \(Text(why))").font(.subheadline)
         }
     }

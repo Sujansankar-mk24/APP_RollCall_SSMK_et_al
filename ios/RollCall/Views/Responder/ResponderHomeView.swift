@@ -12,6 +12,7 @@ import MapKit
 import SwiftUI
 
 struct ResponderHomeView: View {
+    @Environment(\.brand) private var brand
     @State private var position: MapCameraPosition = .region(AppConfig.homeRegion)
 
     var body: some View {
@@ -23,7 +24,7 @@ struct ResponderHomeView: View {
                     VStack(alignment: .leading, spacing: Spacing.s) {
                         Label("No active emergency", systemImage: "shield.lefthalf.filled")
                             .font(.headline)
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(brand)
                         Text("To protect residents' privacy, households appear only during an active emergency, and only the homes inside its zone.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -36,7 +37,7 @@ struct ResponderHomeView: View {
                     .accessibilityElement(children: .combine)
                 }
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { RoleButton(name: String(localized: "Responder")) }
+                    ToolbarItem(placement: .topBarLeading) { AccountButton() }
                     ToolbarItem(placement: .topBarTrailing) { AppearanceToolbarMenu() }
                 }
                 .toolbarBackground(.visible, for: .navigationBar)

@@ -21,6 +21,10 @@ enum APIError: Error, Equatable {
     case notShared(String)
     /// It doesn't exist (for example, a household that was deleted).
     case notFound
+    /// The server said no, and why (e.g. "That email and password don't match.").
+    case refused(String)
+    /// The saved sign-in isn't valid anymore; the app goes back to the sign-in screen.
+    case signedOut
 
     var title: LocalizedStringResource {
         switch self {
@@ -28,6 +32,8 @@ enum APIError: Error, Equatable {
         case .notShared: "Kept private"
         case .notFound: "Not found"
         case .unreadableAttachment: "Couldn't read the video"
+        case .refused: "Couldn't do that"
+        case .signedOut: "Please sign in again"
         default: "Something went wrong"
         }
     }
@@ -42,6 +48,10 @@ enum APIError: Error, Equatable {
             String(localized: "The server sent data this version of the app doesn't understand.")
         case .unreadableAttachment:
             String(localized: "Remove the video and choose it again, then try sending.")
+        case .refused(let reason):
+            reason.isEmpty ? String(localized: "Please check what you typed and try again.") : reason
+        case .signedOut:
+            String(localized: "For your security, sign in again to continue.")
         case .notShared(let reason):
             reason.isEmpty ? String(localized: "This information isn't shared with you.") : reason
         case .notFound:

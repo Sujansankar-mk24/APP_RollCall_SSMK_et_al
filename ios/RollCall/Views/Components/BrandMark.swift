@@ -9,6 +9,7 @@
 import SwiftUI
 
 struct BrandMark: View {
+    @Environment(\.brand) private var brand
     var size: CGFloat = 88
     var showsRings = true
 
@@ -17,15 +18,15 @@ struct BrandMark: View {
             if showsRings {
                 ForEach(1...3, id: \.self) { ring in
                     Circle()
-                        .stroke(Color.accentColor.opacity(0.16 - Double(ring) * 0.04), lineWidth: 1.5)
+                        .stroke(brand.opacity(0.16 - Double(ring) * 0.04), lineWidth: 1.5)
                         .frame(width: size * (1 + CGFloat(ring) * 0.55), height: size * (1 + CGFloat(ring) * 0.55))
                 }
             }
             RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
-                .fill(LinearGradient(colors: [Color.accentColor, Color.accentColor.opacity(0.78)],
+                .fill(LinearGradient(colors: [brand, brand.opacity(0.78)],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
                 .frame(width: size, height: size)
-                .shadow(color: Color.accentColor.opacity(0.35), radius: size * 0.18, y: size * 0.08)
+                .shadow(color: brand.opacity(0.35), radius: size * 0.18, y: size * 0.08)
             Image(systemName: "person.crop.circle.badge.checkmark")
                 .font(.system(size: size * 0.48, weight: .semibold))
                 .foregroundStyle(.white)

@@ -33,22 +33,30 @@ final class ProfileWizardViewModel {
     var mapPosition: MapCameraPosition
     private(set) var hasPin: Bool
     private(set) var isLocating = false
-    private(set) var locationNote: String?
+    private(set) var isFindingAddress = false
+    private(set) var locationNote: LocationNote?
+
+    /// A short message under the map. Green when the phone's location agrees
+    /// with the typed address, orange when something needs a look.
+    struct LocationNote: Equatable {
+        let text: String
+        let isGood: Bool
+    }
 
     // Saving
     private(set) var isSaving = false
     var saveError: APIError?
 
     private let api: APIClient
-    private let viewer: Viewer?
     private let locationProvider = LocationProvider()
     private var addressLookup: Task<Void, Never>?
 
-    init(mode: Mode, existing: Household? = nil, viewer: Viewer? = nil, api: APIClient = .shared) {
+    init(mode: Mode, existing: Household? = nil, name: String = "", api: APIClient = .shared) {
         self.mode = mode
-        self.viewer = viewer
         self.api = api
-        input = existing.map(HouseholdInput.init) ?? HouseholdInput()
+        var start = existing.map(HouseholdInput.init) ?? HouseholdInput()
+        if existing == nil { start.contactName = name }   // start with the account's name
+        input = start
         hasPin = existing != nil
         consent = existing != nil   // they agreed when they first registered
         let center = existing?.coordinate ?? AppConfig.homeRegion.center
@@ -68,7 +76,7 @@ final class ProfileWizardViewModel {
     var canContinue: Bool {
         switch step {
         case .home:
-            return !input.contactName.trimmed.isEmpty && !input.address.trimmed.isEmpty && hasPin
+            return !input.contactName.trimmed.isEmpty && hasFullAddress && hasPin
         case .people:
             return input.people >= 1
         case .review:
@@ -82,7 +90,8 @@ final class ProfileWizardViewModel {
     var whatsMissing: LocalizedStringResource? {
         switch step {
         case .home where input.contactName.trimmed.isEmpty: "Add your name to continue."
-        case .home where !hasPin || input.address.trimmed.isEmpty: "Set your home's location to continue."
+        case .home where !hasFullAddress: "Type your street, town and 5-digit ZIP code."
+        case .home where !hasPin: "Put the pin on your home to continue."
         case .people where input.people < 1: "Add at least one person."
         default: nil
         }
@@ -98,45 +107,82 @@ final class ProfileWizardViewModel {
         if let previous = Step(rawValue: step.rawValue - 1) { step = previous }
     }
 
-    // MARK: - Location
+    // MARK: - Address and location
+    //
+    // The resident TYPES their address (street, town, ZIP). The app then finds
+    // it on the map by itself, and the phone's GPS can double-check it. The pin
+    // can be dragged if it's slightly off.
 
-    /// Put the pin on the phone's current location and fill in the address.
+    var hasFullAddress: Bool {
+        !input.address.trimmed.isEmpty && !input.city.trimmed.isEmpty && input.zipCode.trimmed.count == 5
+            && input.zipCode.trimmed.allSatisfy(\.isNumber)
+    }
+
+    /// Changes whenever any part of the address changes (the view watches it).
+    var addressText: String { "\(input.address)|\(input.city)|\(input.zipCode)" }
+
+    /// The address was edited: look it up on the map once typing pauses.
+    func addressChanged() {
+        addressLookup?.cancel()
+        guard hasFullAddress else { return }
+        addressLookup = Task {
+            try? await Task.sleep(for: .milliseconds(700))   // wait until typing stops
+            guard !Task.isCancelled else { return }
+            await findTypedAddress()
+        }
+    }
+
+    private func findTypedAddress() async {
+        isFindingAddress = true
+        defer { isFindingAddress = false }
+        let full = "\(input.address.trimmed), \(input.city.trimmed), TX \(input.zipCode.trimmed)"
+        guard let found = await locationProvider.coordinate(forAddress: full) else {
+            locationNote = LocationNote(text: String(localized: "Couldn't find that address on the map. Check it, or move the pin yourself."), isGood: false)
+            return
+        }
+        place(at: found, zoom: true)
+        locationNote = nil
+    }
+
+    /// The location button: if no address is typed yet, fill it in from GPS
+    /// (the resident can still edit it). If one is typed, check that the phone
+    /// is actually near it.
     func useCurrentLocation() async {
         isLocating = true
         defer { isLocating = false }
         guard let location = await locationProvider.currentLocation() else {
-            locationNote = String(localized: "Couldn't get your location. Search for your address instead.")
+            locationNote = LocationNote(text: String(localized: "Couldn't get your location. Type your address instead."), isGood: false)
             return
         }
         // RollCall covers North Texas; a location far away (like the
         // simulator's default spot in California) would be wrong.
         let center = CLLocation(latitude: AppConfig.homeRegion.center.latitude, longitude: AppConfig.homeRegion.center.longitude)
         if location.distance(from: center) > 250_000 {
-            locationNote = String(localized: "Your location is outside North Texas. Search for your address instead.")
+            locationNote = LocationNote(text: String(localized: "Your location is outside North Texas. Type your address instead."), isGood: false)
             return
         }
-        locationNote = nil
-        place(at: location.coordinate, zoom: true)
-        await fillAddress(for: location.coordinate)
-    }
-
-    /// The person picked an address from the search suggestions.
-    func usePlace(_ place: AddressSearch.Place) {
-        locationNote = nil
-        self.place(at: place.coordinate, zoom: true)
-        addressLookup?.cancel()
-        addressLookup = Task { await fillAddress(for: place.coordinate) }
-    }
-
-    /// The pin was dragged (or the map tapped).
-    func movePin(to coordinate: CLLocationCoordinate2D) {
-        place(at: coordinate, zoom: false)
-        addressLookup?.cancel()
-        addressLookup = Task {
-            try? await Task.sleep(for: .milliseconds(400))   // wait until the pin stops moving
-            guard !Task.isCancelled else { return }
-            await fillAddress(for: coordinate)
+        if hasPin && hasFullAddress {
+            let pin = CLLocation(latitude: input.latitude, longitude: input.longitude)
+            let meters = location.distance(from: pin)
+            locationNote = meters < 300
+                ? LocationNote(text: String(localized: "Your phone's location matches this address."), isGood: true)
+                : LocationNote(text: String(localized: "Your phone is \(Self.distanceText(meters)) from this address. That's fine if you're not home right now."), isGood: false)
+            return
         }
+        place(at: location.coordinate, zoom: true)
+        if let found = await locationProvider.postalAddress(for: location.coordinate) {
+            input.address = found.street
+            input.city = found.city
+            input.zipCode = found.zip
+        }
+        locationNote = LocationNote(text: String(localized: "Filled in from your location. Check that it's right."), isGood: true)
+    }
+
+    /// The pin was dragged (or the map tapped). The typed address stays as it is.
+    func movePin(to coordinate: CLLocationCoordinate2D) {
+        addressLookup?.cancel()
+        place(at: coordinate, zoom: false)
+        locationNote = nil
     }
 
     private func place(at coordinate: CLLocationCoordinate2D, zoom: Bool) {
@@ -151,10 +197,9 @@ final class ProfileWizardViewModel {
         }
     }
 
-    private func fillAddress(for coordinate: CLLocationCoordinate2D) async {
-        guard let found = await locationProvider.address(for: coordinate) else { return }
-        input.address = found.street
-        input.city = found.city
+    private static func distanceText(_ meters: CLLocationDistance) -> String {
+        Measurement(value: meters, unit: UnitLength.meters).converted(to: .miles)
+            .formatted(.measurement(width: .abbreviated, usage: .road))
     }
 
     // MARK: - Needs
@@ -178,13 +223,14 @@ final class ProfileWizardViewModel {
         var clean = input
         clean.contactName = clean.contactName.trimmed
         clean.address = clean.address.trimmed
+        clean.city = clean.city.trimmed
+        clean.zipCode = clean.zipCode.trimmed
         do {
             switch mode {
             case .register:
                 return try await api.registerHousehold(clean)
             case .edit(let id):
-                guard let viewer else { return nil }
-                return try await api.updateHousehold(id: id, clean, as: viewer)
+                return try await api.updateHousehold(id: id, clean)
             }
         } catch {
             saveError = error

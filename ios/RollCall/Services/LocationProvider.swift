@@ -2,8 +2,8 @@
 //  LocationProvider.swift
 //  RollCall
 //
-//  Gets the phone's current location once (for the household's pin) and turns
-//  a location into a readable address like "1418 Lee St", "Greenville".
+//  Gets the phone's current location once, finds a typed address on the map,
+//  and turns a location back into a street, town and ZIP code.
 //
 //  In the simulator, set a location with Features > Location > Custom
 //  Location (or: xcrun simctl location booted set 33.07,-96.10).
@@ -51,12 +51,17 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
         return parts.isEmpty ? place.name : parts.joined(separator: ", ")
     }
 
-    /// The street address and town for a spot, e.g. ("1418 Lee St", "Greenville").
-    func address(for coordinate: CLLocationCoordinate2D) async -> (street: String, city: String)? {
+    /// Where a typed address is, e.g. "1418 Lee St, Greenville, TX 75401".
+    func coordinate(forAddress address: String) async -> CLLocationCoordinate2D? {
+        try? await geocoder.geocodeAddressString(address).first?.location?.coordinate
+    }
+
+    /// The street, town and ZIP code at a spot, for filling in the form.
+    func postalAddress(for coordinate: CLLocationCoordinate2D) async -> (street: String, city: String, zip: String)? {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
         guard let place = try? await geocoder.reverseGeocodeLocation(location).first else { return nil }
         let street = [place.subThoroughfare, place.thoroughfare].compactMap { $0 }.joined(separator: " ")
-        return (street.isEmpty ? (place.name ?? "") : street, place.locality ?? "")
+        return (street.isEmpty ? (place.name ?? "") : street, place.locality ?? "", place.postalCode ?? "")
     }
 
     private func finish(with location: CLLocation?) {

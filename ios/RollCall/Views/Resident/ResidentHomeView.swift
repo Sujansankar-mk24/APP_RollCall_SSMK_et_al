@@ -2,8 +2,9 @@
 //  ResidentHomeView.swift
 //  RollCall
 //
-//  A resident's home screen: a calm "all clear" when nothing is happening,
-//  their household at a glance, their volunteer buddy, and their privacy.
+//  The "My household" part of the Roll Call tab: a calm "all clear" when
+//  nothing is happening, volunteers asking to be their buddy, their household
+//  at a glance, their buddy, and their privacy.
 //  (During an emergency this is where the roll call appears; that's step 3.)
 //
 
@@ -11,73 +12,119 @@ import MapKit
 import SwiftUI
 
 struct ResidentHomeView: View {
-    @Environment(AppSession.self) private var session
+    @Environment(AuthStore.self) private var auth
+    @Environment(\.brand) private var brand
     @State private var viewModel: ResidentHomeViewModel
     @State private var isEditing = false
+    @State private var confirmsEndingMatch = false
 
     init(householdID: Int) {
         _viewModel = State(initialValue: ResidentHomeViewModel(householdID: householdID))
     }
 
     var body: some View {
-        NavigationStack {
-            content
-                .background(Color(.systemGroupedBackground))
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        RoleButton(name: viewModel.household?.firstName ?? String(localized: "Resident"))
+        content
+            .task { await viewModel.load() }
+            .fullScreenCover(isPresented: $isEditing) {
+                if let household = viewModel.household {
+                    ProfileWizardView(mode: .edit(householdID: household.id), existing: household) { saved in
+                        viewModel.replace(with: saved)
                     }
-                    ToolbarItem(placement: .topBarTrailing) { AppearanceToolbarMenu() }
-                }
-        }
-        .task { await viewModel.load() }
-        .refreshable { await viewModel.load() }
-        .fullScreenCover(isPresented: $isEditing) {
-            if let household = viewModel.household {
-                ProfileWizardView(mode: .edit(householdID: household.id), existing: household,
-                                  viewer: Viewer(role: .resident, id: household.id)) { saved in
-                    viewModel.replace(with: saved)
+                    .rollCallBrand()
                 }
             }
-        }
+            .alert("Couldn't do that", isPresented: Binding(
+                get: { viewModel.actionError != nil }, set: { if !$0 { viewModel.actionError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(viewModel.actionError?.message ?? "")
+            }
+            .confirmationDialog("End your buddy match?", isPresented: $confirmsEndingMatch, titleVisibility: .visible) {
+                Button("End match", role: .destructive) { Task { await viewModel.removeBuddy() } }
+            } message: {
+                Text("They'll no longer see your household or be asked to check on you.")
+            }
     }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
         case .loading:
-            ProgressView("Loading your household…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            ProgressView("Loading your household…").frame(maxWidth: .infinity, minHeight: 240)
         case .failed(.notFound):
-            // The household no longer exists (deleted, or the demo was reset).
+            // The household no longer exists (for example, the demo data was reset).
             MessageCard(systemImage: "house.slash", title: "This household no longer exists",
                         message: "It may have been deleted, or the demo data was reset.",
-                        actionTitle: "Choose again", action: { session.switchRole() })
-                .padding(Spacing.l).frame(maxHeight: .infinity)
+                        actionTitle: "Refresh", action: { Task { await auth.refresh() } })
         case .failed(let error):
             MessageCard(error: error, action: { Task { await viewModel.retry() } })
-                .padding(Spacing.l).frame(maxHeight: .infinity)
         case .loaded(let household):
-            ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.l) {
-                    greeting(household)
-                    allClearCard
-                    householdCard(household)
-                    buddyCard(household)
-                    NavigationLink {
-                        PrivacyView(household: household, isDeleting: viewModel.isDeleting) {
-                            if await viewModel.deleteMyData() { session.switchRole() }
-                        }
-                    } label: {
-                        rowCard(symbol: "lock.shield.fill", title: "Your privacy",
-                                subtitle: "Who can see your information, and deleting it")
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("privacyLink")
-                    EmergencyBanner()
+            VStack(alignment: .leading, spacing: Spacing.l) {
+                greeting(household)
+                ForEach(viewModel.buddyRequests) { request in
+                    buddyRequestCard(request)
                 }
-                .padding(Spacing.l)
+                allClearCard
+                householdCard(household)
+                buddyCard(household)
+                NavigationLink {
+                    PrivacyView(household: household, isDeleting: viewModel.isDeleting,
+                                onDelete: { await viewModel.deleteMyData() },
+                                onDeleted: { await auth.refresh() })
+                    .rollCallBrand()
+                } label: {
+                    rowCard(symbol: "lock.shield.fill", title: "Your privacy",
+                            subtitle: "Who can see your information, and deleting it")
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("privacyLink")
+                EmergencyBanner()
             }
         }
+    }
+
+    /// "Daniel wants to check on you": the resident decides.
+    private func buddyRequestCard(_ request: BuddyRequestToMe) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            HStack(alignment: .top, spacing: Spacing.m) {
+                Text(initials(request.volunteerName))
+                    .font(.headline).fontDesign(.rounded)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(brand, in: Circle())
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(request.volunteerName) offered to check on you")
+                        .font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(request.sameCommunity
+                         ? String(localized: "A volunteer from your community.")
+                         : String(localized: "A volunteer from \(request.volunteerCity). They're not in your community."))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Text("If you accept, they'll see your name, address, phone and needs, and check on you if you don't answer during an emergency.")
+                .font(.footnote).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: Spacing.m) {
+                Button("Not now") { Task { await viewModel.answer(request, accept: false) } }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("declineBuddy")
+                Button("Accept") { Task { await viewModel.answer(request, accept: true) } }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .accessibilityIdentifier("acceptBuddy")
+            }
+            .controlSize(.large)
+            .disabled(viewModel.isAnswering)
+        }
+        .padding(Spacing.l)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(brand.opacity(0.5), lineWidth: 1.5))
+        .accessibilityElement(children: .contain)
     }
 
     private func greeting(_ household: Household) -> some View {
@@ -97,7 +144,7 @@ struct ResidentHomeView: View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Image(systemName: "shield.lefthalf.filled")
                 .font(.title)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(brand)
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("No emergencies near you").font(.headline)
                 Text("If one starts, RollCall will ask if you're safe. Answering takes one tap.")
@@ -107,7 +154,7 @@ struct ResidentHomeView: View {
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .background(brand.opacity(0.10), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 
@@ -117,7 +164,7 @@ struct ResidentHomeView: View {
                                                             span: MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008))),
                 interactionModes: []) {
                 Marker(household.address, systemImage: "house.fill", coordinate: household.coordinate)
-                    .tint(Color.accentColor)
+                    .tint(brand)
             }
             .mapStyle(.standard(pointsOfInterest: .excludingAll))
             .frame(height: 130)
@@ -128,7 +175,7 @@ struct ResidentHomeView: View {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(household.address).font(.headline)
-                        Text(household.city).font(.subheadline).foregroundStyle(.secondary)
+                        Text("\(household.city) \(household.zipCode)").font(.subheadline).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Button("Edit") { isEditing = true }
@@ -153,7 +200,7 @@ struct ResidentHomeView: View {
                     .font(.headline).fontDesign(.rounded)
                     .foregroundStyle(.white)
                     .frame(width: 48, height: 48)
-                    .background(Color(.systemTeal), in: Circle())
+                    .background(brand, in: Circle())
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Your buddy").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
@@ -162,12 +209,23 @@ struct ResidentHomeView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                Spacer(minLength: 0)
+                Menu {
+                    Button("End buddy match", systemImage: "person.badge.minus", role: .destructive) {
+                        confirmsEndingMatch = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.title3)
+                        .frame(width: minimumTapSize, height: minimumTapSize)
+                }
+                .accessibilityLabel("Buddy options")
             }
             .card()
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: .contain)
         } else if household.wantsBuddy {
-            rowCard(symbol: "person.2.wave.2.fill", title: "Finding you a buddy",
-                    subtitle: "We'll match you with a volunteer nearby.")
+            rowCard(symbol: "person.2.wave.2.fill", title: "Waiting for a buddy",
+                    subtitle: "Volunteers in your community can offer to check on you. You'll choose whether to accept.")
         } else {
             Button { isEditing = true } label: {
                 rowCard(symbol: "person.2.wave.2.fill", title: "Want a neighbor to check on you?",
@@ -181,9 +239,9 @@ struct ResidentHomeView: View {
         HStack(spacing: Spacing.m) {
             Image(systemName: symbol)
                 .font(.title3)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(brand)
                 .frame(width: 44, height: 44)
-                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                .background(brand.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
                 Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
@@ -195,9 +253,5 @@ struct ResidentHomeView: View {
         .card()
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-    }
-
-    private func initials(_ name: String) -> String {
-        name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined()
     }
 }

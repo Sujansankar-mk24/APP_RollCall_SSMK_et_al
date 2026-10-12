@@ -37,6 +37,28 @@ nonisolated enum Radius {
 /// Apple's minimum comfortable tap target (Human Interface Guidelines).
 nonisolated let minimumTapSize: CGFloat = 44
 
+// MARK: - Brand color
+
+// The app has two halves with their own color:
+//   Map, Incidents, About ........ blue (the app's accent color)
+//   Roll Call, Community ......... purple
+// Shared pieces (cards, counters, chips, the logo) read `brand` from the
+// environment, so the same component is blue in one tab and purple in another.
+// The purple is Assets > RollCallPurple (Xcode turns it into Color.rollCallPurple),
+// with a lighter shade for dark mode.
+
+extension EnvironmentValues {
+    @Entry var brand: Color = .accentColor
+}
+
+extension View {
+    /// Color this part of the app purple: buttons, toggles, and every shared component.
+    func rollCallBrand() -> some View {
+        environment(\.brand, .rollCallPurple)
+            .tint(.rollCallPurple)
+    }
+}
+
 // MARK: - Meaning colors
 
 extension IncidentStatus {

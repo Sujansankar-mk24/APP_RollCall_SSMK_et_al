@@ -9,15 +9,15 @@ import SwiftUI
 
 @main
 struct RollCallApp: App {
-    /// Who the app is acting as (saved on the device).
-    @State private var session = AppSession()
+    /// Who is signed in (the sign-in token is saved in the Keychain).
+    @State private var auth = AuthStore()
     /// The display choice (Match iPhone / Light / Night mode), saved on the device.
     @AppStorage(AppearanceMode.storageKey) private var appearance: AppearanceMode = .system
 
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environment(session)
+                .environment(auth)
                 // Apply the saved display choice at launch and whenever it changes.
                 .onChange(of: appearance, initial: true) { appearance.apply() }
                 .task { appearance.apply() }

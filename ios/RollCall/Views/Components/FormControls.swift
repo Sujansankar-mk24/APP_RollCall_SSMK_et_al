@@ -10,6 +10,7 @@ import SwiftUI
 
 /// "Children  [ - ] 2 [ + ]": a number with big minus and plus buttons.
 struct CounterRow: View {
+    @Environment(\.brand) private var brand
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
     let systemImage: String
@@ -21,9 +22,9 @@ struct CounterRow: View {
         HStack(spacing: Spacing.m) {
             Image(systemName: systemImage)
                 .font(.title2)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(brand)
                 .frame(width: 44, height: 44)
-                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                .background(brand.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
@@ -62,13 +63,14 @@ struct CounterRow: View {
                 .background(Color(.tertiarySystemFill), in: Circle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(enabled ? Color.accentColor : Color.secondary.opacity(0.5))
+        .foregroundStyle(enabled ? brand : Color.secondary.opacity(0.5))
         .disabled(!enabled)
     }
 }
 
 /// A big on/off tile with an icon, title and a short explanation.
 struct ToggleTile: View {
+    @Environment(\.brand) private var brand
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
     let systemImage: String
@@ -81,14 +83,14 @@ struct ToggleTile: View {
                 HStack {
                     Image(systemName: systemImage)
                         .font(.title2)
-                        .foregroundStyle(isOn ? .white : Color.accentColor)
+                        .foregroundStyle(isOn ? .white : brand)
                         .frame(width: 44, height: 44)
-                        .background(isOn ? Color.accentColor : Color.accentColor.opacity(0.12),
+                        .background(isOn ? brand : brand.opacity(0.12),
                                     in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                     Spacer()
                     Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
                         .font(.title3)
-                        .foregroundStyle(isOn ? Color.accentColor : Color.secondary.opacity(0.5))
+                        .foregroundStyle(isOn ? brand : Color.secondary.opacity(0.5))
                 }
                 Text(title).font(.headline).multilineTextAlignment(.leading)
                 Text(subtitle).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.leading)
@@ -100,7 +102,7 @@ struct ToggleTile: View {
             .background(Color(.secondarySystemGroupedBackground),
                         in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(isOn ? Color.accentColor : .clear, lineWidth: 2))
+                .strokeBorder(isOn ? brand : .clear, lineWidth: 2))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -116,6 +118,7 @@ struct ToggleTile: View {
 
 /// A rounded chip that can be selected (for picking several things).
 struct SelectChip: View {
+    @Environment(\.brand) private var brand
     let title: LocalizedStringResource
     let systemImage: String
     let isSelected: Bool
@@ -128,7 +131,7 @@ struct SelectChip: View {
                 .padding(.horizontal, Spacing.m)
                 .frame(minHeight: minimumTapSize)
                 .foregroundStyle(isSelected ? .white : .primary)
-                .background(isSelected ? Color.accentColor : Color(.secondarySystemGroupedBackground), in: Capsule())
+                .background(isSelected ? brand : Color(.secondarySystemGroupedBackground), in: Capsule())
                 .overlay(Capsule().strokeBorder(Color.primary.opacity(isSelected ? 0 : 0.1)))
         }
         .buttonStyle(.plain)
@@ -139,6 +142,7 @@ struct SelectChip: View {
 
 /// "Step 2 of 5" with a segmented bar.
 struct StepProgress: View {
+    @Environment(\.brand) private var brand
     let current: Int   // 0-based
     let total: Int
 
@@ -147,7 +151,7 @@ struct StepProgress: View {
             HStack(spacing: 6) {
                 ForEach(0..<total, id: \.self) { index in
                     Capsule()
-                        .fill(index <= current ? Color.accentColor : Color(.tertiarySystemFill))
+                        .fill(index <= current ? brand : Color(.tertiarySystemFill))
                         .frame(height: 6)
                 }
             }

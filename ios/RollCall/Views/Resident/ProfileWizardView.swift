@@ -3,7 +3,7 @@
 //  RollCall
 //
 //  Setting up (or editing) a household, one calm step at a time:
-//    1. Your home      name, phone, and where you live (pin on a map)
+//    1. Your home      name, phone, and your address (typed, then checked on a map)
 //    2. Who lives here children, adults, 65+
 //    3. What could make leaving hard   mobility, medical equipment, no car, animals
 //    4. If something happens   language, emergency contact, a volunteer buddy
@@ -19,16 +19,15 @@ import UIKit
 
 struct ProfileWizardView: View {
     @State private var viewModel: ProfileWizardViewModel
-    @State private var addressSearch = AddressSearch()
-    @FocusState private var isSearching: Bool
+    @Environment(\.brand) private var brand
     /// While typing, the Back/Next bar steps aside so it doesn't cover the form.
     @State private var isKeyboardUp = false
     @Environment(\.dismiss) private var dismiss
     let onSaved: (Household) -> Void
 
-    init(mode: ProfileWizardViewModel.Mode, existing: Household?, viewer: Viewer? = nil,
+    init(mode: ProfileWizardViewModel.Mode, existing: Household?, name: String = "",
          onSaved: @escaping (Household) -> Void) {
-        _viewModel = State(initialValue: ProfileWizardViewModel(mode: mode, existing: existing, viewer: viewer))
+        _viewModel = State(initialValue: ProfileWizardViewModel(mode: mode, existing: existing, name: name))
         self.onSaved = onSaved
     }
 
@@ -54,14 +53,14 @@ struct ProfileWizardView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(Color(.systemGroupedBackground))
             .navigationBarTitleDisplayMode(.inline)
-            .navigationTitle(isEditing ? "Edit household" : "Join RollCall")
+            .navigationTitle(isEditing ? "Edit household" : "Join the roll call")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") { isSearching = false; hideKeyboard() }
+                    Button("Done") { hideKeyboard() }
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -122,9 +121,19 @@ struct ProfileWizardView: View {
             LabeledField(label: "Phone (optional)", prompt: "So a buddy can call you", text: $viewModel.input.phone,
                          contentType: .telephoneNumber, keyboard: .phonePad, identifier: "phoneField")
 
+            LabeledField(label: "Street address", prompt: "e.g. 1418 Pecan Hollow Dr", text: $viewModel.input.address,
+                         contentType: .streetAddressLine1, identifier: "addressField")
+            HStack(alignment: .top, spacing: Spacing.m) {
+                LabeledField(label: "Town", prompt: "Greenville", text: $viewModel.input.city,
+                             contentType: .addressCity, identifier: "cityField")
+                LabeledField(label: "ZIP code", prompt: "75401", text: $viewModel.input.zipCode,
+                             contentType: .postalCode, keyboard: .numberPad, identifier: "zipField")
+                    .frame(maxWidth: 130)
+            }
+            .onChange(of: viewModel.addressText) { viewModel.addressChanged() }
+
             VStack(alignment: .leading, spacing: 6) {
-                Text("Where you live").font(.subheadline.weight(.semibold))
-                addressSearchField
+                Text("Check the pin is on your home").font(.subheadline.weight(.semibold))
                 LocationPickerMap(coordinate: viewModel.coordinate, position: $viewModel.mapPosition) {
                     viewModel.movePin(to: $0)
                 }
@@ -140,14 +149,14 @@ struct ProfileWizardView: View {
                         .frame(width: minimumTapSize, height: minimumTapSize)
                         .contentShape(Rectangle())
                     }
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(brand)
                     .floatingSurface(cornerRadius: Radius.control)
                     .padding(Spacing.s)
                     .accessibilityLabel("Use my current location")
                 }
                 .overlay {
                     if !viewModel.hasPin {
-                        Text("Search your address, use your location, or tap the map")
+                        Text(viewModel.isFindingAddress ? "Finding your address…" : "Type your address, or use your location")
                             .font(.footnote.weight(.semibold))
                             .padding(.horizontal, Spacing.m).padding(.vertical, Spacing.s)
                             .floatingSurface(cornerRadius: 14)
@@ -155,58 +164,16 @@ struct ProfileWizardView: View {
                     }
                 }
                 if let note = viewModel.locationNote {
-                    Text(note).font(.footnote).foregroundStyle(Color(.systemOrange))
-                }
-            }
-            LabeledField(label: "Street address", prompt: "Fills in from the map, or type it", text: $viewModel.input.address,
-                         contentType: .streetAddressLine1, identifier: "addressField")
-            LabeledField(label: "Town", prompt: "Town", text: $viewModel.input.city, contentType: .addressCity)
-        }
-    }
-
-    private var addressSearchField: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: Spacing.s) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search your address", text: $addressSearch.query)
-                    .focused($isSearching)
-                    .textContentType(.fullStreetAddress)
-                    .autocorrectionDisabled()
-                    .submitLabel(.search)
-                    .accessibilityIdentifier("addressSearchField")
-                if addressSearch.isLookingUp { ProgressView() }
-            }
-            .padding(.horizontal, Spacing.m)
-            .frame(minHeight: 50)
-
-            if isSearching && !addressSearch.suggestions.isEmpty {
-                ForEach(addressSearch.suggestions) { suggestion in
-                    Divider()
-                    Button {
-                        Task {
-                            if let place = await addressSearch.place(for: suggestion) {
-                                viewModel.usePlace(place)
-                                addressSearch.clear()
-                                isSearching = false
-                            }
-                        }
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(suggestion.title).font(.subheadline.weight(.medium)).foregroundStyle(.primary)
-                            if !suggestion.subtitle.isEmpty {
-                                Text(suggestion.subtitle).font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, minHeight: minimumTapSize, alignment: .leading)
-                        .padding(.horizontal, Spacing.m)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
+                    Label(note.text, systemImage: note.isGood ? "checkmark.circle.fill" : "info.circle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(note.isGood ? Color(.systemGreen) : Color(.systemOrange))
+                        .accessibilityIdentifier("locationNote")
+                } else {
+                    Text("Drag the map or tap to move the pin if it's not exactly on your home.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
             }
         }
-        .background(Color(.secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
     }
 
     // 2. Who lives here
@@ -281,7 +248,7 @@ struct ProfileWizardView: View {
                             }
                             .frame(maxWidth: .infinity, minHeight: 84)
                             .foregroundStyle(selected ? .white : .primary)
-                            .background(selected ? Color.accentColor : Color(.secondarySystemGroupedBackground),
+                            .background(selected ? brand : Color(.secondarySystemGroupedBackground),
                                         in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                         }
                         .buttonStyle(.plain)
@@ -300,9 +267,9 @@ struct ProfileWizardView: View {
                 HStack(spacing: Spacing.m) {
                     Image(systemName: "person.2.wave.2.fill")
                         .font(.title3)
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(brand)
                         .frame(width: 44, height: 44)
-                        .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                        .background(brand.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Ask a neighbor to check on me").font(.headline)
                         Text("A nearby volunteer buddy will come by if you don't answer during an emergency.")
@@ -310,7 +277,7 @@ struct ProfileWizardView: View {
                     }
                 }
             }
-            .tint(Color.accentColor)
+            .tint(brand)
             .card(padding: Spacing.m)
             .accessibilityIdentifier("wantsBuddyToggle")
         }
@@ -356,14 +323,14 @@ struct ProfileWizardView: View {
         if i.noVehicle { tags.append(NeedTag("No vehicle", symbol: "car.side.fill", tint: .orange)) }
         if i.pets { tags.append(NeedTag("Pets", symbol: "pawprint.fill", tint: .secondary)) }
         if i.livestock { tags.append(NeedTag("Livestock", symbol: "hare.fill", tint: .secondary)) }
-        tags.append(NeedTag(verbatim: i.language.nativeName, symbol: "globe", tint: .accentColor))
+        tags.append(NeedTag(verbatim: i.language.nativeName, symbol: "globe", tint: brand))
         return tags
     }
 
     private func sharingRow(_ symbol: String, _ who: LocalizedStringKey, _ what: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Image(systemName: symbol)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(brand)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(who).font(.subheadline.weight(.semibold))
@@ -380,7 +347,7 @@ struct ProfileWizardView: View {
             .foregroundStyle(.secondary)
             .padding(Spacing.m)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+            .background(brand.opacity(0.08), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
     }
 
     // MARK: - Back / Next
@@ -392,7 +359,7 @@ struct ProfileWizardView: View {
                 .font(.subheadline.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .tint(Color.accentColor)
+        .tint(brand)
         .accessibilityIdentifier("consentToggle")
     }
 
