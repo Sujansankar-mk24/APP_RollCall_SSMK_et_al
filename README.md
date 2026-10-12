@@ -15,13 +15,18 @@ Make sure no one gets left behind. RollCall is a community emergency app for Nor
 |---|---|
 | **Map** | Incidents as colored circles you can tap for details. **Report incident** with a pin, address search, and a photo or video. Filters, legend, zoom, night mode. |
 | **Incidents** | For responders: key numbers and every incident sorted by priority, with "Why this priority?". |
-| **Roll Call** | Pick who you are: a resident (register or edit your household, privacy, Delete my data), a volunteer buddy (your neighbors), or a responder. |
-| **About** | What RollCall does, who can see your information, and credits. |
+| **Roll Call** (purple) | **My household**: join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, privacy and Delete my data. **I check on**: be a volunteer buddy. Responders see their own view. |
+| **Community** (purple) | Find your neighborhood and ask to join, or start one and be its admin: approve members, and decide whether buddies from outside are allowed. |
+| **About** | What RollCall does, who can see your information, credits, and your account (Sign out). |
+
+You sign in once; the app remembers you until you sign out. For judges, the sign-in screen has one-tap **demo accounts** (all fictional): José Ochoa (a resident and the admin of Pecan Hollow, with a buddy offer and a join request waiting), Daniel Okafor (a volunteer in Pecan Hollow) and Alex Rivera (a responder).
 
 ## What works so far
 
 - **Map and Incidents tabs:** reporting with photo/video, merging, AI photo/video checks, priority scoring, responder status updates, timeline.
-- **Roll Call, step 1 — household profile:** a five-step sign-up (home, who lives here, needs, contact, review), a clear "who can see this" privacy screen, and **Delete my data**, which really deletes everything.
+- **Accounts:** sign up, sign in, stay signed in, sign out. Passwords are hashed with scrypt; the sign-in token lives in the iPhone Keychain.
+- **Roll Call, step 1 — household profile:** a five-step sign-up (home, who lives here, needs, contact, review) with a typed address checked on the map and by GPS, **Not now** for people who'd rather not, a clear "who can see this" privacy screen, and **Delete my data**, which really deletes everything.
+- **Communities and buddies:** neighborhoods with admin approval; buddy offers from community neighbors or by exact address, always accepted or declined by the resident.
 - *(Coming next)* Emergency events from National Weather Service alerts, responder-drawn zones, and demo events.
 - *(Coming)* The roll call check-in in English and Spanish, escalation to buddies and responders, the responder roll-call dashboard with risk scores and routes, and buddy matching.
 
@@ -68,7 +73,7 @@ In a new terminal, run `source .venv/bin/activate` again before using `python` o
 2. Open `ios/RollCall.xcodeproj` in Xcode.
 3. Pick an iPhone simulator at the top of the window (for example, iPhone 18 Pro) and press **Run** (⌘R).
 
-The app opens on the Map tab. In the Roll Call tab, choose who you are; to change roles later, tap your name at the top left, then **Switch role**.
+The first time, the app shows the sign-in screen: create an account, or tap one of the demo accounts. After that it opens straight to the Map. To switch accounts, tap your name at the top left of the Roll Call or Community tab (or go to About) and choose **Sign out**.
 
 The app reads the server address from `ios/RollCall/Config/AppConfig.swift` (`http://localhost:8000`). If the backend isn't running, the app shows "Can't reach RollCall" with a **Try again** button. New Swift files added anywhere inside `ios/RollCall/` are included in the project automatically.
 
@@ -103,15 +108,15 @@ Reports can be about any of these, grouped into "modes" so the map can show one 
 
 ## Roll Call privacy model
 
-- Joining is opt-in, and nothing is shared until you agree on the last sign-up step.
+- Joining is opt-in ("Not now" is always an option), and nothing is shared until you agree on the last sign-up step.
 - **You** can always see, edit or delete your household.
-- **Your volunteer buddy** sees only the households assigned to them.
+- **A volunteer buddy** sees your household only after you accept their offer. Neighbors in your community who volunteer see only your first name and street (and only if you asked for a buddy). A volunteer outside your community can only offer by typing your exact address, only if your community's admin allows outside buddies, and the app gives them the same answer whether or not anyone lives there.
 - **Responders** see a household only during an active emergency, and only if it's inside the emergency zone.
 - **Nobody else** sees anything. Incident reports on the map don't show who sent them.
 
 These rules are enforced by the server (`backend/app/privacy.py`), not just hidden in the app, and the tests check them.
 
-The demo has no real accounts. The app says who you're acting as with two headers (`X-Demo-Role`, `X-Demo-Id`). A real version would use proper sign-in.
+**Accounts:** passwords are never stored, only a salted scrypt hash. Signing in gives the app a random token, kept in the iPhone Keychain and sent with each request; the server stores only a hash of it. Demo accounts can be opened without a password, but only accounts the seed script marked as demo.
 
 All demo households and volunteers are fictional: made-up names, made-up street numbers, and `555-01xx` phone numbers.
 
@@ -128,9 +133,18 @@ All demo households and volunteers are fictional: made-up names, made-up street 
 | `POST` | `/households` | Register a household (Roll Call) |
 | `GET` `PUT` `DELETE` | `/households/{id}` | See, edit or delete a household, if the privacy rules allow it |
 | `GET` | `/volunteers/{id}/households` | A buddy's assigned households (only for that buddy) |
-| `GET` | `/demo/identities` | The fictional demo households and volunteers to act as |
+| `POST` | `/auth/signup`, `/auth/signin`, `/auth/signout` | Accounts |
+| `GET` `PATCH` | `/me` | The signed-in account (household, volunteer, community); "Not now" |
+| `PUT` `DELETE` | `/me/volunteer` | Become (or stop being) a volunteer buddy |
+| `GET` | `/me/buddy-requests` | Volunteers offering to check on you; `POST .../{id}/accept` or `/decline` |
+| `GET` | `/buddy/residents`, `/buddy/neighbors`, `/buddy/requests` | A volunteer's lists |
+| `POST` | `/buddy/requests/community`, `/buddy/requests/address` | Offer to check on a neighbor, or someone by exact address |
+| `GET` `POST` | `/communities` | Search or create a community |
+| `GET` `PATCH` | `/communities/{id}` | Details; the admin allows or blocks outside buddies |
+| `POST` | `/communities/{id}/join`, `/leave`, `/requests/{user}/approve`, `/decline` | Joining and admin approval |
+| `GET` `POST` | `/demo/accounts`, `/demo/signin` | Fictional demo accounts for judges |
 
-Roll Call requests say who the app is acting as with two headers, `X-Demo-Role` (`resident`, `buddy` or `responder`) and `X-Demo-Id`.
+Every Roll Call and Community request must be signed in (`Authorization: Bearer <token>`).
 
 ## How report merging works
 
@@ -168,8 +182,8 @@ The −20 only applies to types the AI can check. It looks for flames, smoke and
 
 ## Automated tests
 
-- **Backend:** `cd backend && python -m pytest`. Covers report merging, priority scoring, the AI's scene rules, the incident API, household sign-up checks, the privacy rules for each role, Delete my data, and the demo data.
-- **iPhone app (UI tests):** start the backend with fresh demo data (`python -m scripts.reset_demo`, then `uvicorn app.main:app`), then press **⌘U** in Xcode. The tests tap through the real app: zooming the map, the Incidents list, reporting a fire that merges into an existing one, searching an address, attaching a photo and waiting for the AI result, the About tab, registering a household step by step and deleting it, acting as a demo household, a buddy seeing only their neighbors, and a responder seeing nothing without an emergency.
+- **Backend:** `cd backend && python -m pytest`. Covers report merging, priority scoring, the AI's scene rules, the incident API, accounts and password safety, household sign-up checks, the privacy rules, buddy offers (including that a typed address reveals nothing), communities and admin approval, Delete my data, and the demo data.
+- **iPhone app (UI tests):** start the backend with fresh demo data (`python -m scripts.reset_demo`, then `uvicorn app.main:app`), then press **⌘U** in Xcode. The tests tap through the real app: zooming the map, the Incidents list, reporting a fire that merges into an existing one, searching an address, attaching a photo and waiting for the AI result, the About tab, creating an account and signing out and back in, staying signed in, "Not now", joining the roll call step by step and deleting it, accepting a buddy offer, offering to help by address, a responder seeing nothing without an emergency, asking to join a community, starting one, and an admin approving a member.
 
 ## Known limitations
 
