@@ -4,6 +4,8 @@
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .venv/
 .pytest_cache/
 
@@ -21,3 +23,10 @@ xcuserdata/
 DerivedData/
 *.xcuserstate
 demo_video/
+
+# AI & Environments
+.claude
+.codex
+.vercel
+.env
+.env.*
