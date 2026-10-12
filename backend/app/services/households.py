@@ -3,29 +3,39 @@ Turning a Household row into what the API sends, plus deleting a household
 and everything attached to it.
 """
 
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlmodel import Session, delete, select
 
-from app.models import BuddyLink, Household, TimelineEvent, Volunteer
+from app.models import BuddyLink, BuddyStatus, Household, TimelineEvent, User, Volunteer
 from app.schemas import BuddyOut, HouseholdIn, HouseholdOut
 
 
-def buddy_of(session: Session, household_id: int) -> Optional[Volunteer]:
-    link = session.exec(select(BuddyLink).where(BuddyLink.household_id == household_id)).first()
-    return session.get(Volunteer, link.volunteer_id) if link else None
+def utc(moment: datetime) -> datetime:
+    """SQLite forgets time zones; every time we store is UTC, so say so."""
+    return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+
+
+def buddy_of(session: Session, household_id: int) -> Optional[BuddyOut]:
+    """The household's accepted volunteer buddy, if it has one."""
+    link = session.exec(select(BuddyLink).where(
+        BuddyLink.household_id == household_id, BuddyLink.status == BuddyStatus.active)).first()
+    if link is None:
+        return None
+    volunteer = session.get(Volunteer, link.volunteer_id)
+    user = session.get(User, volunteer.user_id)
+    return BuddyOut(id=volunteer.id, name=user.name, phone=volunteer.phone, city=volunteer.city)
 
 
 def to_out(session: Session, household: Household) -> HouseholdOut:
-    buddy = buddy_of(session, household.id)
-    utc = lambda d: d if d.tzinfo else d.replace(tzinfo=timezone.utc)
     return HouseholdOut(
         id=household.id,
         contact_name=household.contact_name,
         phone=household.phone,
         address=household.address,
         city=household.city,
+        zip_code=household.zip_code,
         latitude=household.latitude,
         longitude=household.longitude,
         children=household.children,
@@ -43,7 +53,7 @@ def to_out(session: Session, household: Household) -> HouseholdOut:
         emergency_contact_name=household.emergency_contact_name,
         emergency_contact_phone=household.emergency_contact_phone,
         wants_buddy=household.wants_buddy,
-        buddy=BuddyOut(id=buddy.id, name=buddy.name, phone=buddy.phone, city=buddy.city) if buddy else None,
+        buddy=buddy_of(session, household.id),
         is_demo=household.is_demo,
         created_at=utc(household.created_at),
         updated_at=utc(household.updated_at),

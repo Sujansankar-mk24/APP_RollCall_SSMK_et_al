@@ -43,6 +43,7 @@ def _add_missing_columns() -> None:
                     continue
                 column_type = column.type.compile(dialect=engine.dialect)
                 default = column.default.arg if column.default is not None and not callable(column.default.arg) else None
+                default = getattr(default, "value", default)   # an Enum default is stored as its text
                 default_sql = f" DEFAULT {int(default) if isinstance(default, bool) else repr(default)}" if default is not None else ""
                 connection.exec_driver_sql(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {column_type}{default_sql}')
 

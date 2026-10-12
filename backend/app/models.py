@@ -7,11 +7,20 @@ Incident reports (Map and Incidents tabs):
     Incident  1 ──< many  Report   (people reporting the same event)
     Incident  1 ──< many  Media    (photos/videos, each with its AI result)
 
+Accounts:
+    User              one person's account (email + hashed password).
+    AuthToken         a "remember me" sign-in token for one device.
+
 Roll call (Roll Call tab):
-    Household      one home that opted in: where it is, who lives there, and
-                   what help they might need in an emergency.
-    Volunteer      a neighbor who agreed to check on specific households.
-    BuddyLink      which volunteer checks on which household.
+    Household         one home that opted in, owned by one User: where it is,
+                      who lives there, and what help they might need.
+    Volunteer         a User who agreed to check on neighbors.
+    BuddyLink         a volunteer checking on a household. It starts as a
+                      request, and the resident must accept it.
+
+Communities (Community tab):
+    Community         a neighborhood, e.g. "Pecan Hollow" in Greenville.
+    CommunityMember   a User in a community (or asking to join one).
 
 Shared:
     TimelineEvent  one history line, for an incident ("AI found fire") or a
@@ -147,6 +156,30 @@ class Media(SQLModel, table=True):
 
 
 # ---------------------------------------------------------------------------
+# Accounts
+# ---------------------------------------------------------------------------
+
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    email: str = Field(index=True, unique=True)   # always stored in lowercase
+    password_hash: str                            # never the password itself (see app/auth.py)
+    is_responder: bool = False                    # responder accounts are issued, not signed up for
+    roll_call_opt_out: bool = False               # chose "Not now" for the roll call
+    is_demo: bool = False                         # fictional demo account
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class AuthToken(SQLModel, table=True):
+    """Keeps a device signed in. Only a hash of the token is stored."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    token_hash: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+# ---------------------------------------------------------------------------
 # Roll call (Roll Call tab)
 # ---------------------------------------------------------------------------
 
@@ -157,12 +190,14 @@ class Language(str, Enum):
 
 class Household(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="user.id", index=True, unique=True)   # one household per account
 
     # Who and where
     contact_name: str                       # e.g. "Margaret Ellis"
     phone: str = ""
-    address: str                            # street address
+    address: str                            # street address, typed by the resident
     city: str = ""
+    zip_code: str = ""
     latitude: float
     longitude: float
 
@@ -206,22 +241,68 @@ class Household(SQLModel, table=True):
 
 
 class Volunteer(SQLModel, table=True):
+    """A user who agreed to check on neighbors during an emergency."""
+
     id: Optional[int] = Field(default=None, primary_key=True)
-    name: str
+    user_id: int = Field(foreign_key="user.id", index=True, unique=True)
     phone: str = ""
     city: str = ""
-    latitude: float
-    longitude: float
     capacity: int = 5                       # how many households they agreed to check on
-    is_demo: bool = False
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class BuddyStatus(str, Enum):
+    pending = "pending"    # asked; waiting for the resident to accept
+    active = "active"      # the resident accepted
+    declined = "declined"  # the resident said no
 
 
 class BuddyLink(SQLModel, table=True):
-    """Volunteer X checks on household Y."""
+    """
+    Volunteer X checks on household Y.
+
+    A volunteer either picks a neighbor from their community's list, or types
+    an address. A typed address that matches no household (or one that doesn't
+    accept outside buddies) is still saved, with household_id left empty, so
+    the volunteer can never use this to find out who lives where.
+    """
 
     id: Optional[int] = Field(default=None, primary_key=True)
     volunteer_id: int = Field(foreign_key="volunteer.id", index=True)
-    household_id: int = Field(foreign_key="household.id", index=True)
+    household_id: Optional[int] = Field(default=None, foreign_key="household.id", index=True)
+    typed_address: str = ""                 # what the volunteer typed, if they used an address
+    status: BuddyStatus = BuddyStatus.pending
+    created_at: datetime = Field(default_factory=utc_now)
+    answered_at: Optional[datetime] = None
+
+
+# ---------------------------------------------------------------------------
+# Communities (Community tab)
+# ---------------------------------------------------------------------------
+
+class Community(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str                               # e.g. "Pecan Hollow"
+    city: str
+    allow_outside_buddies: bool = False     # the admin can let volunteers from outside check on members
+    created_by: int = Field(foreign_key="user.id")
+    is_demo: bool = False
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class MemberStatus(str, Enum):
+    pending = "pending"    # asked to join; an admin hasn't answered yet
+    member = "member"
+
+
+class CommunityMember(SQLModel, table=True):
+    """A user in a community. Each user belongs to (or is asking to join) at most one."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    community_id: int = Field(foreign_key="community.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True, unique=True)
+    status: MemberStatus = MemberStatus.pending
+    is_admin: bool = False
     created_at: datetime = Field(default_factory=utc_now)
 
 
@@ -237,6 +318,7 @@ class TimelineKind(str, Enum):
     # Households
     profile = "profile"
     buddy = "buddy"
+    community = "community"
 
 
 class TimelineEvent(SQLModel, table=True):

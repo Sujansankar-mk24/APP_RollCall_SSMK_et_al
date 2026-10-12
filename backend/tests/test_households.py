@@ -1,112 +1,94 @@
-"""Tests for registering, viewing, editing and deleting a household, and the privacy rules."""
+"""Joining the roll call, and who can see, edit and delete a household."""
 
-from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
+from app.auth import issue_token
 from app.database import engine
-from app.main import app
-from app.models import BuddyLink, Household, TimelineEvent, Volunteer
-
-client = TestClient(app)
-
-PROFILE = {
-    "contact_name": "Test Resident", "phone": "(903) 555-0100", "address": "100 Example Ln", "city": "Greenville",
-    "latitude": 33.14, "longitude": -96.11, "seniors": 1, "medical_equipment": ["oxygen"],
-    "no_vehicle": True, "language": "es", "wants_buddy": True,
-}
+from app.models import BuddyLink, Household, TimelineEvent, User
+from tests.helpers import PROFILE, client, register, sign_up, volunteer
 
 
-def as_(role: str, id: int | None = None) -> dict:
-    headers = {"X-Demo-Role": role}
-    if id is not None:
-        headers["X-Demo-Id"] = str(id)
-    return headers
-
-
-def register(**changes) -> dict:
-    response = client.post("/households", json={**PROFILE, **changes})
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
-def test_register_returns_the_full_profile():
-    body = register()
+def test_join_returns_the_full_profile():
+    me = sign_up()
+    body = register(me)
     assert body["people"] == 1 and body["lives_alone"] is True
-    assert body["medical_equipment"] == ["oxygen"] and body["language"] == "es"
-    assert body["buddy"] is None
+    assert body["medical_equipment"] == ["oxygen"] and body["zip_code"] == "75401"
+    assert client.get("/me", headers=me).json()["household_id"] == body["id"]
+
+
+def test_one_household_per_account():
+    me = sign_up()
+    register(me)
+    assert client.post("/households", json=PROFILE, headers=me).status_code == 409
 
 
 def test_input_is_checked():
-    assert client.post("/households", json={**PROFILE, "seniors": 0}).status_code == 422          # nobody lives there
-    assert client.post("/households", json={**PROFILE, "medical_equipment": ["jetpack"]}).status_code == 422
-    assert client.post("/households", json={**PROFILE, "latitude": 200}).status_code == 422
+    me = sign_up()
+    assert client.post("/households", json={**PROFILE, "seniors": 0}, headers=me).status_code == 422
+    assert client.post("/households", json={**PROFILE, "medical_equipment": ["jetpack"]}, headers=me).status_code == 422
+    assert client.post("/households", json={**PROFILE, "zip_code": "7540"}, headers=me).status_code == 422
+    assert client.post("/households", json={**PROFILE, "city": ""}, headers=me).status_code == 422
 
 
-def test_resident_sees_only_their_own_household():
-    mine, theirs = register(), register(contact_name="Neighbor")
-    assert client.get(f"/households/{mine['id']}", headers=as_("resident", mine["id"])).status_code == 200
-    refused = client.get(f"/households/{theirs['id']}", headers=as_("resident", mine["id"]))
-    assert refused.status_code == 403
-    assert "only see your own" in refused.json()["detail"]
-
-
-def test_buddy_sees_only_assigned_households():
-    assigned, other = register(), register(contact_name="Other")
-    with Session(engine) as session:
-        volunteer = Volunteer(name="Test Buddy", latitude=33.1, longitude=-96.1)
-        session.add(volunteer)
-        session.flush()
-        session.add(BuddyLink(volunteer_id=volunteer.id, household_id=assigned["id"]))
-        session.commit()
-        volunteer_id = volunteer.id
-    assert client.get(f"/households/{assigned['id']}", headers=as_("buddy", volunteer_id)).status_code == 200
-    assert client.get(f"/households/{other['id']}", headers=as_("buddy", volunteer_id)).status_code == 403
-    # The buddy's list contains only their own residents, and only they can ask for it.
-    mine = client.get(f"/volunteers/{volunteer_id}/households", headers=as_("buddy", volunteer_id))
-    assert [h["id"] for h in mine.json()] == [assigned["id"]]
-    assert client.get(f"/volunteers/{volunteer_id}/households", headers=as_("buddy", volunteer_id + 1)).status_code == 403
-    assert client.get(f"/volunteers/{volunteer_id}/households", headers=as_("responder")).status_code == 403
-    # ...and the resident can see who their buddy is.
-    assert client.get(f"/households/{assigned['id']}", headers=as_("resident", assigned["id"])).json()["buddy"]["name"] == "Test Buddy"
-
-
-def test_responder_sees_nothing_without_an_active_emergency():
-    household = register()
-    refused = client.get(f"/households/{household['id']}", headers=as_("responder"))
-    assert refused.status_code == 403
-    assert "active emergency" in refused.json()["detail"]
-
-
-def test_a_role_is_required():
-    household = register()
+def test_signing_in_is_required():
+    assert client.post("/households", json=PROFILE).status_code == 401
+    household = register(sign_up())
     assert client.get(f"/households/{household['id']}").status_code == 401
 
 
+def test_people_see_only_their_own_household():
+    me, neighbor = sign_up(), sign_up()
+    mine, theirs = register(me), register(neighbor)
+    assert client.get(f"/households/{mine['id']}", headers=me).status_code == 200
+    assert client.get(f"/households/{theirs['id']}", headers=me).status_code == 403
+
+
+def test_a_buddy_sees_a_household_only_after_the_resident_accepts():
+    resident, buddy = sign_up(), sign_up("Test Buddy")
+    household = register(resident)
+    volunteer(buddy)
+    client.post("/buddy/requests/address", json={"address": "100 example lane", "city": "Greenville",
+                                                 "zip_code": "75401"}, headers=buddy)
+    assert client.get(f"/households/{household['id']}", headers=buddy).status_code == 403
+    request = client.get("/me/buddy-requests", headers=resident).json()[0]
+    client.post(f"/me/buddy-requests/{request['id']}/accept", headers=resident)
+    assert client.get(f"/households/{household['id']}", headers=buddy).status_code == 200
+    assert client.get(f"/households/{household['id']}", headers=resident).json()["buddy"]["name"] == "Test Buddy"
+
+
+def test_responder_sees_nothing_without_an_active_emergency():
+    household = register(sign_up())
+    with Session(engine) as session:
+        responder = User(name="Responder", email="r@example.com", password_hash="issued", is_responder=True)
+        session.add(responder)
+        session.flush()
+        headers = {"Authorization": f"Bearer {issue_token(session, responder)}"}
+        session.commit()
+    refused = client.get(f"/households/{household['id']}", headers=headers)
+    assert refused.status_code == 403
+    assert "active emergency" in refused.json()["detail"]
+    # Responder accounts are issued, not signed up for: there's no password to guess.
+    assert client.post("/auth/signin", json={"email": "r@example.com", "password": "issued"}).status_code == 401
+
+
 def test_only_the_resident_can_edit():
-    mine, theirs = register(), register(contact_name="Neighbor")
+    me, neighbor = sign_up(), sign_up()
+    mine, theirs = register(me), register(neighbor)
     changed = {**PROFILE, "contact_name": "New Name", "children": 2}
-    updated = client.put(f"/households/{mine['id']}", json=changed, headers=as_("resident", mine["id"]))
+    updated = client.put(f"/households/{mine['id']}", json=changed, headers=me)
     assert updated.status_code == 200 and updated.json()["people"] == 3
-    assert client.put(f"/households/{theirs['id']}", json=changed, headers=as_("resident", mine["id"])).status_code == 403
-    assert client.put(f"/households/{mine['id']}", json=changed, headers=as_("responder")).status_code == 403
+    assert client.put(f"/households/{theirs['id']}", json=changed, headers=me).status_code == 403
 
 
 def test_delete_my_data_removes_everything():
-    household = register()
-    with Session(engine) as session:
-        volunteer = Volunteer(name="Buddy", latitude=33.1, longitude=-96.1)
-        session.add(volunteer)
-        session.flush()
-        session.add(BuddyLink(volunteer_id=volunteer.id, household_id=household["id"]))
-        session.commit()
-    assert client.delete(f"/households/{household['id']}", headers=as_("resident", household["id"])).status_code == 204
+    resident, buddy = sign_up(), sign_up()
+    household = register(resident)
+    volunteer(buddy)
+    client.post("/buddy/requests/address", json={"address": "100 Example Ln", "city": "Greenville",
+                                                 "zip_code": "75401"}, headers=buddy)
+    assert client.delete(f"/households/{household['id']}", headers=resident).status_code == 204
     with Session(engine) as session:
         assert session.get(Household, household["id"]) is None
         assert session.exec(select(BuddyLink).where(BuddyLink.household_id == household["id"])).first() is None
         assert session.exec(select(TimelineEvent).where(TimelineEvent.household_id == household["id"])).first() is None
-    assert client.get(f"/households/{household['id']}", headers=as_("resident", household["id"])).status_code == 404
-
-
-def test_identities_list_only_demo_records():
-    register()  # a real (non-demo) registration must never show up here
-    assert client.get("/demo/identities").json() == {"households": [], "volunteers": []}
+    assert client.get("/me", headers=resident).json()["household_id"] is None

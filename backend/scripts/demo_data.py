@@ -60,3 +60,33 @@ VOLUNTEERS = [
     ("Grant Pruitt", "Paris", 4),
     ("Hope Lindqvist", "Bonham", 4),
 ]
+
+# ZIP code for each town (real ZIP codes, so typed addresses look normal;
+# the street names and house numbers are still made up).
+ZIP_CODES = {
+    "Greenville": "75401", "Caddo Mills": "75135", "Commerce": "75428", "Royse City": "75189",
+    "Farmersville": "75442", "Wolfe City": "75496", "Leonard": "75452", "Bonham": "75418",
+    "Sherman": "75090", "Paris": "75460", "Sulphur Springs": "75482",
+}
+
+# Fictional neighborhoods (named after the made-up streets above):
+# (name, town, allows buddies from outside the community?)
+COMMUNITIES = [
+    ("Pecan Hollow", "Greenville", False),
+    ("Bluebonnet Ridge", "Greenville", True),
+    ("Cottonwood Crossing", "Commerce", False),
+    ("Prairie Wind", "Royse City", False),
+]
+
+# Which community each demo volunteer belongs to (None = no community).
+VOLUNTEER_COMMUNITY = {
+    "Daniel Okafor": "Pecan Hollow",
+    "Luis Treviño": "Pecan Hollow",
+    "Rachel Whitfield": "Bluebonnet Ridge",
+    "Caleb Freeman": "Cottonwood Crossing",
+    "Megan Holloway": "Prairie Wind",
+}
+
+# A fictional responder account. In real life, the county would issue these.
+RESPONDER_NAME = "Alex Rivera"
+RESPONDER_EMAIL = "responder@example.com"

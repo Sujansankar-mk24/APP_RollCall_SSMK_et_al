@@ -15,8 +15,18 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.auth import MIN_PASSWORD_LENGTH
 from app.config import MAX_NOTE_LENGTH, MAX_PEOPLE_PER_HOUSEHOLD, MAX_TEXT_LENGTH, MEDICAL_EQUIPMENT
-from app.models import AnalysisStatus, IncidentStatus, IncidentType, Language, MediaKind, TimelineKind
+from app.models import (
+    AnalysisStatus,
+    BuddyStatus,
+    IncidentStatus,
+    IncidentType,
+    Language,
+    MediaKind,
+    MemberStatus,
+    TimelineKind,
+)
 
 # ---------------------------------------------------------------------------
 # Incident reports (Map and Incidents tabs)
@@ -133,11 +143,79 @@ class ReportCreatedOut(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Households (Roll Call tab)
+# Accounts
 # ---------------------------------------------------------------------------
 
 Text = Field(default="", max_length=MAX_TEXT_LENGTH)
 Count = Field(default=0, ge=0, le=MAX_PEOPLE_PER_HOUSEHOLD)
+ZipCode = Field(pattern=r"^\d{5}$")   # a 5-digit US ZIP code
+
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+
+class SignUpIn(BaseModel):
+    name: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
+    email: str = Field(pattern=EMAIL_PATTERN, max_length=MAX_TEXT_LENGTH)
+    password: str = Field(min_length=MIN_PASSWORD_LENGTH, max_length=200)
+
+    @field_validator("email")
+    @classmethod
+    def lowercase(cls, value: str) -> str:
+        return value.strip().lower()
+
+    @field_validator("name")
+    @classmethod
+    def trimmed(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Please enter your name.")
+        return value.strip()
+
+
+class SignInIn(BaseModel):
+    email: str
+    password: str
+
+
+class MyCommunityOut(BaseModel):
+    id: int
+    name: str
+    city: str
+    status: MemberStatus   # pending (asked to join) or member
+    is_admin: bool
+
+
+class MeOut(BaseModel):
+    """Everything the app needs to know about the signed-in person."""
+
+    id: int
+    name: str
+    email: str
+    is_responder: bool
+    roll_call_opt_out: bool         # chose "Not now" for the roll call
+    household_id: Optional[int]     # their household, if they joined the roll call
+    is_volunteer: bool              # agreed to check on neighbors
+    community: Optional[MyCommunityOut]
+    is_demo: bool
+
+
+class AuthOut(BaseModel):
+    token: str   # the app keeps this in the Keychain and sends it with every request
+    me: MeOut
+
+
+class MePatch(BaseModel):
+    roll_call_opt_out: bool
+
+
+class VolunteerIn(BaseModel):
+    phone: str = Text
+    city: str = Text
+    capacity: int = Field(default=5, ge=1, le=10)
+
+
+# ---------------------------------------------------------------------------
+# Households (Roll Call tab)
+# ---------------------------------------------------------------------------
 
 
 class HouseholdIn(BaseModel):
@@ -146,7 +224,8 @@ class HouseholdIn(BaseModel):
     contact_name: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
     phone: str = Text
     address: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
-    city: str = Text
+    city: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
+    zip_code: str = ZipCode
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
 
@@ -198,6 +277,7 @@ class HouseholdOut(BaseModel):
     phone: str
     address: str
     city: str
+    zip_code: str
     latitude: float
     longitude: float
     children: int
@@ -221,21 +301,101 @@ class HouseholdOut(BaseModel):
     updated_at: datetime
 
 
-class DemoHousehold(BaseModel):
+# ---------------------------------------------------------------------------
+# Volunteer buddies
+# ---------------------------------------------------------------------------
+
+class BuddyRequestToMe(BaseModel):
+    """A volunteer asking to check on the resident's household."""
+
     id: int
-    contact_name: str
+    volunteer_name: str
+    volunteer_city: str
+    same_community: bool
+    created_at: datetime
+
+
+class BuddyRequestSent(BaseModel):
+    """A request a volunteer sent. `label` is what they picked or typed."""
+
+    id: int
+    label: str
+    status: BuddyStatus
+    created_at: datetime
+
+
+class AddressBuddyIn(BaseModel):
+    address: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
+    city: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
+    zip_code: str = ZipCode
+
+
+class CommunityBuddyIn(BaseModel):
+    household_id: int
+
+
+class NeighborWantingBuddy(BaseModel):
+    """Only what a neighbor needs to decide to help: first name and street."""
+
+    household_id: int
+    first_name: str
+    street: str
     city: str
+    people: int
+    already_asked: bool
 
 
-class DemoVolunteer(BaseModel):
+# ---------------------------------------------------------------------------
+# Communities (Community tab)
+# ---------------------------------------------------------------------------
+
+class CommunityIn(BaseModel):
+    name: str = Field(min_length=2, max_length=MAX_TEXT_LENGTH)
+    city: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
+
+    @field_validator("name", "city")
+    @classmethod
+    def trimmed(cls, value: str) -> str:
+        return value.strip()
+
+
+class CommunityOut(BaseModel):
     id: int
     name: str
     city: str
-    assigned: int
+    member_count: int
+    my_status: Optional[MemberStatus]   # None if the viewer hasn't asked to join
+    is_admin: bool
 
 
-class DemoIdentities(BaseModel):
-    """For the app's role switcher: the fictional people you can act as."""
+class MemberOut(BaseModel):
+    user_id: int
+    name: str
+    is_admin: bool
+    since: datetime
 
-    households: list[DemoHousehold]
-    volunteers: list[DemoVolunteer]
+
+class CommunityDetailOut(CommunityOut):
+    allow_outside_buddies: bool
+    members: list[MemberOut]            # only shown to members
+    join_requests: list[MemberOut]      # only shown to admins
+
+
+class CommunityPatch(BaseModel):
+    allow_outside_buddies: bool
+
+
+# ---------------------------------------------------------------------------
+# Demo accounts (for judges and the demo video)
+# ---------------------------------------------------------------------------
+
+class DemoAccount(BaseModel):
+    user_id: int
+    name: str
+    kind: str        # "resident", "volunteer" or "responder"
+    detail: str      # e.g. "Greenville · Pecan Hollow"
+    featured: bool   # shown as a one-tap button on the sign-in screen
+
+
+class DemoAccountLogin(BaseModel):
+    user_id: int
