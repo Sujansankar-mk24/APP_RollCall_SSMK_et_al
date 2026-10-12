@@ -1,5 +1,5 @@
 """
-RescueSight backend: the starting point of the web server.
+RollCall backend: the starting point of the web server.
 
 Start it from the backend folder with:
     uvicorn app.main:app --reload
@@ -13,30 +13,27 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import MEDIA_DIR
 from app.database import create_tables
-from app.camera.live import live_feeds
-from app.routers import camera, incidents, reports
+from app.routers import demo, households, volunteers
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()  # runs once when the server starts
     yield
-    live_feeds.stop_all()  # stop any drone feeds when the server shuts down
 
 
 app = FastAPI(
-    title="RescueSight API",
-    description="Community emergency reports, merged into incidents and checked by AI.",
-    version="1.0.0",
+    title="RollCall API",
+    description="Emergency roll call: make sure no one gets left behind.",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
-app.include_router(incidents.router)
-app.include_router(reports.router)
-app.include_router(camera.router)
+app.include_router(households.router)
+app.include_router(volunteers.router)
+app.include_router(demo.router)
 
-# Photos, videos and AI-annotated images are served as plain files, e.g.
-# http://localhost:8000/media/annotated/12.jpg
+# Photos attached to check-ins are served as plain files.
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
 

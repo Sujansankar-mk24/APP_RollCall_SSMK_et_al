@@ -8,9 +8,9 @@ never touches the demo data.
 import os
 import tempfile
 
-_test_dir = tempfile.mkdtemp(prefix="rescuesight-tests-")
-os.environ["RESCUESIGHT_DB_PATH"] = os.path.join(_test_dir, "test.db")
-os.environ["RESCUESIGHT_MEDIA_DIR"] = os.path.join(_test_dir, "media")
+_test_dir = tempfile.mkdtemp(prefix="rollcall-tests-")
+os.environ["ROLLCALL_DB_PATH"] = os.path.join(_test_dir, "test.db")
+os.environ["ROLLCALL_MEDIA_DIR"] = os.path.join(_test_dir, "media")
 
 import pytest  # noqa: E402
 from sqlmodel import SQLModel  # noqa: E402

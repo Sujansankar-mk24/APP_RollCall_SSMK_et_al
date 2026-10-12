@@ -8,13 +8,8 @@ __pycache__/
 .pytest_cache/
 
 # Backend runtime data (recreated by `python -m scripts.reset_demo`)
-backend/rescuesight.db
+backend/rollcall.db
 backend/media/
-
-# Downloaded files (recreated by `python -m scripts.download_samples`)
-backend/sample_media/*
-!backend/sample_media/CREDITS.md
-backend/models/*.pt
 
 # Xcode
 xcuserdata/
