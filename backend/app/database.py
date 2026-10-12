@@ -1,7 +1,7 @@
 """
 Database connection.
 
-SQLite keeps the whole database in one file (rescuesight.db), so there is no
+SQLite keeps the whole database in one file (rollcall.db), so there is no
 database server to install. SQLModel lets us describe tables as Python classes
 (see models.py) and query them with Python instead of raw SQL.
 """

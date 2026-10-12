@@ -1,7 +1,8 @@
 """
-Fill the database with fictional demo households and volunteer buddies
-around North Texas. (Every person, street and phone number is made up; see
-demo_data.py.)
+Fill the database with the demo data:
+  - incidents with photos/videos checked by the AI (seed_incidents.py), and
+  - fictional households and volunteer buddies around North Texas (below).
+    Every person, street and phone number is made up; see demo_data.py.
 
 Run from the backend folder:
     python -m scripts.seed          (only works on an empty database)
@@ -18,7 +19,8 @@ from app.config import BUDDY_MAX_DISTANCE_KM
 from app.database import create_tables, engine
 from app.models import BuddyLink, Household, Language, TimelineKind, Volunteer
 from app.services.geo import distance_km
-from app.services.timeline import add_event
+from app.services.timeline import add_household_event
+from scripts.seed_incidents import seed_incidents
 from scripts.demo_data import FIRST_NAMES, LAST_NAMES, SPANISH_FIRST, SPANISH_LAST, STREETS, TOWNS, VOLUNTEERS
 
 # A fixed random seed: the "random" demo data comes out the same every time.
@@ -96,10 +98,17 @@ def match_buddies(session: Session, households: list[Household], volunteers: lis
             volunteer = options[0][1]
             load[volunteer.id] += 1
             session.add(BuddyLink(volunteer_id=volunteer.id, household_id=h.id))
-            add_event(session, h.id, TimelineKind.buddy, f"{volunteer.name} agreed to check on this household")
+            add_household_event(session, h.id, TimelineKind.buddy, f"{volunteer.name} agreed to check on this household")
 
 
 def seed() -> None:
+    """Everything: incidents for the Map/Incidents tabs, households for Roll Call."""
+    seed_incidents()
+    print()
+    seed_households()
+
+
+def seed_households() -> None:
     create_tables()
     with Session(engine) as session:
         if session.exec(select(Household)).first() is not None:
@@ -120,7 +129,7 @@ def seed() -> None:
             volunteers.append(volunteer)
         session.flush()
         for h in households:
-            add_event(session, h.id, TimelineKind.profile, "Household registered with RollCall")
+            add_household_event(session, h.id, TimelineKind.profile, "Household registered with RollCall")
         match_buddies(session, households, volunteers)
         session.commit()
 

@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import MEDIA_DIR
 from app.database import create_tables
-from app.routers import demo, households, volunteers
+from app.routers import demo, households, incidents, reports, volunteers
 
 
 @asynccontextmanager
@@ -24,16 +24,21 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="RollCall API",
-    description="Emergency roll call: make sure no one gets left behind.",
+    description="Community incident reports checked by AI, plus an emergency roll call so no one gets left behind.",
     version="2.0.0",
     lifespan=lifespan,
 )
 
+# Map and Incidents tabs
+app.include_router(incidents.router)
+app.include_router(reports.router)
+# Roll Call tab
 app.include_router(households.router)
 app.include_router(volunteers.router)
 app.include_router(demo.router)
 
-# Photos attached to check-ins are served as plain files.
+# Photos, videos and AI-annotated images are served as plain files, e.g.
+# http://localhost:8000/media/annotated/12.jpg
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
 

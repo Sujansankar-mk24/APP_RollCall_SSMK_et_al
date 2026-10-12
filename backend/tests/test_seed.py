@@ -4,11 +4,11 @@ from sqlmodel import Session, select
 
 from app.database import engine
 from app.models import BuddyLink, Household, Volunteer
-from scripts.seed import seed
+from scripts.seed import seed_households
 
 
 def test_seed_creates_fictional_households_and_buddies():
-    seed()
+    seed_households()
     with Session(engine) as session:
         households = session.exec(select(Household)).all()
         volunteers = session.exec(select(Volunteer)).all()

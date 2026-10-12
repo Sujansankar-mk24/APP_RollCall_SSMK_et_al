@@ -15,7 +15,7 @@ from app.models import Household, TimelineKind, utc_now
 from app.privacy import NOT_SHARED_MESSAGE, can_edit_household, can_view_household
 from app.schemas import HouseholdIn, HouseholdOut
 from app.services.households import apply, delete_everything, to_out
-from app.services.timeline import add_event
+from app.services.timeline import add_household_event
 from app.viewer import Viewer, get_viewer
 
 router = APIRouter(prefix="/households", tags=["households"])
@@ -36,7 +36,7 @@ def register(data: HouseholdIn, session: Session = Depends(get_session)):
     apply(household, data)
     session.add(household)
     session.flush()
-    add_event(session, household.id, TimelineKind.profile, "Household registered with RollCall")
+    add_household_event(session, household.id, TimelineKind.profile, "Household registered with RollCall")
     session.commit()
     session.refresh(household)
     return to_out(session, household)
@@ -59,7 +59,7 @@ def update(household_id: int, data: HouseholdIn, viewer: Viewer = Depends(get_vi
     apply(household, data)
     household.updated_at = utc_now()
     session.add(household)
-    add_event(session, household.id, TimelineKind.profile, "Profile updated")
+    add_household_event(session, household.id, TimelineKind.profile, "Profile updated")
     session.commit()
     session.refresh(household)
     return to_out(session, household)

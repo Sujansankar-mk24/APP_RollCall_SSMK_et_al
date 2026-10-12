@@ -11,6 +11,11 @@ __pycache__/
 backend/rollcall.db
 backend/media/
 
+# Downloaded files (recreated by `python -m scripts.download_samples`)
+backend/sample_media/*
+!backend/sample_media/CREDITS.md
+backend/models/*.pt
+
 # Xcode
 xcuserdata/
 DerivedData/
