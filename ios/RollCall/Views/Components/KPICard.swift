@@ -36,6 +36,13 @@ struct KPICard: View {
                 .minimumScaleFactor(0.8)
         }
         .card(padding: Spacing.m)
+        .overlay(alignment: .topTrailing) {
+            // A small colored dot, so "needs attention" never depends on color
+            // alone: the caption says why.
+            if let emphasis {
+                Circle().fill(emphasis).frame(width: 8, height: 8).padding(Spacing.m)
+            }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
     }

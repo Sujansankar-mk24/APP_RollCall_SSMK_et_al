@@ -1,11 +1,13 @@
 //
-//  ReportSubmission.swift
+//  Attachment.swift
 //  RollCall
 //
-//  A photo or video someone attaches (used by check-ins: "I need help" can
-//  include a picture of the situation).
+//  A photo or video someone attaches to an incident report, plus what the
+//  app sends when someone reports an incident and what the server answers
+//  (matches ReportCreatedOut in backend/app/schemas.py).
 //
 
+import CoreLocation
 import CoreTransferable
 import Foundation
 import UIKit
@@ -27,6 +29,24 @@ enum Attachment {
         if case .video = self { return true }
         return false
     }
+}
+
+struct ReportSubmission {
+    let type: IncidentType
+    let coordinate: CLLocationCoordinate2D
+    let description: String
+    let locationName: String
+    let attachment: Attachment?
+}
+
+/// The server's answer after a report is saved.
+struct ReportCreated: Decodable, Equatable {
+    let incidentId: Int
+    let reportId: Int
+    let mediaId: Int?
+    let merged: Bool        // true if it joined an existing incident
+    let reportCount: Int
+    let message: String     // e.g. "Added to existing incident (3 reports)"
 }
 
 /// Lets PhotosPicker hand us a video as a file. Videos can be large, so

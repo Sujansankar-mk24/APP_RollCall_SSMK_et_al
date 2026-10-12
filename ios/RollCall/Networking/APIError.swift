@@ -11,10 +11,12 @@ import Foundation
 enum APIError: Error, Equatable {
     /// The server couldn't be reached at all (not running, wrong address, no network).
     case serverUnreachable
-    /// The server answered, but with an error code (like 500).
+    /// The server answered, but with an error code (like 404 or 500).
     case badResponse(statusCode: Int)
     /// The server's answer wasn't in the shape the app expected.
     case unreadableResponse
+    /// The app couldn't read the photo/video it was about to upload.
+    case unreadableAttachment
     /// The privacy rules don't allow this person to see it (the server says why).
     case notShared(String)
     /// It doesn't exist (for example, a household that was deleted).
@@ -25,6 +27,7 @@ enum APIError: Error, Equatable {
         case .serverUnreachable: "Can't reach RollCall"
         case .notShared: "Kept private"
         case .notFound: "Not found"
+        case .unreadableAttachment: "Couldn't read the video"
         default: "Something went wrong"
         }
     }
@@ -37,6 +40,8 @@ enum APIError: Error, Equatable {
             String(localized: "The server returned an error (code \(statusCode)). Try again in a moment.")
         case .unreadableResponse:
             String(localized: "The server sent data this version of the app doesn't understand.")
+        case .unreadableAttachment:
+            String(localized: "Remove the video and choose it again, then try sending.")
         case .notShared(let reason):
             reason.isEmpty ? String(localized: "This information isn't shared with you.") : reason
         case .notFound:

@@ -5,11 +5,12 @@
 //  The only place in the app that talks to the backend. Views and view
 //  models call these functions and get back Swift structs or an APIError.
 //
-//  Every request says who the app is acting as (X-Demo-Role / X-Demo-Id
+//  Roll Call requests also say who the app is acting as (X-Demo-Role / X-Demo-Id
 //  headers). The SERVER decides what that person may see, so privacy doesn't
 //  depend on the app hiding things.
 //
 
+import CoreLocation
 import Foundation
 
 struct APIClient {
@@ -35,7 +36,55 @@ struct APIClient {
         encoder.keyEncodingStrategy = .convertToSnakeCase    // contactName -> contact_name
     }
 
-    // MARK: - Households
+    // MARK: - Incidents (Map and Incidents tabs)
+
+    /// All incidents, highest priority first. (Filtering happens in the app,
+    /// so changing a filter is instant and doesn't need the network.)
+    func fetchIncidents() async throws(APIError) -> [IncidentSummary] {
+        try await send(request("incidents"))
+    }
+
+    /// One incident with its reports, media, AI results and timeline.
+    func fetchIncident(id: Int) async throws(APIError) -> IncidentDetail {
+        try await send(request("incidents/\(id)"))
+    }
+
+    /// A responder marks an incident responding / resolved (or active again).
+    /// The server answers with the updated incident.
+    func updateStatus(incidentID: Int, to status: IncidentStatus) async throws(APIError) -> IncidentDetail {
+        try await send(request("incidents/\(incidentID)/status", method: "PATCH", body: ["status": status.rawValue]))
+    }
+
+    /// Send a new report, with its photo or video if there is one. The server
+    /// either adds it to a nearby matching incident or starts a new one.
+    func submitReport(_ report: ReportSubmission) async throws(APIError) -> ReportCreated {
+        var form = MultipartForm()
+        form.addField("type", report.type.rawValue)
+        form.addField("latitude", String(report.coordinate.latitude))
+        form.addField("longitude", String(report.coordinate.longitude))
+        form.addField("description", report.description)
+        form.addField("location_name", report.locationName)
+
+        switch report.attachment {
+        case .photo(let jpeg, _):
+            form.addFile("file", fileName: "photo.jpg", mimeType: "image/jpeg", data: jpeg)
+        case .video(let file, _):
+            guard let data = try? Data(contentsOf: file) else { throw .unreadableAttachment }
+            let isMOV = file.pathExtension.lowercased() == "mov"
+            form.addFile("file", fileName: isMOV ? "video.mov" : "video.mp4",
+                         mimeType: isMOV ? "video/quicktime" : "video/mp4", data: data)
+        case nil:
+            break
+        }
+
+        var request = request("reports", method: "POST")
+        request.setValue(form.contentType, forHTTPHeaderField: "Content-Type")
+        request.httpBody = form.finished()
+        request.timeoutInterval = 120  // videos can take a little while to upload
+        return try await send(request)
+    }
+
+    // MARK: - Households (Roll Call tab)
 
     /// Opt in: create a household profile. The answer includes its new id.
     func registerHousehold(_ input: HouseholdInput) async throws(APIError) -> Household {

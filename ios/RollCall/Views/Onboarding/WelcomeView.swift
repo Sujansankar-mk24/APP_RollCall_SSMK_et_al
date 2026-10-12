@@ -2,7 +2,7 @@
 //  WelcomeView.swift
 //  RollCall
 //
-//  The first screen: what RollCall is, and who you are.
+//  The first screen of the Roll Call tab: what a roll call is, and who you are.
 //
 //  This is a demo with no real accounts: you pick a role, and for a resident
 //  or buddy you also pick which (fictional) person to act as, or register a
@@ -41,20 +41,13 @@ struct WelcomeView: View {
     }
 
     private var hero: some View {
-        VStack(spacing: Spacing.l) {
-            BrandMark(size: 92)
-                .padding(.top, Spacing.xxl)
-                .padding(.bottom, Spacing.l)
-            VStack(spacing: Spacing.s) {
-                Text("RollCall")
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
-                Text("Make sure no one gets left behind.")
-                    .font(.title3.weight(.medium))
-                    .fontDesign(.rounded)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            Text("When an emergency hits, RollCall asks everyone who signed up if they're safe, and shows responders and neighbors who still needs help.")
+        VStack(spacing: Spacing.m) {
+            BrandMark(size: 72)
+                .padding(.top, Spacing.l)
+                .padding(.bottom, Spacing.s)
+            Text("Roll Call")
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+            Text("When an emergency hits, everyone who signed up is asked if they're safe. Neighbors and responders see who still needs help, so no one gets left behind.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

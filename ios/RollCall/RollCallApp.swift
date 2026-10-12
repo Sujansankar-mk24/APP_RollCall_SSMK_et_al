@@ -2,8 +2,7 @@
 //  RollCallApp.swift
 //  RollCall
 //
-//  Where the app starts. It shows the welcome screen until you pick a role,
-//  then that role's home screen.
+//  Where the app starts: the tab bar (see RootView.swift).
 //
 
 import SwiftUI

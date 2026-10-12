@@ -6,11 +6,12 @@
 //  defined once here, so every screen looks consistent. Views use these
 //  names (like Spacing.m) instead of typing numbers.
 //
-//  Colors carry meaning and are used for meaning only. The brand color is a
-//  deep indigo (Assets > AccentColor) for buttons and selection; it never
-//  means a status. Status colors (green safe, red needs help, ...) live with
-//  the status itself and always come with an icon and a word, so nobody has
-//  to rely on color alone.
+//  Colors carry meaning, so they are used for meaning only:
+//    red = active emergency / needs help, amber = on the way / no answer yet,
+//    gray = resolved, green = safe.
+//  The brand/accent color (blue) is for buttons and selection, never status.
+//  Status colors always come with an icon and a word, so nobody has to rely
+//  on color alone. System colors adjust automatically for dark mode.
 //
 
 import SwiftUI
@@ -28,13 +29,37 @@ nonisolated enum Spacing {
 
 /// Corner radii: small controls, cards, and large panels.
 nonisolated enum Radius {
-    static let control: CGFloat = 12
-    static let card: CGFloat = 20
-    static let panel: CGFloat = 28
+    static let control: CGFloat = 10
+    static let card: CGFloat = 16
+    static let panel: CGFloat = 22
 }
 
 /// Apple's minimum comfortable tap target (Human Interface Guidelines).
 nonisolated let minimumTapSize: CGFloat = 44
+
+// MARK: - Meaning colors
+
+extension IncidentStatus {
+    var color: Color {
+        switch self {
+        case .active: Color(.systemRed)
+        case .responding: Color(.systemOrange)
+        case .resolved: Color(.systemGray)
+        }
+    }
+}
+
+extension PriorityLevel {
+    var color: Color {
+        switch self {
+        case .high: Color(.systemRed)
+        case .medium: Color(.systemOrange)
+        case .low: Color(.systemGray)
+        }
+    }
+}
+
+// MARK: - Surfaces
 
 extension View {
     /// The look shared by every panel floating over a map: frosted glass

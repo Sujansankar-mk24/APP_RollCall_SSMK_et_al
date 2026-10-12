@@ -21,7 +21,7 @@ struct EmergencyBanner: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("In a life-threatening emergency, call 911.")
                     .font(.headline)
-                Text("RollCall helps responders find you, but it is not a 911 service.")
+                Text("RollCall helps responders, but it is not a 911 service.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
