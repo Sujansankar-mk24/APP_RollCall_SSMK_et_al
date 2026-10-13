@@ -2,8 +2,8 @@
 //  RollCallTabView.swift
 //  RollCall
 //
-//  The Roll Call tab (purple). Responders see their view. Everyone else
-//  switches between two sections:
+//  The Roll Call tab. Responders see their view. Everyone else switches
+//  between two parts of their sheet:
 //    My household  join the roll call (or choose "Not now"), then your home,
 //                  your buddy, and your privacy
 //    I check on    be a volunteer buddy for neighbors
@@ -26,7 +26,6 @@ struct RollCallTabView: View {
 private struct MemberRollCallView: View {
     let me: Me
     @Environment(AuthStore.self) private var auth
-    @Environment(\.brand) private var brand
     @State private var section: Section = .household
     @State private var isJoining = false
     @State private var isWorking = false
@@ -38,12 +37,8 @@ private struct MemberRollCallView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.l) {
-                    Picker("Section", selection: $section) {
-                        Text("My household").tag(Section.household)
-                        Text("I check on").tag(Section.buddy)
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("rollCallSection")
+                    SheetTitle(title: "Roll Call", kicker: kicker)
+                    SectionSwitcher(selection: $section)
 
                     switch section {
                     case .household: householdSection
@@ -52,8 +47,7 @@ private struct MemberRollCallView: View {
                 }
                 .padding(Spacing.l)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Roll Call")
+            .sheetPage()
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { AccountButton() }
                 ToolbarItem(placement: .topBarTrailing) { AppearanceToolbarMenu() }
@@ -64,7 +58,7 @@ private struct MemberRollCallView: View {
             ProfileWizardView(mode: .register, existing: nil, name: me.name) { _ in
                 Task { await auth.refresh() }
             }
-            .rollCallBrand()
+            .sheetBrand()
         }
         .alert("Couldn't do that", isPresented: Binding(
             get: { actionError != nil }, set: { if !$0 { actionError = nil } }
@@ -75,6 +69,16 @@ private struct MemberRollCallView: View {
         }
     }
 
+    /// The line above the title, like the header of a printed sheet:
+    /// "PECAN HOLLOW · OCT 13".
+    private var kicker: String {
+        let date = Date.now.formatted(.dateTime.month(.abbreviated).day())
+        if let community = me.community, community.status == .member {
+            return "\(community.name) · \(date)"
+        }
+        return date
+    }
+
     // MARK: - My household
 
     @ViewBuilder
@@ -83,75 +87,56 @@ private struct MemberRollCallView: View {
             ResidentHomeView(householdID: householdID)
                 .id(householdID)
         } else if me.rollCallOptOut {
-            optedOutCard
+            optedOut
         } else {
-            joinCard
+            joinInvitation
         }
     }
 
     /// Asking, not assuming: join now, or "Not now".
-    private var joinCard: some View {
+    private var joinInvitation: some View {
         VStack(alignment: .leading, spacing: Spacing.l) {
-            BrandMark(size: 64)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Spacing.l)
             Text("Join the roll call?")
-                .font(.title.weight(.bold)).fontDesign(.rounded)
+                .font(.sheetHeading)
             Text("When an emergency hits your area, RollCall asks if you're safe. If you don't answer, a neighbor checks on you, and responders know who still needs help.")
-                .foregroundStyle(.secondary)
+                .font(.body)
                 .fixedSize(horizontal: false, vertical: true)
-            VStack(alignment: .leading, spacing: Spacing.s) {
+            VStack(alignment: .leading, spacing: 0) {
                 point("lock.fill", "Your details stay private until there's an emergency in your area.")
                 point("hand.raised.fill", "It's your choice. You can leave anytime, and your data is deleted.")
                 point("clock.fill", "Takes about 2 minutes.")
             }
-            Button { isJoining = true } label: {
-                Text("Join the roll call")
-                    .font(.body.weight(.semibold))
-                    .frame(maxWidth: .infinity, minHeight: 30)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .accessibilityIdentifier("joinRollCall")
-            Button {
-                Task { await setOptOut(true) }
-            } label: {
-                Text("Not now")
-                    .font(.body.weight(.semibold))
-                    .frame(maxWidth: .infinity, minHeight: 30)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .disabled(isWorking)
-            .accessibilityIdentifier("notNow")
-            Text("You can still use the Map and Incidents tabs without joining.")
-                .font(.footnote).foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
-                .multilineTextAlignment(.center)
+            Button("Join the roll call") { isJoining = true }
+                .buttonStyle(InkButtonStyle())
+                .accessibilityIdentifier("joinRollCall")
+            Button("Not now") { Task { await setOptOut(true) } }
+                .buttonStyle(InkButtonStyle(prominent: false))
+                .disabled(isWorking)
+                .accessibilityIdentifier("notNow")
+            SheetNote(text: "You can still use the Map and Incidents tabs without joining.")
         }
-        .card()
     }
 
-    private var optedOutCard: some View {
+    private var optedOut: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            Label("You're not on the roll call", systemImage: "person.crop.circle.badge.xmark")
-                .font(.headline)
+            Stamp(text: String(localized: "Not on the roll call"), systemImage: "xmark", color: .secondary)
                 .accessibilityIdentifier("optedOut")
+                .padding(.vertical, Spacing.s)
             Text("Responders won't know to check on you during an emergency. You can join anytime.")
-                .font(.subheadline).foregroundStyle(.secondary)
+                .font(.body)
                 .fixedSize(horizontal: false, vertical: true)
             Button("Join the roll call") { isJoining = true }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(InkButtonStyle())
                 .accessibilityIdentifier("joinRollCall")
         }
-        .card()
     }
 
     private func point(_ symbol: String, _ text: LocalizedStringKey) -> some View {
         Label { Text(text).fixedSize(horizontal: false, vertical: true) } icon: {
-            Image(systemName: symbol).foregroundStyle(brand)
+            Image(systemName: symbol)
         }
-        .font(.subheadline)
+        .font(.body)
+        .sheetRow()
     }
 
     // MARK: - I check on
@@ -161,32 +146,23 @@ private struct MemberRollCallView: View {
         if me.isVolunteer {
             BuddyHomeView()
         } else {
-            VStack(alignment: .leading, spacing: Spacing.m) {
-                Image(systemName: "person.2.wave.2.fill")
-                    .font(.largeTitle)
-                    .foregroundStyle(brand)
+            VStack(alignment: .leading, spacing: Spacing.l) {
                 Text("Be a volunteer buddy")
-                    .font(.title2.weight(.bold)).fontDesign(.rounded)
+                    .font(.sheetHeading)
                 Text("Check on neighbors who might need help in an emergency, like seniors living alone. You only see someone's details after they accept you.")
-                    .foregroundStyle(.secondary)
+                    .font(.body)
                     .fixedSize(horizontal: false, vertical: true)
-                Button {
+                Button("Become a volunteer buddy") {
                     Task {
                         isWorking = true
                         defer { isWorking = false }
                         do throws(APIError) { try await auth.setVolunteer(true, city: me.community?.city ?? "") } catch { actionError = error }
                     }
-                } label: {
-                    Text("Become a volunteer buddy")
-                        .font(.body.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 30)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(InkButtonStyle())
                 .disabled(isWorking)
                 .accessibilityIdentifier("becomeVolunteer")
             }
-            .card()
         }
     }
 
@@ -194,5 +170,37 @@ private struct MemberRollCallView: View {
         isWorking = true
         defer { isWorking = false }
         do { try await auth.setRollCallOptOut(optOut) } catch { actionError = error }
+    }
+}
+
+/// "MY HOUSEHOLD | I CHECK ON": two labels, the chosen one underlined in ink,
+/// like the tabs on a set of printed forms.
+private struct SectionSwitcher: View {
+    @Binding var selection: MemberRollCallView.Section
+
+    var body: some View {
+        HStack(spacing: 0) {
+            option("My household", .household, id: "section_household")
+            option("I check on", .buddy, id: "section_buddy")
+        }
+        .overlay(alignment: .bottom) { RuleLine() }
+    }
+
+    private func option(_ title: LocalizedStringKey, _ value: MemberRollCallView.Section, id: String) -> some View {
+        let isSelected = selection == value
+        return Button { selection = value } label: {
+            Text(title)
+                .sheetLabelStyle()
+                .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                .frame(maxWidth: .infinity, minHeight: minimumTapSize)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(isSelected ? Color.ink : Color.clear).frame(height: 3)
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .animation(.snappy(duration: 0.2), value: isSelected)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityIdentifier(id)
     }
 }

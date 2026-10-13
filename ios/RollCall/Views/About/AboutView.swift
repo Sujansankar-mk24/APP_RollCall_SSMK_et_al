@@ -2,7 +2,7 @@
 //  AboutView.swift
 //  RollCall
 //
-//  The About tab: what RollCall does, what each tab is for, who can see your
+//  The About tab, on the roll-call sheet: what RollCall does, what each tab is for, who can see your
 //  information, where the demo data comes from, and your account.
 //
 
@@ -16,7 +16,7 @@ struct AboutView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     header
-                    EmergencyBanner()
+                    CallNineOneOne()
                     tabsSection
                     privacySection
                     projectSection
@@ -24,8 +24,7 @@ struct AboutView: View {
                 }
                 .padding(Spacing.l)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("About")
+            .sheetPage()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { AppearanceToolbarMenu() }
             }
@@ -33,16 +32,11 @@ struct AboutView: View {
     }
 
     private var header: some View {
-        HStack(spacing: Spacing.l) {
-            BrandMark(size: 60, showsRings: false)
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("RollCall")
-                    .font(.title.weight(.bold))
-                    .fontDesign(.rounded)
-                Text("Make sure no one gets left behind.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            BrandMark(size: 44)
+            SheetTitle(title: "About RollCall", kicker: String(localized: "Congressional App Challenge 2026"))
+            Text("Make sure no one gets left behind.")
+                .font(.title3.weight(.medium))
         }
         .accessibilityElement(children: .combine)
     }
@@ -52,7 +46,7 @@ struct AboutView: View {
     private var tabsSection: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             sectionTitle("What's in the app")
-            VStack(alignment: .leading, spacing: Spacing.l) {
+            VStack(alignment: .leading, spacing: 0) {
                 infoRow("map.fill", "Map",
                         "See emergencies near you and report one with a photo or video. Reports close together merge into one incident, and AI checks the photos for fire, smoke and people.")
                 infoRow("list.bullet.rectangle.fill", "Incidents",
@@ -62,7 +56,6 @@ struct AboutView: View {
                 infoRow("house.and.flag.fill", "Community",
                         "Join your neighborhood. The admin approves who joins, and neighbors in the same community can be buddies for each other.")
             }
-            .card()
         }
     }
 
@@ -71,7 +64,7 @@ struct AboutView: View {
     private var privacySection: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             sectionTitle("Who can see your information")
-            VStack(alignment: .leading, spacing: Spacing.l) {
+            VStack(alignment: .leading, spacing: 0) {
                 infoRow("person.fill", "You",
                         "Always. You can edit your household or delete it completely at any time.")
                 infoRow("person.2.wave.2.fill", "Your volunteer buddy",
@@ -81,10 +74,7 @@ struct AboutView: View {
                 infoRow("eye.slash.fill", "Everyone else",
                         "Never. Neighbors in your community see only your first name and street, and only if you asked for a buddy. Incident reports on the map don't show who sent them.")
             }
-            .card()
-            Text("These rules are checked by the server, not just hidden in the app.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            SheetNote(text: "These rules are checked by the server, not just hidden in the app.", systemImage: "lock.fill")
         }
     }
 
@@ -93,13 +83,12 @@ struct AboutView: View {
     private var projectSection: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             sectionTitle("About this project")
-            VStack(alignment: .leading, spacing: Spacing.l) {
+            VStack(alignment: .leading, spacing: 0) {
                 infoRow("building.columns.fill", "Congressional App Challenge 2026",
                         "Built for Texas' 4th District by a high school student.")
                 infoRow("theatermasks.fill", "Demo data",
                         "Every household, volunteer, name, street and phone number is fictional. Sample photos and videos are public domain or Creative Commons, from Wikimedia Commons.")
             }
-            .card()
         }
     }
 
@@ -112,30 +101,27 @@ struct AboutView: View {
                 sectionTitle("Your account")
                 VStack(alignment: .leading, spacing: Spacing.m) {
                     HStack(spacing: Spacing.m) {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(Color.accentColor)
+                        Text(initials(me.name))
+                            .font(.headline.weight(.heavy))
+                            .foregroundStyle(Color.paper)
+                            .frame(width: 48, height: 48)
+                            .background(Color.ink)
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(verbatim: me.name).font(.headline)
-                            Text(verbatim: me.email).font(.subheadline).foregroundStyle(.secondary)
+                            Text(verbatim: me.name).font(.title3.weight(.semibold))
+                            Text(verbatim: me.email).font(.callout).foregroundStyle(.secondary)
                         }
                     }
                     .accessibilityElement(children: .combine)
-                    Button(role: .destructive) {
+                    Button {
                         Task { await auth.signOut() }
                     } label: {
                         Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
-                            .font(.body.weight(.semibold))
-                            .frame(maxWidth: .infinity, minHeight: 30)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
+                    .buttonStyle(InkButtonStyle(prominent: false, destructive: true))
                     .accessibilityIdentifier("signOut")
                 }
-                .card()
-                Text("You stay signed in on this phone until you sign out.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    SheetNote(text: "You stay signed in on this phone until you sign out.")
             }
         }
     }
@@ -143,27 +129,29 @@ struct AboutView: View {
     // MARK: - Pieces
 
     private func sectionTitle(_ text: LocalizedStringKey) -> some View {
-        Text(text)
-            .font(.title3.weight(.semibold))
-            .fontDesign(.rounded)
-            .accessibilityAddTraits(.isHeader)
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text(text)
+                .font(.sheetHeading)
+                .accessibilityAddTraits(.isHeader)
+            Rectangle().fill(Color.ink).frame(height: 2)
+        }
     }
 
     private func infoRow(_ symbol: String, _ title: LocalizedStringKey, _ detail: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Image(systemName: symbol)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 28)
+                .font(.title3.weight(.semibold))
+                .frame(width: 32)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
+                Text(title).font(.title3.weight(.semibold))
                 Text(detail)
-                    .font(.subheadline)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .sheetRow()
         .accessibilityElement(children: .combine)
     }
 }

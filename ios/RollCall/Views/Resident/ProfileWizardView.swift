@@ -51,7 +51,7 @@ struct ProfileWizardView: View {
                 .onChange(of: viewModel.step) { scroller.scrollTo("top", anchor: .top) }
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(Color(.systemGroupedBackground))
+            .sheetPage()
             .navigationBarTitleDisplayMode(.inline)
             .navigationTitle(isEditing ? "Edit household" : "Join the roll call")
             .toolbar {
@@ -98,14 +98,10 @@ struct ProfileWizardView: View {
     }
 
     private func stepHeader(_ title: LocalizedStringKey, _ why: LocalizedStringKey) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            Text(title)
-                .font(.largeTitle.weight(.bold))
-                .fontDesign(.rounded)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            SheetTitle(title: title)
             Text(why)
                 .font(.body)
-                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
@@ -133,12 +129,12 @@ struct ProfileWizardView: View {
             .onChange(of: viewModel.addressText) { viewModel.addressChanged() }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Check the pin is on your home").font(.subheadline.weight(.semibold))
+                Text("Check the pin is on your home").sheetLabelStyle().foregroundStyle(.secondary)
                 LocationPickerMap(coordinate: viewModel.coordinate, position: $viewModel.mapPosition) {
                     viewModel.movePin(to: $0)
                 }
                 .frame(height: 210)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay(Rectangle().strokeBorder(Color.ink, lineWidth: 1.5))
                 .overlay(alignment: .topTrailing) {
                     Button {
                         Task { await viewModel.useCurrentLocation() }
@@ -149,28 +145,29 @@ struct ProfileWizardView: View {
                         .frame(width: minimumTapSize, height: minimumTapSize)
                         .contentShape(Rectangle())
                     }
-                    .foregroundStyle(brand)
-                    .floatingSurface(cornerRadius: Radius.control)
+                    .foregroundStyle(Color.paper)
+                    .background(Color.ink)
                     .padding(Spacing.s)
                     .accessibilityLabel("Use my current location")
                 }
                 .overlay {
                     if !viewModel.hasPin {
                         Text(viewModel.isFindingAddress ? "Finding your address…" : "Type your address, or use your location")
-                            .font(.footnote.weight(.semibold))
+                            .font(.callout.weight(.semibold))
                             .padding(.horizontal, Spacing.m).padding(.vertical, Spacing.s)
-                            .floatingSurface(cornerRadius: 14)
+                            .background(Color.paper)
+                            .overlay(Rectangle().strokeBorder(Color.ink, lineWidth: 1))
                             .allowsHitTesting(false)
                     }
                 }
                 if let note = viewModel.locationNote {
                     Label(note.text, systemImage: note.isGood ? "checkmark.circle.fill" : "info.circle.fill")
-                        .font(.footnote)
+                        .font(.callout.weight(.medium))
                         .foregroundStyle(note.isGood ? Color(.systemGreen) : Color(.systemOrange))
                         .accessibilityIdentifier("locationNote")
                 } else {
                     Text("Drag the map or tap to move the pin if it's not exactly on your home.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.callout).foregroundStyle(.secondary)
                 }
             }
         }
@@ -178,13 +175,16 @@ struct ProfileWizardView: View {
 
     // 2. Who lives here
     private var peopleStep: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
+        VStack(alignment: .leading, spacing: 0) {
             stepHeader("Who lives here?", "Responders plan for how many people to find, and who may need extra help.")
+                .padding(.bottom, Spacing.m)
             CounterRow(title: "Children", subtitle: "Under 18", systemImage: "figure.child", value: $viewModel.input.children, identifier: "counter_children")
             CounterRow(title: "Adults", subtitle: "18 to 64", systemImage: "figure.stand", value: $viewModel.input.adults, identifier: "counter_adults")
             CounterRow(title: "65 and older", subtitle: "Seniors", systemImage: "figure.walk", value: $viewModel.input.seniors, identifier: "counter_seniors")
             if viewModel.input.people == 1 {
-                infoNote("person.fill", "You live alone. RollCall checks on people living alone sooner, because nobody else is there to help.")
+                SheetNote(text: "You live alone. RollCall checks on people living alone sooner, because nobody else is there to help.",
+                          systemImage: "person.fill")
+                    .padding(.top, Spacing.l)
             }
         }
     }
@@ -193,8 +193,7 @@ struct ProfileWizardView: View {
     private var needsStep: some View {
         VStack(alignment: .leading, spacing: Spacing.l) {
             stepHeader("What could make leaving hard?", "Tap anything that applies. This helps responders bring the right help first.")
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: Spacing.m), GridItem(.flexible(), spacing: Spacing.m)],
-                      spacing: Spacing.m) {
+            VStack(spacing: 0) {
                 ToggleTile(title: "Mobility needs", subtitle: "Wheelchair, walker, or can't use stairs",
                            systemImage: "figure.roll", isOn: $viewModel.input.mobilityNeeds, identifier: "need_mobility")
                 ToggleTile(title: "No vehicle", subtitle: "No way to drive out on your own",
@@ -205,10 +204,10 @@ struct ProfileWizardView: View {
                            systemImage: "hare.fill", isOn: $viewModel.input.livestock, identifier: "need_livestock")
             }
 
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                Text("Powered medical equipment").font(.headline)
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                SectionLabel("Powered medical equipment")
                 Text("If the power goes out, people who rely on this are checked first.")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.callout).foregroundStyle(.secondary)
                 FlowLayout(spacing: Spacing.s) {
                     ForEach(MedicalEquipment.allCases) { item in
                         SelectChip(title: item.title, systemImage: item.symbol,
@@ -220,13 +219,14 @@ struct ProfileWizardView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Anything else responders should know? (optional)").font(.subheadline.weight(.semibold))
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Anything else responders should know? (optional)").sheetLabelStyle().foregroundStyle(.secondary)
                 TextField("For example: \"I'm deaf, please knock loudly\"", text: $viewModel.input.notes, axis: .vertical)
+                    .font(.title3)
                     .lineLimit(2...5)
                     .padding(Spacing.m)
-                    .background(Color(.secondarySystemGroupedBackground),
-                                in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                    .background(Color.paperRaised)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Color.ink).frame(height: 2) }
             }
         }
     }
@@ -236,20 +236,21 @@ struct ProfileWizardView: View {
         VStack(alignment: .leading, spacing: Spacing.l) {
             stepHeader("If something happens", "How we reach you, and who else should know.")
 
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                Text("Your language").font(.headline)
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                SectionLabel("Your language")
                 HStack(spacing: Spacing.m) {
                     ForEach(HouseholdLanguage.allCases) { language in
                         let selected = viewModel.input.language == language
                         Button { viewModel.input.language = language } label: {
-                            VStack(spacing: Spacing.xs) {
-                                Image(systemName: "globe").font(.title2)
-                                Text(language.nativeName).font(.headline)
+                            HStack(spacing: Spacing.s) {
+                                Image(systemName: selected ? "checkmark" : "globe").font(.headline)
+                                Text(language.nativeName).font(.title3.weight(.semibold))
                             }
-                            .frame(maxWidth: .infinity, minHeight: 84)
-                            .foregroundStyle(selected ? .white : .primary)
-                            .background(selected ? brand : Color(.secondarySystemGroupedBackground),
-                                        in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                            .frame(maxWidth: .infinity, minHeight: 64)
+                            .foregroundStyle(selected ? Color.paper : Color.primary)
+                            .background(selected ? brand : Color.clear)
+                            .overlay(Rectangle().strokeBorder(selected ? brand : Color.primary.opacity(0.35), lineWidth: 2))
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
@@ -264,21 +265,16 @@ struct ProfileWizardView: View {
                          text: $viewModel.input.emergencyContactPhone, contentType: .telephoneNumber, keyboard: .phonePad)
 
             Toggle(isOn: $viewModel.input.wantsBuddy) {
-                HStack(spacing: Spacing.m) {
-                    Image(systemName: "person.2.wave.2.fill")
-                        .font(.title3)
-                        .foregroundStyle(brand)
-                        .frame(width: 44, height: 44)
-                        .background(brand.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Ask a neighbor to check on me").font(.headline)
-                        Text("A nearby volunteer buddy will come by if you don't answer during an emergency.")
-                            .font(.footnote).foregroundStyle(.secondary)
-                    }
+                VStack(alignment: .leading, spacing: 2) {
+                    Label("Ask a neighbor to check on me", systemImage: "person.2.wave.2.fill")
+                        .font(.title3.weight(.semibold))
+                    Text("A volunteer buddy will come by if you don't answer during an emergency. You choose who.")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .tint(brand)
-            .card(padding: Spacing.m)
+            .sheetBox(padding: Spacing.m)
             .accessibilityIdentifier("wantsBuddyToggle")
         }
     }
@@ -290,16 +286,16 @@ struct ProfileWizardView: View {
 
             VStack(alignment: .leading, spacing: Spacing.s) {
                 Text(viewModel.input.contactName.isEmpty ? "—" : viewModel.input.contactName)
-                    .font(.title3.weight(.bold)).fontDesign(.rounded)
-                Label("\(viewModel.input.address), \(viewModel.input.city)", systemImage: "mappin")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.sheetHeading)
+                Label("\(viewModel.input.address), \(viewModel.input.city) \(viewModel.input.zipCode)", systemImage: "mappin")
+                    .font(.body).foregroundStyle(.secondary)
                 TagChips(tags: previewTags)
                     .padding(.top, Spacing.xs)
             }
-            .card()
+            .sheetBox()
 
-            VStack(alignment: .leading, spacing: Spacing.m) {
-                Text("Who can see this").font(.headline)
+            VStack(alignment: .leading, spacing: 0) {
+                SectionLabel("Who can see this")
                 sharingRow("person.fill", "You", "Always. You can edit or delete it anytime.")
                 if viewModel.input.wantsBuddy {
                     sharingRow("person.2.wave.2.fill", "Your volunteer buddy", "Your name, address, phone and needs, so they can check on you.")
@@ -307,7 +303,6 @@ struct ProfileWizardView: View {
                 sharingRow("cross.case.fill", "Responders", "Only during an emergency in your area.")
                 sharingRow("eye.slash.fill", "Anyone else", "Never. Your information is never sold.")
             }
-            .card()
             // The "I agree" switch sits in the bottom bar, right above Join,
             // so it's always on screen next to the button it unlocks.
         }
@@ -330,24 +325,16 @@ struct ProfileWizardView: View {
     private func sharingRow(_ symbol: String, _ who: LocalizedStringKey, _ what: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Image(systemName: symbol)
-                .foregroundStyle(brand)
-                .frame(width: 24)
+                .font(.body.weight(.semibold))
+                .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(who).font(.subheadline.weight(.semibold))
-                Text(what).font(.subheadline).foregroundStyle(.secondary)
+                Text(who).font(.headline)
+                Text(what).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .sheetRow()
         .accessibilityElement(children: .combine)
-    }
-
-    private func infoNote(_ symbol: String, _ text: LocalizedStringKey) -> some View {
-        Label { Text(text).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: symbol) }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .padding(Spacing.m)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(brand.opacity(0.08), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
     }
 
     // MARK: - Back / Next
@@ -356,7 +343,7 @@ struct ProfileWizardView: View {
     private var consentToggle: some View {
         Toggle(isOn: $viewModel.consent) {
             Text("I agree to share this information as described above.")
-                .font(.subheadline.weight(.semibold))
+                .font(.callout.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .tint(brand)
@@ -368,14 +355,13 @@ struct ProfileWizardView: View {
             if viewModel.isLastStep && !isEditing {
                 consentToggle
             } else if let missing = viewModel.whatsMissing {
-                Text(missing).font(.footnote).foregroundStyle(.secondary)
+                Text(missing).font(.callout).foregroundStyle(.secondary)
             }
             HStack(spacing: Spacing.m) {
                 if viewModel.step != .home {
-                    Button { hideKeyboard(); viewModel.goBack() } label: {
-                        Text("Back").font(.body.weight(.semibold)).frame(minWidth: 72, minHeight: 30)
-                    }
-                    .buttonStyle(.bordered)
+                    Button("Back") { hideKeyboard(); viewModel.goBack() }
+                        .buttonStyle(InkButtonStyle(prominent: false))
+                        .frame(width: 110)
                     .accessibilityIdentifier("wizardBack")
                 }
                 Button {
@@ -392,22 +378,20 @@ struct ProfileWizardView: View {
                     }
                 } label: {
                     HStack(spacing: Spacing.s) {
-                        if viewModel.isSaving { ProgressView().tint(.white) }
+                        if viewModel.isSaving { ProgressView().tint(Color.paper) }
                         Text(viewModel.isLastStep ? (isEditing ? "Save changes" : "Join RollCall") : "Next")
                     }
-                    .font(.body.weight(.semibold))
-                    .frame(maxWidth: .infinity, minHeight: 30)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(InkButtonStyle())
                 .disabled(!viewModel.canContinue)
                 .accessibilityIdentifier("wizardNext")
             }
-            .controlSize(.large)
         }
         .padding(.horizontal, Spacing.l)
         .padding(.top, Spacing.m)
         .padding(.bottom, Spacing.s)
-        .background(.bar)
+        .background(Color.paper)
+        .overlay(alignment: .top) { Rectangle().fill(Color.ink).frame(height: 2) }
     }
 
     private func hideKeyboard() {

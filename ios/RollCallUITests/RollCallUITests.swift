@@ -214,8 +214,7 @@ final class RollCallUITests: XCTestCase {
         let notNow = app.buttons["notNow"]
         XCTAssertTrue(notNow.waitForExistence(timeout: 15))
         scrollTo(notNow, in: app)
-        notNow.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["optedOut"].waitForExistence(timeout: 10))
+        tap(notNow, until: app.descendants(matching: .any)["optedOut"], in: app)
         XCTAssertTrue(app.buttons["joinRollCall"].exists, "Should still be able to join later")
     }
 
@@ -302,7 +301,7 @@ final class RollCallUITests: XCTestCase {
         XCTAssertTrue(accept.waitForExistence(timeout: 15), "The demo resident should have a buddy request (reset the demo data)")
         snapshot(app, "buddy request")
         accept.tap()
-        XCTAssertTrue(app.staticTexts["Your buddy"].waitForExistence(timeout: 10))
+        XCTAssertTrue(text("Your buddy", in: app).waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["acceptBuddy"].exists)
     }
 
@@ -312,10 +311,10 @@ final class RollCallUITests: XCTestCase {
     func testVolunteerAsksToCheckOnSomeoneByAddress() {
         let app = launch(tab: "rollCall")
         openDemoAccount(app, kind: "volunteer")
-        let section = app.segmentedControls["rollCallSection"]
+        let section = app.buttons["section_buddy"]
         XCTAssertTrue(section.waitForExistence(timeout: 15))
-        section.buttons["I check on"].tap()
-        XCTAssertTrue(app.staticTexts["Neighbors you check on"].waitForExistence(timeout: 10))
+        section.tap()
+        XCTAssertTrue(text("Neighbors you check on", in: app).waitForExistence(timeout: 10))
         snapshot(app, "volunteer")
 
         let ask = app.buttons["askByAddress"]
@@ -413,7 +412,20 @@ final class RollCallUITests: XCTestCase {
     /// Tap a tab. If a late system prompt swallowed the tap, close it and try again.
     @MainActor
     private func open(tab: String, in app: XCUIApplication) {
-        tap(app.tabBars.buttons[tab], until: app.navigationBars[tab], in: app)
+        let button = app.tabBars.buttons[tab]
+        for _ in 0..<3 {
+            button.tap()
+            let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "selected == true"), object: button)
+            if XCTWaiter.wait(for: [selected], timeout: 4) == .completed { return }
+            dismissSavePasswordPrompt(app)
+        }
+        XCTFail("Couldn't open the \(tab) tab")
+    }
+
+    /// Text on screen, ignoring upper/lower case (sheet labels are shown in capitals).
+    @MainActor
+    private func text(_ label: String, in app: XCUIApplication) -> XCUIElement {
+        app.staticTexts.matching(NSPredicate(format: "label ==[c] %@", label)).firstMatch
     }
 
     /// Tap `button` until `result` appears, closing a late "Save Password?"
@@ -438,7 +450,7 @@ final class RollCallUITests: XCTestCase {
 
     @MainActor
     private func signUp(_ app: XCUIApplication, name: String, email: String) {
-        app.segmentedControls["authMode"].buttons["Create account"].tap()
+        app.buttons["authMode_1"].tap()   // the "Create account" tab
         type(name, into: app.textFields["signUpName"])
         type(email, into: app.textFields["emailField"])
         let secret = app.secureTextFields["passwordField"]
@@ -491,10 +503,17 @@ final class RollCallUITests: XCTestCase {
         app.buttons["submitAuth"].tap()
     }
 
+    /// Tap a field and type. If a late system prompt took the tap (no keyboard
+    /// appeared), close it and tap again.
     @MainActor
     private func type(_ text: String, into field: XCUIElement) {
         XCTAssertTrue(field.waitForExistence(timeout: 10))
-        field.tap()
+        let app = XCUIApplication()
+        for _ in 0..<3 {
+            field.tap()
+            if app.keyboards.firstMatch.waitForExistence(timeout: 3) { break }
+            dismissSavePasswordPrompt(app)
+        }
         field.typeText(text)
     }
 

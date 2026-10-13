@@ -8,10 +8,11 @@
 //  The tab bar along the bottom:
 //    Map        incidents on a map; report one with a photo or video
 //    Incidents  the same incidents as a priority list for responders
-//    Roll Call  your household and the neighbors you check on (purple)
-//    Community  your neighborhood (purple; not shown to responders)
+//    Roll Call  your household and the neighbors you check on
+//    Community  your neighborhood (not shown to responders)
 //    About      what RollCall is, how privacy works, your account
 //  Map and Incidents share one IncidentStore, so they always show the same data.
+//  Every tab except the Map uses the roll-call sheet look (Design/Sheet.swift).
 //
 
 import SwiftUI
@@ -26,16 +27,19 @@ struct RootView: View {
                 ProgressView()
                     .controlSize(.large)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .sheetPage()
             case .signedOut:
                 SignInView()
             case .offline(let error):
                 // There's a saved account, but the server can't be reached.
                 VStack(spacing: Spacing.l) {
-                    MessageCard(error: error, action: { Task { await auth.restore() } })
+                    SheetMessage(error: error, action: { Task { await auth.restore() } })
                     Button("Sign out") { Task { await auth.signOut() } }
+                        .buttonStyle(InkButtonStyle(prominent: false))
                 }
                 .padding(Spacing.l)
-                .frame(maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .sheetPage()
             case .signedIn(let me):
                 MainTabView(me: me)
             }
@@ -66,13 +70,13 @@ struct MainTabView: View {
                 .tag(RootTab.incidents)
 
             RollCallTabView()
-                .rollCallBrand()
+                .sheetBrand()
                 .tabItem { Label("Roll Call", systemImage: "person.crop.circle.badge.checkmark") }
                 .tag(RootTab.rollCall)
 
             if !me.isResponder {
                 CommunityTabView()
-                    .rollCallBrand()
+                    .sheetBrand()
                     .tabItem { Label("Community", systemImage: "house.and.flag.fill") }
                     .badge(me.community?.status == .pending ? 1 : 0)
                     .tag(RootTab.community)

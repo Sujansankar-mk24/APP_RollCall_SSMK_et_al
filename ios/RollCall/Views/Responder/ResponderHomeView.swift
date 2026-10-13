@@ -12,7 +12,6 @@ import MapKit
 import SwiftUI
 
 struct ResponderHomeView: View {
-    @Environment(\.brand) private var brand
     @State private var position: MapCameraPosition = .region(AppConfig.homeRegion)
 
     var body: some View {
@@ -22,17 +21,14 @@ struct ResponderHomeView: View {
                 .ignoresSafeArea(edges: .bottom)
                 .overlay(alignment: .bottom) {
                     VStack(alignment: .leading, spacing: Spacing.s) {
-                        Label("No active emergency", systemImage: "shield.lefthalf.filled")
-                            .font(.headline)
-                            .foregroundStyle(brand)
+                        Stamp(text: String(localized: "Responder view"), systemImage: "cross.case.fill", tilt: 0)
+                        Text("No active emergency")
+                            .font(.sheetHeading)
                         Text("To protect residents' privacy, households appear only during an active emergency, and only the homes inside its zone.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(.body)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(Spacing.l)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .floatingSurface(cornerRadius: Radius.panel)
+                    .sheetBox(emphasis: true)
                     .padding(Spacing.l)
                     .accessibilityElement(children: .combine)
                 }

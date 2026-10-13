@@ -2,13 +2,14 @@
 //  FormControls.swift
 //  RollCall
 //
-//  Large, friendly controls used in the household setup: easy to hit, easy to
-//  read, and clear to VoiceOver.
+//  The controls used to fill in the household form, drawn like a paper form:
+//  check boxes, a counter with big square buttons, tags, and fields with a
+//  line to write on. Easy to hit, easy to read, and clear to VoiceOver.
 //
 
 import SwiftUI
 
-/// "Children  [ - ] 2 [ + ]": a number with big minus and plus buttons.
+/// "Children   [ − ]  2  [ + ]": a number with big minus and plus buttons.
 struct CounterRow: View {
     @Environment(\.brand) private var brand
     let title: LocalizedStringKey
@@ -20,25 +21,20 @@ struct CounterRow: View {
 
     var body: some View {
         HStack(spacing: Spacing.m) {
-            Image(systemName: systemImage)
-                .font(.title2)
-                .foregroundStyle(brand)
-                .frame(width: 44, height: 44)
-                .background(brand.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                Label { Text(title) } icon: { Image(systemName: systemImage) }
+                    .font(.title3.weight(.semibold))
+                Text(subtitle).font(.callout).foregroundStyle(.secondary)
             }
             Spacer(minLength: Spacing.s)
             stepButton("minus", enabled: value > range.lowerBound) { value -= 1 }
             Text("\(value)")
-                .font(.title2.weight(.semibold)).monospacedDigit()
+                .font(.system(.title, weight: .heavy).width(.condensed)).monospacedDigit()
                 .frame(minWidth: 32)
                 .contentTransition(.numericText())
             stepButton("plus", enabled: value < range.upperBound) { value += 1 }
         }
-        .card(padding: Spacing.m)
+        .sheetRow()
         .animation(.snappy(duration: 0.2), value: value)
         // VoiceOver: one adjustable element ("Children, 2, adjustable").
         .accessibilityElement(children: .ignore)
@@ -58,9 +54,9 @@ struct CounterRow: View {
     private func stepButton(_ symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.headline)
+                .font(.headline.weight(.bold))
                 .frame(width: minimumTapSize, height: minimumTapSize)
-                .background(Color(.tertiarySystemFill), in: Circle())
+                .overlay(Rectangle().strokeBorder(enabled ? brand : Color.secondary.opacity(0.4), lineWidth: 2))
         }
         .buttonStyle(.plain)
         .foregroundStyle(enabled ? brand : Color.secondary.opacity(0.5))
@@ -68,7 +64,8 @@ struct CounterRow: View {
     }
 }
 
-/// A big on/off tile with an icon, title and a short explanation.
+/// "☐ Mobility needs": a big check box, like ticking a box on a form.
+/// (Named ToggleTile because it used to be a tile; it's now a row.)
 struct ToggleTile: View {
     @Environment(\.brand) private var brand
     let title: LocalizedStringKey
@@ -79,34 +76,34 @@ struct ToggleTile: View {
 
     var body: some View {
         Button { isOn.toggle() } label: {
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                HStack {
-                    Image(systemName: systemImage)
-                        .font(.title2)
-                        .foregroundStyle(isOn ? .white : brand)
-                        .frame(width: 44, height: 44)
-                        .background(isOn ? brand : brand.opacity(0.12),
-                                    in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-                    Spacer()
-                    Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(isOn ? brand : Color.secondary.opacity(0.5))
+            HStack(alignment: .center, spacing: Spacing.m) {
+                ZStack {
+                    Rectangle()
+                        .fill(isOn ? brand : Color.clear)
+                    Rectangle()
+                        .strokeBorder(brand, lineWidth: 2)
+                    if isOn {
+                        Image(systemName: "checkmark")
+                            .font(.headline.weight(.heavy))
+                            .foregroundStyle(Color.paper)
+                    }
                 }
-                Text(title).font(.headline).multilineTextAlignment(.leading)
-                Text(subtitle).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 30, height: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Label { Text(title) } icon: { Image(systemName: systemImage) }
+                        .font(.title3.weight(.semibold))
+                    Text(subtitle)
+                        .font(.callout).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
-            .padding(Spacing.m)
-            .background(Color(.secondarySystemGroupedBackground),
-                        in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(isOn ? brand : .clear, lineWidth: 2))
             .contentShape(Rectangle())
+            .sheetRow()
         }
         .buttonStyle(.plain)
-        .animation(.snappy(duration: 0.2), value: isOn)
+        .animation(.snappy(duration: 0.15), value: isOn)
         .sensoryFeedback(.selection, trigger: isOn)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
@@ -116,7 +113,7 @@ struct ToggleTile: View {
     }
 }
 
-/// A rounded chip that can be selected (for picking several things).
+/// A square tag that can be selected (for picking several things).
 struct SelectChip: View {
     @Environment(\.brand) private var brand
     let title: LocalizedStringResource
@@ -126,13 +123,13 @@ struct SelectChip: View {
 
     var body: some View {
         Button(action: action) {
-            Label { Text(title) } icon: { Image(systemName: systemImage) }
-                .font(.subheadline.weight(.semibold))
+            Label { Text(title) } icon: { Image(systemName: isSelected ? "checkmark" : systemImage) }
+                .font(.callout.weight(.semibold))
                 .padding(.horizontal, Spacing.m)
                 .frame(minHeight: minimumTapSize)
-                .foregroundStyle(isSelected ? .white : .primary)
-                .background(isSelected ? brand : Color(.secondarySystemGroupedBackground), in: Capsule())
-                .overlay(Capsule().strokeBorder(Color.primary.opacity(isSelected ? 0 : 0.1)))
+                .foregroundStyle(isSelected ? Color.paper : Color.primary)
+                .background(isSelected ? brand : Color.clear)
+                .overlay(Rectangle().strokeBorder(isSelected ? brand : Color.primary.opacity(0.35), lineWidth: 1.5))
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
@@ -140,24 +137,24 @@ struct SelectChip: View {
     }
 }
 
-/// "Step 2 of 5" with a segmented bar.
+/// "STEP 2 OF 5" with a row of numbered boxes; finished steps are filled in.
 struct StepProgress: View {
     @Environment(\.brand) private var brand
     let current: Int   // 0-based
     let total: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            HStack(spacing: 6) {
-                ForEach(0..<total, id: \.self) { index in
-                    Capsule()
-                        .fill(index <= current ? brand : Color(.tertiarySystemFill))
-                        .frame(height: 6)
-                }
+        HStack(spacing: Spacing.s) {
+            ForEach(0..<total, id: \.self) { index in
+                Text("\(index + 1)")
+                    .font(.sheetLabel.weight(.bold))
+                    .frame(width: 30, height: 30)
+                    .foregroundStyle(index <= current ? Color.paper : Color.secondary)
+                    .background(index <= current ? brand : Color.clear)
+                    .overlay(Rectangle().strokeBorder(index <= current ? brand : Color.secondary.opacity(0.4), lineWidth: 1.5))
             }
-            Text("Step \(current + 1) of \(total)")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
+            Spacer()
+            Text("Step \(current + 1) of \(total)").sheetLabelStyle().foregroundStyle(.secondary)
         }
         .animation(.snappy, value: current)
         .accessibilityElement(children: .ignore)
@@ -165,7 +162,8 @@ struct StepProgress: View {
     }
 }
 
-/// A text field with its label above it (never a placeholder-only field).
+/// A form field: a label above, and a line to write on (never a
+/// placeholder-only field).
 struct LabeledField: View {
     let label: LocalizedStringKey
     let prompt: LocalizedStringKey
@@ -175,15 +173,16 @@ struct LabeledField: View {
     var identifier: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.subheadline.weight(.semibold))
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text(label).sheetLabelStyle().foregroundStyle(.secondary)
             TextField(prompt, text: $text)
+                .font(.title3)
                 .textContentType(contentType)
                 .keyboardType(keyboard)
-                .padding(.horizontal, Spacing.m)
+                .padding(.horizontal, Spacing.s)
                 .frame(minHeight: 50)
-                .background(Color(.secondarySystemGroupedBackground),
-                            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                .background(Color.paperRaised)
+                .overlay(alignment: .bottom) { Rectangle().fill(Color.ink).frame(height: 2) }
                 .accessibilityLabel(label)
                 .accessibilityIdentifier(identifier)
         }

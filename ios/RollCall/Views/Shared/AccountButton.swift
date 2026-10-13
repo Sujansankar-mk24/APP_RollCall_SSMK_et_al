@@ -24,12 +24,12 @@ struct AccountButton: View {
             } label: {
                 HStack(spacing: 6) {
                     Text(initials(me.name))
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 26, height: 26)
-                        .background(brand, in: Circle())
+                        .font(.footnote.weight(.heavy))
+                        .foregroundStyle(Color.paper)
+                        .frame(width: 28, height: 28)
+                        .background(brand)
                     Text(me.firstName)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.body.weight(.semibold))
                         .lineLimit(1)
                     Image(systemName: "chevron.down")
                         .font(.caption2.weight(.bold))

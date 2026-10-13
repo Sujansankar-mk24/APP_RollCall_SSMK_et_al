@@ -2,9 +2,10 @@
 //  ResidentHomeView.swift
 //  RollCall
 //
-//  The "My household" part of the Roll Call tab: a calm "all clear" when
-//  nothing is happening, volunteers asking to be their buddy, their household
-//  at a glance, their buddy, and their privacy.
+//  The "My household" part of the Roll Call tab, laid out like the resident's
+//  entry on a roll-call sheet: their number and name, any buddy offers to
+//  answer, a calm "no emergencies" note, then their home, needs, buddy and
+//  privacy as ruled sections.
 //  (During an emergency this is where the roll call appears; that's step 3.)
 //
 
@@ -13,7 +14,6 @@ import SwiftUI
 
 struct ResidentHomeView: View {
     @Environment(AuthStore.self) private var auth
-    @Environment(\.brand) private var brand
     @State private var viewModel: ResidentHomeViewModel
     @State private var isEditing = false
     @State private var confirmsEndingMatch = false
@@ -30,7 +30,7 @@ struct ResidentHomeView: View {
                     ProfileWizardView(mode: .edit(householdID: household.id), existing: household) { saved in
                         viewModel.replace(with: saved)
                     }
-                    .rollCallBrand()
+                    .sheetBrand()
                 }
             }
             .alert("Couldn't do that", isPresented: Binding(
@@ -54,204 +54,185 @@ struct ResidentHomeView: View {
             ProgressView("Loading your household…").frame(maxWidth: .infinity, minHeight: 240)
         case .failed(.notFound):
             // The household no longer exists (for example, the demo data was reset).
-            MessageCard(systemImage: "house.slash", title: "This household no longer exists",
-                        message: "It may have been deleted, or the demo data was reset.",
-                        actionTitle: "Refresh", action: { Task { await auth.refresh() } })
+            SheetMessage("This household no longer exists", message: "It may have been deleted, or the demo data was reset.",
+                         systemImage: "house.slash", actionTitle: "Refresh", action: { Task { await auth.refresh() } })
         case .failed(let error):
-            MessageCard(error: error, action: { Task { await viewModel.retry() } })
+            SheetMessage(error: error, action: { Task { await viewModel.retry() } })
         case .loaded(let household):
             VStack(alignment: .leading, spacing: Spacing.l) {
-                greeting(household)
+                entryHeader(household)
                 ForEach(viewModel.buddyRequests) { request in
-                    buddyRequestCard(request)
+                    buddyRequestBox(request)
                 }
-                allClearCard
-                householdCard(household)
-                buddyCard(household)
-                NavigationLink {
-                    PrivacyView(household: household, isDeleting: viewModel.isDeleting,
-                                onDelete: { await viewModel.deleteMyData() },
-                                onDeleted: { await auth.refresh() })
-                    .rollCallBrand()
-                } label: {
-                    rowCard(symbol: "lock.shield.fill", title: "Your privacy",
-                            subtitle: "Who can see your information, and deleting it")
+                SheetNote(text: "No emergencies near you. If one starts, RollCall will ask if you're safe. Answering takes one tap.",
+                          systemImage: "shield.lefthalf.filled")
+                homeSection(household)
+                needsSection(household)
+                buddySection(household)
+                VStack(alignment: .leading, spacing: 0) {
+                    SectionLabel("Privacy")
+                    NavigationLink {
+                        PrivacyView(household: household, isDeleting: viewModel.isDeleting,
+                                    onDelete: { await viewModel.deleteMyData() },
+                                    onDeleted: { await auth.refresh() })
+                        .sheetBrand()
+                    } label: {
+                        linkRow(title: "Your privacy", subtitle: "Who can see your information, and deleting it")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("privacyLink")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("privacyLink")
-                EmergencyBanner()
+                CallNineOneOne()
             }
         }
     }
 
-    /// "Daniel wants to check on you": the resident decides.
-    private func buddyRequestCard(_ request: BuddyRequestToMe) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            HStack(alignment: .top, spacing: Spacing.m) {
-                Text(initials(request.volunteerName))
-                    .font(.headline).fontDesign(.rounded)
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(brand, in: Circle())
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(request.volunteerName) offered to check on you")
-                        .font(.headline)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(request.sameCommunity
-                         ? String(localized: "A volunteer from your community.")
-                         : String(localized: "A volunteer from \(request.volunteerCity). They're not in your community."))
-                        .font(.subheadline).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+    /// "No. 014" and the resident's name, like their line on the roll call,
+    /// with a green stamp showing they're on it.
+    private func entryHeader(_ household: Household) -> some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: "No. \(String(format: "%03d", household.id))").sheetLabelStyle().foregroundStyle(.secondary)
+                Text("Hi, \(household.firstName)")
+                    .font(.sheetHeading)
             }
+            Spacer()
+            Stamp(text: String(localized: "On the roll call"), systemImage: "checkmark", color: Color(.systemGreen))
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// "Daniel offered to check on you": the resident decides.
+    private func buddyRequestBox(_ request: BuddyRequestToMe) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            Text("Buddy offer").sheetLabelStyle().foregroundStyle(.secondary)
+            Text("\(request.volunteerName) offered to check on you")
+                .font(.title3.weight(.bold))
+                .fixedSize(horizontal: false, vertical: true)
+            Text(request.sameCommunity
+                 ? String(localized: "A volunteer from your community.")
+                 : String(localized: "A volunteer from \(request.volunteerCity). They're not in your community."))
+                .font(.body)
+                .fixedSize(horizontal: false, vertical: true)
             Text("If you accept, they'll see your name, address, phone and needs, and check on you if you don't answer during an emergency.")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.callout).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: Spacing.m) {
                 Button("Not now") { Task { await viewModel.answer(request, accept: false) } }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(InkButtonStyle(prominent: false))
                     .accessibilityIdentifier("declineBuddy")
                 Button("Accept") { Task { await viewModel.answer(request, accept: true) } }
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .buttonStyle(InkButtonStyle())
                     .accessibilityIdentifier("acceptBuddy")
             }
-            .controlSize(.large)
             .disabled(viewModel.isAnswering)
         }
-        .padding(Spacing.l)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(brand.opacity(0.5), lineWidth: 1.5))
+        .sheetBox(emphasis: true)
         .accessibilityElement(children: .contain)
     }
 
-    private func greeting(_ household: Household) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text("Hi, \(household.firstName)")
-                .font(.largeTitle.weight(.bold))
-                .fontDesign(.rounded)
-            Label("You're on the roll call", systemImage: "checkmark.seal.fill")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color(.systemGreen))
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    /// The calm "nothing is happening" state. Green and quiet on purpose.
-    private var allClearCard: some View {
-        HStack(alignment: .top, spacing: Spacing.m) {
-            Image(systemName: "shield.lefthalf.filled")
-                .font(.title)
-                .foregroundStyle(brand)
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("No emergencies near you").font(.headline)
-                Text("If one starts, RollCall will ask if you're safe. Answering takes one tap.")
-                    .font(.subheadline).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(Spacing.l)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(brand.opacity(0.10), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .accessibilityElement(children: .combine)
-    }
-
-    private func householdCard(_ household: Household) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+    private func homeSection(_ household: Household) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            SectionLabel("Home")
             Map(initialPosition: .region(MKCoordinateRegion(center: household.coordinate,
                                                             span: MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008))),
                 interactionModes: []) {
                 Marker(household.address, systemImage: "house.fill", coordinate: household.coordinate)
-                    .tint(brand)
+                    .tint(Color.ink)
             }
             .mapStyle(.standard(pointsOfInterest: .excludingAll))
-            .frame(height: 130)
+            .frame(height: 150)
+            .overlay(Rectangle().strokeBorder(Color.ink, lineWidth: 1.5))
             .allowsHitTesting(false)
             .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(household.address).font(.headline)
-                        Text("\(household.city) \(household.zipCode)").font(.subheadline).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button("Edit") { isEditing = true }
-                        .font(.subheadline.weight(.semibold))
-                        .frame(minWidth: minimumTapSize, minHeight: minimumTapSize)
-                        .accessibilityLabel("Edit household")
-                        .accessibilityIdentifier("editHousehold")
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(household.address).font(.title3.weight(.semibold))
+                    Text("\(household.city), TX \(household.zipCode)").font(.body).foregroundStyle(.secondary)
                 }
-                TagChips(tags: household.tags)
+                Spacer()
+                Button("Edit") { isEditing = true }
+                    .buttonStyle(SmallInkButtonStyle(prominent: false))
+                    .accessibilityLabel("Edit household")
+                    .accessibilityIdentifier("editHousehold")
             }
-            .padding(Spacing.l)
         }
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+
+    private func needsSection(_ household: Household) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            SectionLabel("Who lives here, and needs")
+            TagChips(tags: household.tags)
+        }
     }
 
     @ViewBuilder
-    private func buddyCard(_ household: Household) -> some View {
-        if let buddy = household.buddy {
-            HStack(spacing: Spacing.m) {
-                Text(initials(buddy.name))
-                    .font(.headline).fontDesign(.rounded)
-                    .foregroundStyle(.white)
-                    .frame(width: 48, height: 48)
-                    .background(brand, in: Circle())
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Your buddy").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
-                    Text(buddy.name).font(.headline)
-                    Text("Checks on you if you don't answer during an emergency.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
-                Menu {
-                    Button("End buddy match", systemImage: "person.badge.minus", role: .destructive) {
-                        confirmsEndingMatch = true
+    private func buddySection(_ household: Household) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("Buddy")
+            if let buddy = household.buddy {
+                HStack(spacing: Spacing.m) {
+                    Text(initials(buddy.name))
+                        .font(.headline.weight(.heavy))
+                        .foregroundStyle(Color.paper)
+                        .frame(width: 48, height: 48)
+                        .background(Color.ink)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Your buddy").sheetLabelStyle().foregroundStyle(.secondary)
+                        Text(buddy.name).font(.title3.weight(.semibold))
+                        Text("Checks on you if you don't answer during an emergency.")
+                            .font(.callout).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.title3)
-                        .frame(width: minimumTapSize, height: minimumTapSize)
+                    Spacer(minLength: 0)
+                    Menu {
+                        Button("End buddy match", systemImage: "person.badge.minus", role: .destructive) {
+                            confirmsEndingMatch = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.title3.weight(.bold))
+                            .frame(width: minimumTapSize, height: minimumTapSize)
+                    }
+                    .accessibilityLabel("Buddy options")
                 }
-                .accessibilityLabel("Buddy options")
+                .sheetRow()
+                .accessibilityElement(children: .contain)
+            } else if household.wantsBuddy {
+                textRow(title: "Waiting for a buddy",
+                        subtitle: "Volunteers in your community can offer to check on you. You'll choose whether to accept.")
+            } else {
+                Button { isEditing = true } label: {
+                    linkRow(title: "Want a neighbor to check on you?", subtitle: "Ask for a volunteer buddy in your profile.")
+                }
+                .buttonStyle(.plain)
             }
-            .card()
-            .accessibilityElement(children: .contain)
-        } else if household.wantsBuddy {
-            rowCard(symbol: "person.2.wave.2.fill", title: "Waiting for a buddy",
-                    subtitle: "Volunteers in your community can offer to check on you. You'll choose whether to accept.")
-        } else {
-            Button { isEditing = true } label: {
-                rowCard(symbol: "person.2.wave.2.fill", title: "Want a neighbor to check on you?",
-                        subtitle: "Ask for a volunteer buddy in your profile.")
-            }
-            .buttonStyle(.plain)
         }
     }
 
-    private func rowCard(symbol: String, title: LocalizedStringKey, subtitle: LocalizedStringKey) -> some View {
+    private func textRow(title: LocalizedStringKey, subtitle: LocalizedStringKey) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.title3.weight(.semibold))
+            Text(subtitle).font(.callout).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .sheetRow()
+        .accessibilityElement(children: .combine)
+    }
+
+    private func linkRow(title: LocalizedStringKey, subtitle: LocalizedStringKey) -> some View {
         HStack(spacing: Spacing.m) {
-            Image(systemName: symbol)
-                .font(.title3)
-                .foregroundStyle(brand)
-                .frame(width: 44, height: 44)
-                .background(brand.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                Text(title).font(.title3.weight(.semibold))
+                Text(subtitle).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+            Image(systemName: "arrow.right").font(.headline).foregroundStyle(.secondary)
         }
-        .card()
         .contentShape(Rectangle())
+        .sheetRow()
         .accessibilityElement(children: .combine)
     }
 }

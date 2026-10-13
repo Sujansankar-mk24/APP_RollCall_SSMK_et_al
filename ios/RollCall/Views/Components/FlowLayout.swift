@@ -62,16 +62,15 @@ struct TagChips: View {
     var body: some View {
         FlowLayout(spacing: 6) {
             ForEach(tags) { tag in
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Image(systemName: tag.symbol)
-                        .foregroundStyle(tag.tint == .accentColor ? brand : tag.tint)   // brand-colored in Roll Call
-                        .imageScale(.small)
+                        .foregroundStyle(tag.tint == .accentColor ? brand : tag.tint)   // ink on the sheet
                     Text(tag.text)
                 }
-                .font(.footnote.weight(.medium))
+                .font(.callout.weight(.medium))
                 .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .background(Color(.tertiarySystemFill), in: Capsule())
+                .padding(.vertical, 6)
+                .overlay(Rectangle().strokeBorder(Color.primary.opacity(0.3), lineWidth: 1))
             }
         }
         .accessibilityElement(children: .combine)

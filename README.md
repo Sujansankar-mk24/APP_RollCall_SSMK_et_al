@@ -15,9 +15,11 @@ Make sure no one gets left behind. RollCall is a community emergency app for Nor
 |---|---|
 | **Map** | Incidents as colored circles you can tap for details. **Report incident** with a pin, address search, and a photo or video. Filters, legend, zoom, night mode. |
 | **Incidents** | For responders: key numbers and every incident sorted by priority, with "Why this priority?". |
-| **Roll Call** (purple) | **My household**: join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, privacy and Delete my data. **I check on**: be a volunteer buddy. Responders see their own view. |
-| **Community** (purple) | Find your neighborhood and ask to join, or start one and be its admin: approve members, and decide whether buddies from outside are allowed. |
+| **Roll Call** | **My household**: join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, privacy and Delete my data. **I check on**: be a volunteer buddy. Responders see their own view. |
+| **Community** | Find your neighborhood and ask to join, or start one and be its admin: approve members, and decide whether buddies from outside are allowed. |
 | **About** | What RollCall does, who can see your information, credits, and your account (Sign out). |
+
+**The look:** the Map keeps its blue map style. Every other screen looks like a paper roll-call sheet: warm paper, ink-black type and square buttons, ruled rows instead of floating cards, and color only on the "stamped" status labels (green safe, red needs help, amber waiting). Text never goes below 15 pt. The pieces live in `ios/RollCall/Design/Sheet.swift`.
 
 You sign in once; the app remembers you until you sign out. For judges, the sign-in screen has one-tap **demo accounts** (all fictional): José Ochoa (a resident and the admin of Pecan Hollow, with a buddy offer and a join request waiting), Daniel Okafor (a volunteer in Pecan Hollow) and Alex Rivera (a responder).
 

@@ -10,7 +10,6 @@
 import SwiftUI
 
 struct PrivacyView: View {
-    @Environment(\.brand) private var brand
     let household: Household
     let isDeleting: Bool
     /// Deletes everything on the server; true if it worked.
@@ -25,8 +24,9 @@ struct PrivacyView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 header
-                VStack(spacing: Spacing.m) {
-                    audienceCard(symbol: "person.fill", tint: brand, who: "You", when: "Always",
+                VStack(alignment: .leading, spacing: 0) {
+                    SectionLabel("Who can see it, and when")
+                    audienceCard(symbol: "person.fill", tint: .ink, who: "You", when: "Always",
                                  what: "Everything in your profile. You can change it or delete it anytime.")
                     audienceCard(symbol: "person.2.wave.2.fill", tint: Color(.systemTeal), who: "Your volunteer buddy",
                                  when: household.buddy != nil ? "Because you accepted them" : "Only after you accept one",
@@ -42,7 +42,7 @@ struct PrivacyView: View {
             }
             .padding(Spacing.l)
         }
-        .background(Color(.systemGroupedBackground))
+        .sheetPage()
         .navigationTitle("Your privacy")
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Delete all of your data?", isPresented: $confirmingDelete, titleVisibility: .visible) {
@@ -60,16 +60,10 @@ struct PrivacyView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            Image(systemName: "lock.shield.fill")
-                .font(.system(size: 40))
-                .foregroundStyle(brand)
-                .accessibilityHidden(true)
-            Text("Only what helps, only when it helps")
-                .font(.title2.weight(.bold)).fontDesign(.rounded)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            SheetTitle(title: "Only what helps", kicker: String(localized: "Your privacy"))
             Text("RollCall shares your information only with the people who need it to reach you, and only when they need it.")
-                .foregroundStyle(.secondary)
+                .font(.body)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -80,40 +74,37 @@ struct PrivacyView: View {
             Image(systemName: symbol)
                 .font(.title3)
                 .foregroundStyle(tint)
-                .frame(width: 44, height: 44)
-                .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-            VStack(alignment: .leading, spacing: 4) {
-                Text(who).font(.headline)
-                Text(when)
-                    .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(Color(.tertiarySystemFill), in: Capsule())
-                Text(what).font(.subheadline).foregroundStyle(.secondary)
+                .frame(width: 32)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(who).font(.title3.weight(.semibold))
+                Text(when).sheetLabelStyle()
+                Text(what).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .card()
+        .sheetRow()
         .accessibilityElement(children: .combine)
     }
 
     private var collected: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            Text("What RollCall keeps, and why").font(.headline)
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("What RollCall keeps, and why")
             reason("Your address", "so responders can find you")
             reason("Who lives with you", "so they know how many people to look for")
             reason("Your needs", "so the right help comes first")
             reason("Your check-ins", "so nobody is missed")
-            Text("Nothing else: no contacts, no location tracking, no ads.")
-                .font(.footnote).foregroundStyle(.secondary).padding(.top, Spacing.xs)
+            SheetNote(text: "Nothing else: no contacts, no location tracking, no ads.")
+                .padding(.top, Spacing.m)
         }
-        .card()
     }
 
     private func reason(_ what: LocalizedStringKey, _ why: LocalizedStringKey) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
-            Image(systemName: "checkmark").font(.footnote.weight(.bold)).foregroundStyle(brand)
-            Text("\(Text(what).bold()) \(Text(why))").font(.subheadline)
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+            Image(systemName: "checkmark").font(.body.weight(.heavy))
+            Text("\(Text(what).bold()) \(Text(why))").font(.body)
         }
+        .sheetRow()
     }
 
     private var deleteButton: some View {
@@ -122,12 +113,8 @@ struct PrivacyView: View {
                 if isDeleting { ProgressView() } else { Image(systemName: "trash.fill") }
                 Text("Delete my data")
             }
-            .font(.body.weight(.semibold))
-            .frame(maxWidth: .infinity, minHeight: 30)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.large)
-        .tint(Color(.systemRed))
+        .buttonStyle(InkButtonStyle(prominent: false, destructive: true))
         .disabled(isDeleting)
         .accessibilityIdentifier("deleteMyData")
     }

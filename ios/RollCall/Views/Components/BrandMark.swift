@@ -2,8 +2,8 @@
 //  BrandMark.swift
 //  RollCall
 //
-//  The RollCall logo mark: a person with a check, inside rings that spread
-//  out like a roll call going out to a neighborhood.
+//  The RollCall logo mark: a check mark on an ink square, like a box ticked
+//  on a roll-call sheet, with the sheet's ruled lines beside it.
 //
 
 import SwiftUI
@@ -11,30 +11,30 @@ import SwiftUI
 struct BrandMark: View {
     @Environment(\.brand) private var brand
     var size: CGFloat = 88
-    var showsRings = true
+    var showsLines = true
 
     var body: some View {
-        ZStack {
-            if showsRings {
-                ForEach(1...3, id: \.self) { ring in
-                    Circle()
-                        .stroke(brand.opacity(0.16 - Double(ring) * 0.04), lineWidth: 1.5)
-                        .frame(width: size * (1 + CGFloat(ring) * 0.55), height: size * (1 + CGFloat(ring) * 0.55))
+        HStack(alignment: .center, spacing: size * 0.18) {
+            ZStack {
+                Rectangle().fill(brand)
+                Image(systemName: "checkmark")
+                    .font(.system(size: size * 0.5, weight: .black))
+                    .foregroundStyle(Color.paper)
+            }
+            .frame(width: size, height: size)
+            if showsLines {
+                // Three ruled lines, like names waiting on the sheet.
+                VStack(alignment: .leading, spacing: size * 0.16) {
+                    ForEach([1.0, 0.75, 0.9], id: \.self) { width in
+                        Rectangle().fill(brand.opacity(0.35)).frame(width: size * width, height: size * 0.09)
+                    }
                 }
             }
-            RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
-                .fill(LinearGradient(colors: [brand, brand.opacity(0.78)],
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: size, height: size)
-                .shadow(color: brand.opacity(0.35), radius: size * 0.18, y: size * 0.08)
-            Image(systemName: "person.crop.circle.badge.checkmark")
-                .font(.system(size: size * 0.48, weight: .semibold))
-                .foregroundStyle(.white)
         }
         .accessibilityHidden(true)
     }
 }
 
 #Preview {
-    BrandMark().padding(80)
+    BrandMark().padding(40).sheetPage()
 }

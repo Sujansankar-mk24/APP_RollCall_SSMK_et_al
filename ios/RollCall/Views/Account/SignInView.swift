@@ -18,7 +18,7 @@ struct SignInView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: Spacing.xl) {
+            VStack(alignment: .leading, spacing: Spacing.xl) {
                 header
                 form
                 demoSection
@@ -28,7 +28,7 @@ struct SignInView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(Color(.systemGroupedBackground))
+        .sheetPage()
         .task { await viewModel.loadDemoAccounts() }
         .sheet(isPresented: $showsAllDemoAccounts) {
             DemoAccountsSheet(accounts: viewModel.demoAccounts) { account in
@@ -39,30 +39,24 @@ struct SignInView: View {
     }
 
     private var header: some View {
-        VStack(spacing: Spacing.m) {
-            BrandMark(size: 76)
+        VStack(alignment: .leading, spacing: Spacing.l) {
+            BrandMark(size: 56)
                 .padding(.top, Spacing.xl)
-                .padding(.bottom, Spacing.s)
-            Text("RollCall")
-                .font(.system(size: 40, weight: .bold, design: .rounded))
+            SheetTitle(title: "RollCall", kicker: String(localized: "North Texas · Emergency roll call"))
             Text("Make sure no one gets left behind.")
                 .font(.title3.weight(.medium))
-                .fontDesign(.rounded)
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
         }
     }
 
     private var form: some View {
         VStack(spacing: Spacing.m) {
-            Picker("", selection: $viewModel.mode) {
-                Text("Sign in").tag(SignInViewModel.Mode.signIn)
-                Text("Create account").tag(SignInViewModel.Mode.createAccount)
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("authMode")
+            SheetTabs(selection: $viewModel.mode, options: [
+                (value: SignInViewModel.Mode.signIn, title: String(localized: "Sign in")),
+                (value: .createAccount, title: String(localized: "Create account")),
+            ], identifierPrefix: "authMode_")
 
-            VStack(spacing: Spacing.m) {
+            VStack(spacing: Spacing.l) {
                 if viewModel.mode == .createAccount {
                     TextField("Your name", text: $viewModel.name)
                         .textContentType(.name)
@@ -94,7 +88,7 @@ struct SignInView: View {
 
             if let error = viewModel.error {
                 Label(error.message, systemImage: "exclamationmark.circle.fill")
-                    .font(.subheadline)
+                    .font(.callout.weight(.medium))
                     .foregroundStyle(Color(.systemRed))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("signInError")
@@ -102,22 +96,16 @@ struct SignInView: View {
 
             Button(action: submit) {
                 HStack(spacing: Spacing.s) {
-                    if viewModel.isWorking { ProgressView().tint(.white) }
+                    if viewModel.isWorking { ProgressView().tint(Color.paper) }
                     Text(viewModel.mode == .signIn ? "Sign in" : "Create account")
                 }
-                .font(.body.weight(.semibold))
-                .frame(maxWidth: .infinity, minHeight: 30)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(InkButtonStyle())
             .disabled(!viewModel.canSubmit)
             .accessibilityIdentifier("submitAuth")
 
             if viewModel.mode == .createAccount {
-                Text("Your password is stored scrambled, so not even RollCall can read it.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                SheetNote(text: "Your password is stored scrambled, so not even RollCall can read it.", systemImage: "lock.fill")
             }
         }
         .animation(.snappy(duration: 0.25), value: viewModel.mode)
@@ -126,13 +114,14 @@ struct SignInView: View {
     @ViewBuilder
     private var demoSection: some View {
         if !viewModel.featured.isEmpty {
-            VStack(alignment: .leading, spacing: Spacing.m) {
-                Label("Trying the demo?", systemImage: "theatermasks.fill")
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 0) {
+                SectionLabel("Trying the demo?")
                 Text("Open a fictional account with one tap. Every person and address in the demo is made up.")
-                    .font(.subheadline)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.vertical, Spacing.s)
+                RuleLine()
                 ForEach(viewModel.featured) { account in
                     Button { Task { await viewModel.open(account, with: auth) } } label: {
                         DemoAccountRow(account: account)
@@ -141,10 +130,10 @@ struct SignInView: View {
                     .accessibilityIdentifier("demo_\(account.kind.rawValue)")
                 }
                 Button("All demo accounts") { showsAllDemoAccounts = true }
-                    .font(.subheadline.weight(.semibold))
+                    .font(.callout.weight(.semibold))
+                    .underline()
                     .frame(minHeight: minimumTapSize)
             }
-            .card()
             .disabled(viewModel.isWorking)
         }
     }
@@ -162,22 +151,21 @@ struct DemoAccountRow: View {
     var body: some View {
         HStack(spacing: Spacing.m) {
             Image(systemName: account.kind.symbol)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 40, height: 40)
-                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                .font(.title3.weight(.semibold))
+                .frame(width: 44, height: 44)
+                .overlay(Rectangle().strokeBorder(Color.primary.opacity(0.4), lineWidth: 1.5))
             VStack(alignment: .leading, spacing: 2) {
-                Text(account.name).font(.subheadline.weight(.semibold))
+                Text(account.name).font(.headline)
                 Text(account.detail.isEmpty ? String(localized: account.kind.title)
                                             : "\(String(localized: account.kind.title)) · \(account.detail)")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+            Image(systemName: "arrow.right").font(.headline).foregroundStyle(.secondary)
         }
-        .padding(.vertical, Spacing.xs)
         .contentShape(Rectangle())
+        .sheetRow()
         .accessibilityElement(children: .combine)
     }
 }
@@ -197,25 +185,31 @@ struct DemoAccountsSheet: View {
                             ForEach(group) { account in
                                 Button { onPick(account) } label: { DemoAccountRow(account: account) }
                                     .buttonStyle(.plain)
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
                             }
                         }
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .listStyle(.plain)
             .navigationTitle("Demo accounts")
             .navigationBarTitleDisplayMode(.inline)
+            .sheetPage()
         }
     }
 }
 
 private extension View {
-    /// A roomy text field on a card background.
+    /// A roomy text field with a line to write on, like a paper form.
     func authField() -> some View {
         self
+            .font(.title3)
             .padding(.horizontal, Spacing.m)
-            .frame(minHeight: 52)
-            .background(Color(.secondarySystemGroupedBackground),
-                        in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+            .frame(minHeight: 54)
+            .background(Color.paperRaised)
+            .overlay(alignment: .bottom) { Rectangle().fill(Color.ink).frame(height: 2) }
     }
 }
 
