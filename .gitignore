@@ -6,7 +6,6 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.venv/
 .pytest_cache/
 
 # Backend runtime data (recreated by `python -m scripts.reset_demo`)
