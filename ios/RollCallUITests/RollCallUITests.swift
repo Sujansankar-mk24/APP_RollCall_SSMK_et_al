@@ -193,6 +193,22 @@ final class RollCallUITests: XCTestCase {
     }
 
     @MainActor
+    func testChoosingAServerChecksTheAddress() {
+        let app = launch()
+        let server = app.buttons["serverRow"]
+        scrollTo(server, in: app)
+        server.tap()
+        // An address with no RollCall server behind it is refused, with a reason.
+        type("not-a-rollcall-server.invalid", into: app.textFields["serverAddressField"])
+        app.buttons["connectServer"].tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH \"Couldn't reach a RollCall server\"")).firstMatch
+            .waitForExistence(timeout: 15))
+        // Going back to this Mac works, and the demo accounts are there again.
+        app.buttons["useThisMac"].tap()
+        XCTAssertTrue(app.buttons["demo_resident"].waitForExistence(timeout: 10))
+    }
+
+    @MainActor
     func testTheAppRemembersWhoIsSignedIn() {
         let app = launch()
         signUp(app, name: "Test Person", email: uniqueEmail())
@@ -387,7 +403,7 @@ final class RollCallUITests: XCTestCase {
     private func launch(tab: String? = nil) -> XCUIApplication {
         XCUIDevice.shared.location = XCUILocation(location: greenville)
         let app = XCUIApplication()
-        app.launchArguments = ["-RCSignOut", "YES"] + (tab.map { ["-RSTab", $0] } ?? [])
+        app.launchArguments = ["-RCSignOut", "YES", "-RCServerURL", "http://localhost:8000"] + (tab.map { ["-RSTab", $0] } ?? [])
         app.launch()
         if !app.textFields["emailField"].waitForExistence(timeout: 20) {
             XCTFail("The sign-in screen didn't appear. Is the backend running? (uvicorn app.main:app)")
@@ -400,7 +416,7 @@ final class RollCallUITests: XCTestCase {
     private func launchApp(arguments: [String] = []) -> XCUIApplication {
         XCUIDevice.shared.location = XCUILocation(location: besideGreenvilleFire)
         let app = XCUIApplication()
-        app.launchArguments = ["-RCSignOut", "YES"] + arguments
+        app.launchArguments = ["-RCSignOut", "YES", "-RCServerURL", "http://localhost:8000"] + arguments
         app.launch()
         openDemoAccount(app, kind: "resident")
         if !app.buttons["reportIncidentButton"].waitForExistence(timeout: 20) {

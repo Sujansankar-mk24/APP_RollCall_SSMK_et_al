@@ -12,6 +12,7 @@ struct SignInView: View {
     @Environment(AuthStore.self) private var auth
     @State private var viewModel = SignInViewModel()
     @State private var showsAllDemoAccounts = false
+    @State private var choosesServer = false
     @FocusState private var focused: Field?
 
     private enum Field: Hashable { case name, email, password }
@@ -22,6 +23,7 @@ struct SignInView: View {
                 header
                 form
                 demoSection
+                serverRow
             }
             .padding(Spacing.l)
             .frame(maxWidth: 520)
@@ -30,6 +32,11 @@ struct SignInView: View {
         .scrollDismissesKeyboard(.interactively)
         .sheetPage()
         .task { await viewModel.loadDemoAccounts() }
+        .sheet(isPresented: $choosesServer, onDismiss: {
+            Task { await viewModel.loadDemoAccounts() }   // the new server has its own demo accounts
+        }) {
+            ServerSheet()
+        }
         .sheet(isPresented: $showsAllDemoAccounts) {
             DemoAccountsSheet(accounts: viewModel.demoAccounts) { account in
                 showsAllDemoAccounts = false
@@ -138,6 +145,31 @@ struct SignInView: View {
         }
     }
 
+    /// Which server this app talks to, and a way to change it.
+    private var serverRow: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("Server")
+            Button { choosesServer = true } label: {
+                let isThisMac = auth.serverURL == ServerSettings.thisMac
+                HStack(spacing: Spacing.m) {
+                    Image(systemName: isThisMac ? "desktopcomputer" : "network")
+                        .font(.title3)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(verbatim: ServerSettings.displayName(for: auth.serverURL)).font(.headline)
+                        Text(isThisMac ? "Only accounts made on this Mac" : "Shared with everyone using this server")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("Change").font(.callout.weight(.semibold)).underline()
+                }
+                .contentShape(Rectangle())
+                .sheetRow()
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("serverRow")
+        }
+    }
+
     private func submit() {
         guard viewModel.canSubmit else { return }
         focused = nil
@@ -215,4 +247,84 @@ private extension View {
 
 #Preview {
     SignInView().environment(AuthStore())
+}
+
+/// Choose the server: this Mac, or a shared one (someone's Mac shared through
+/// a tunnel). The address is tested before it's used.
+struct ServerSheet: View {
+    @Environment(AuthStore.self) private var auth
+    @Environment(\.dismiss) private var dismiss
+    @State private var address = ServerSettings.isThisMac ? "" : ServerSettings.url.absoluteString
+    @State private var isChecking = false
+    @State private var problem: String?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.l) {
+                    Text("Everyone who uses the same server sees the same accounts, households and communities.")
+                        .font(.body)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    VStack(alignment: .leading, spacing: Spacing.m) {
+                        SectionLabel("Shared server")
+                        LabeledField(label: "Server address", prompt: "e.g. something.trycloudflare.com",
+                                     text: $address, contentType: .URL, keyboard: .URL, identifier: "serverAddressField")
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        if let problem {
+                            Label(problem, systemImage: "exclamationmark.circle.fill")
+                                .font(.callout.weight(.medium))
+                                .foregroundStyle(Color(.systemRed))
+                        }
+                        Button {
+                            Task { await useSharedServer() }
+                        } label: {
+                            HStack(spacing: Spacing.s) {
+                                if isChecking { ProgressView().tint(Color.paper) }
+                                Text("Connect")
+                            }
+                        }
+                        .buttonStyle(InkButtonStyle())
+                        .disabled(address.trimmingCharacters(in: .whitespaces).isEmpty || isChecking)
+                        .accessibilityIdentifier("connectServer")
+                        SheetNote(text: "The person running the server gets this address from scripts/share_server.sh and sends it to you. It changes each time they restart sharing.")
+                    }
+
+                    VStack(alignment: .leading, spacing: Spacing.m) {
+                        SectionLabel("This Mac")
+                        Button("Use the server on this Mac") {
+                            auth.switchServer(to: nil)
+                            dismiss()
+                        }
+                        .buttonStyle(InkButtonStyle(prominent: false))
+                        .accessibilityIdentifier("useThisMac")
+                    }
+                }
+                .padding(Spacing.l)
+            }
+            .sheetPage()
+            .navigationTitle("Server")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            }
+        }
+    }
+
+    private func useSharedServer() async {
+        problem = nil
+        guard let url = ServerSettings.address(from: address) else {
+            problem = String(localized: "That doesn't look like a web address.")
+            return
+        }
+        isChecking = true
+        defer { isChecking = false }
+        guard await APIClient.shared.isRollCallServer(at: url) else {
+            problem = String(localized: "Couldn't reach a RollCall server there. Check the address, and that sharing is still running.")
+            return
+        }
+        auth.switchServer(to: url)
+        dismiss()
+    }
 }

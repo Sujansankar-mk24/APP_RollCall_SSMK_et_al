@@ -122,6 +122,14 @@ struct AboutView: View {
                     .accessibilityIdentifier("signOut")
                 }
                     SheetNote(text: "You stay signed in on this phone until you sign out.")
+                Label {
+                    Text("Server: \(ServerSettings.displayName(for: auth.serverURL))")
+                } icon: {
+                    Image(systemName: auth.serverURL == ServerSettings.thisMac ? "desktopcomputer" : "network")
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("serverInfo")
             }
         }
     }

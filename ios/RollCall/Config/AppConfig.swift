@@ -10,9 +10,10 @@ import MapKit
 
 enum AppConfig {
 
-    /// Where the Python backend is running. The iPhone simulator shares the
-    /// Mac's network, so "localhost" here means "this Mac".
-    static let apiBaseURL = URL(string: "http://localhost:8000")!
+    /// Where the Python backend is running: "This Mac" (localhost; the
+    /// simulator shares the Mac's network) unless a shared server was chosen
+    /// on the sign-in screen. See ServerSettings.swift.
+    static var apiBaseURL: URL { ServerSettings.url }
 
     /// How long to wait for the server before showing an error.
     static let requestTimeout: TimeInterval = 10

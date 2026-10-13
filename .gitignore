@@ -17,6 +17,10 @@ backend/sample_media/*
 !backend/sample_media/CREDITS.md
 backend/models/*.pt
 
+# Server sharing (downloaded by scripts/share_server.sh) and its logs
+backend/tools/
+backend/server.log
+
 # Xcode
 xcuserdata/
 DerivedData/

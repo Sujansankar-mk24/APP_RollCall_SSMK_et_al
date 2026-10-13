@@ -83,6 +83,24 @@ The app reads the server address from `ios/RollCall/Config/AppConfig.swift` (`ht
 - **Location:** the simulator starts out in California. Set a North Texas location in the simulator's menu (Features → Location → Custom Location), or run `xcrun simctl location booted set 33.0712,-96.1043` (next to the demo grass fire, so a fire report there merges into it).
 - **Photos and videos:** add some to the simulator's Photos app by dragging files onto the simulator window, or run `xcrun simctl addmedia booted backend/sample_media/grass_fire_crew.jpg backend/sample_media/grass_fire_clip.mp4`. **Take photo or video** only appears on a real iPhone; the simulator has no camera.
 
+## Sharing one server between Macs
+
+Each Mac normally runs its own server with its own data. To test together (for example, you create an account and your teammate sees your community on their Mac), one Mac shares its server and everyone else connects to it:
+
+1. **On the sharing Mac**, from the `backend` folder:
+   ```bash
+   scripts/share_server.sh
+   ```
+   It starts the server if needed, opens a free Cloudflare tunnel (it downloads Cloudflare's `cloudflared` the first time, no account needed) and prints an address like `https://some-words.trycloudflare.com`. Keep that window open; Ctrl+C stops sharing.
+2. **On the other Mac**, in the app's sign-in screen: **Server → Change**, paste the address, **Connect**, then sign in. The app checks there's really a RollCall server there before switching.
+
+Things to know:
+- The address changes every time sharing restarts, so send the new one.
+- Everyone's data lives on the sharing Mac (`backend/rollcall.db`). Running `reset_demo` there wipes everyone's accounts.
+- It only works while the sharing Mac is awake with the script running.
+- Anyone with the address can reach the server. Real accounts still need their password, and demo accounts are fictional.
+- To go back, choose **Server → Use the server on this Mac**.
+
 ## Map and Incidents tabs
 
 ### Incidents tab

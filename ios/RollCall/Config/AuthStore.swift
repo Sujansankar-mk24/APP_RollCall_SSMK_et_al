@@ -23,6 +23,8 @@ final class AuthStore {
     }
 
     private(set) var state: State = .checking
+    /// The server this app talks to (see ServerSettings).
+    private(set) var serverURL = ServerSettings.url
     private let api: APIClient
 
     init(api: APIClient = .shared) {
@@ -82,6 +84,14 @@ final class AuthStore {
     func signOut() async {
         try? await api.signOut()   // forget it on the server too (fine if offline)
         forgetToken()
+    }
+
+    /// Talk to a different server (nil = this Mac). A sign-in only works on
+    /// the server it came from, so this also signs out on this phone.
+    func switchServer(to url: URL?) {
+        forgetToken()
+        ServerSettings.use(url)
+        serverURL = ServerSettings.url
     }
 
     private func use(_ response: AuthResponse) {

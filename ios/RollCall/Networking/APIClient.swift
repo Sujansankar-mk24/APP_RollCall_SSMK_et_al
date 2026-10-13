@@ -15,13 +15,15 @@ import Foundation
 struct APIClient {
     static let shared = APIClient()
 
-    private let baseURL: URL
+    /// Fixed address (for previews/tests), or nil to follow the server setting.
+    private let fixedBaseURL: URL?
+    private var baseURL: URL { fixedBaseURL ?? AppConfig.apiBaseURL }
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
-    init(baseURL: URL = AppConfig.apiBaseURL) {
-        self.baseURL = baseURL
+    init(baseURL: URL? = nil) {
+        fixedBaseURL = baseURL
 
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = AppConfig.requestTimeout
@@ -81,6 +83,17 @@ struct APIClient {
         request.httpBody = form.finished()
         request.timeoutInterval = 120  // videos can take a little while to upload
         return try await send(request)
+    }
+
+    // MARK: - Server
+
+    /// Is there a RollCall server at this address? (Used before switching servers.)
+    func isRollCallServer(at url: URL) async -> Bool {
+        var request = URLRequest(url: url.appending(path: "health"))
+        request.timeoutInterval = 8
+        guard let (data, response) = try? await session.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200 else { return false }
+        return String(data: data, encoding: .utf8)?.contains("ok") ?? false
     }
 
     // MARK: - Accounts
