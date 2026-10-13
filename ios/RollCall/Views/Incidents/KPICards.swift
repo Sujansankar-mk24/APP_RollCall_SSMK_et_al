@@ -11,10 +11,10 @@ import SwiftUI
 struct KPICards: View {
     let kpis: IncidentKPIs
 
-    private let columns = [GridItem(.flexible(), spacing: Spacing.m), GridItem(.flexible(), spacing: Spacing.m)]
+    private let columns = [GridItem(.flexible(), spacing: Spacing.l), GridItem(.flexible(), spacing: Spacing.l)]
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: Spacing.m) {
+        LazyVGrid(columns: columns, spacing: Spacing.l) {
             KPICard(
                 title: "Active incidents",
                 value: "\(kpis.active)",
@@ -56,5 +56,5 @@ struct KPICards: View {
 #Preview {
     KPICards(kpis: IncidentKPIs(PreviewData.incidents))
         .padding()
-        .background(Color(.systemGroupedBackground))
+        .sheetPage()
 }

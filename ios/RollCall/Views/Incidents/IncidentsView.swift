@@ -2,8 +2,9 @@
 //  IncidentsView.swift
 //  RollCall
 //
-//  The responder view: key numbers at the top, then every incident sorted by
-//  priority (highest first). Tap one to open the same detail sheet as on the map.
+//  The responder view, laid out like an incident log sheet: key numbers at
+//  the top, then every incident sorted by priority (highest first), one ruled
+//  line each. Tap one to open the same detail sheet as on the map.
 //
 
 import SwiftUI
@@ -19,8 +20,7 @@ struct IncidentsView: View {
     var body: some View {
         NavigationStack {
             content
-                .background(Color(.systemGroupedBackground))
-                .navigationTitle("Incidents")
+                .sheetPage()
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) { AppearanceToolbarMenu() }
                 }
@@ -49,10 +49,9 @@ struct IncidentsView: View {
         case .loading:
             skeleton
         case .failed(let error):
-            MessageCard(error: error, isWorking: viewModel.isRefreshing,
-                        action: { Task { await viewModel.retry() } })
-            .padding(Spacing.l)
-            .frame(maxHeight: .infinity)
+            SheetMessage(error: error, action: { Task { await viewModel.retry() } })
+                .padding(Spacing.l)
+                .frame(maxHeight: .infinity)
         case .loaded:
             list
         }
@@ -61,21 +60,19 @@ struct IncidentsView: View {
     private var list: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.l) {
+                SheetTitle(title: "Incidents", kicker: String(localized: "Incident log · by priority"))
                 statusLine
                 KPICards(kpis: viewModel.kpis)
                     .animation(.easeOut(duration: 0.25), value: viewModel.kpis)
 
-                Picker("Show", selection: $viewModel.scope) {
-                    ForEach(IncidentsViewModel.Scope.allCases) { scope in
-                        Text("\(scope.title) (\(viewModel.count(for: scope)))").tag(scope)
-                    }
-                }
-                .pickerStyle(.segmented)
+                SheetTabs(selection: $viewModel.scope, options: IncidentsViewModel.Scope.allCases.map {
+                    (value: $0, title: "\($0.title) (\(viewModel.count(for: $0)))")
+                })
 
                 if viewModel.visibleIncidents.isEmpty {
                     emptyState
                 } else {
-                    LazyVStack(spacing: Spacing.m) {
+                    LazyVStack(spacing: 0) {
                         ForEach(viewModel.visibleIncidents) { incident in
                             Button { selected = incident } label: {
                                 IncidentRow(incident: incident)
@@ -113,7 +110,7 @@ struct IncidentsView: View {
                     .frame(minHeight: minimumTapSize)
             }
         }
-        .font(.footnote)
+        .font(.callout)
         .foregroundStyle(.secondary)
         .accessibilityElement(children: .combine)
     }
@@ -122,32 +119,31 @@ struct IncidentsView: View {
     private var emptyState: some View {
         switch viewModel.scope {
         case .open:
-            MessageCard(systemImage: "checkmark.shield", title: "No open incidents",
-                        message: "Every incident that was reported has been resolved.")
+            SheetMessage("No open incidents", message: "Every incident that was reported has been resolved.",
+                         systemImage: "checkmark.shield")
         case .resolved:
-            MessageCard(systemImage: "tray", title: "Nothing resolved yet",
-                        message: "Incidents appear here after a responder marks them resolved.")
+            SheetMessage("Nothing resolved yet", message: "Incidents appear here after a responder marks them resolved.",
+                         systemImage: "tray")
         case .all:
-            MessageCard(systemImage: "checkmark.shield", title: "No incidents reported",
-                        message: "When people in your community report an emergency, it will appear here.")
+            SheetMessage("No incidents reported", message: "When people in your community report an emergency, it will appear here.",
+                         systemImage: "checkmark.shield")
         }
     }
 
-    /// Gray shapes the size of the real content while the first download runs.
+    /// Blank ruled lines the size of the real content while the first download runs.
     private var skeleton: some View {
         ScrollView {
-            VStack(spacing: Spacing.m) {
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.m) {
+            VStack(spacing: Spacing.l) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.l) {
                     ForEach(0..<4, id: \.self) { _ in
-                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                            .fill(Color(.secondarySystemGroupedBackground))
-                            .frame(height: 104)
+                        VStack(alignment: .leading, spacing: Spacing.s) {
+                            Rectangle().fill(Color.ink).frame(height: 3)
+                            Rectangle().fill(Color.ink.opacity(0.08)).frame(height: 80)
+                        }
                     }
                 }
                 ForEach(0..<3, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .fill(Color(.secondarySystemGroupedBackground))
-                        .frame(height: 116)
+                    Rectangle().fill(Color.ink.opacity(0.06)).frame(height: 100).sheetRow()
                 }
             }
             .padding(Spacing.l)

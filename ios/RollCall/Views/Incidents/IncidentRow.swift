@@ -2,8 +2,9 @@
 //  IncidentRow.swift
 //  RollCall
 //
-//  One incident in the priority list. From left to right: what it is (icon
-//  colored by status), where, what the AI found, and the priority score.
+//  One line in the incident log. From left to right: the priority score
+//  (big, like a number on a log sheet), then what happened with its status
+//  stamp, where, what the AI found, and how many reports.
 //
 
 import SwiftUI
@@ -13,40 +14,27 @@ struct IncidentRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.m) {
-            Image(systemName: incident.type.symbol)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(incident.status.color, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .accessibilityHidden(true)
+            PriorityScore(priority: incident.priority)
 
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: Spacing.s) {
-                    Text(incident.type.title)
-                        .font(.headline)
-                    StatusBadge(status: incident.status)
-                        .scaleEffect(0.85, anchor: .leading)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .center, spacing: Spacing.s) {
+                    Label(incident.type.title, systemImage: incident.type.symbol)
+                        .font(.title3.weight(.bold))
+                    Spacer(minLength: Spacing.xs)
+                    Stamp(text: incident.status.title, color: incident.status.color)
                         .fixedSize()
-                        .frame(height: 24)
                 }
                 Text(incident.locationName)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.body)
                     .lineLimit(2)
                 aiLine
                 metaLine
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-
-            PriorityScore(priority: incident.priority)
         }
-        .padding(Spacing.m)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .opacity(incident.status == .resolved ? 0.72 : 1)   // resolved incidents fade back
-        .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .sheetRow()
+        .opacity(incident.status == .resolved ? 0.6 : 1)   // resolved incidents fade back
+        .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
         .accessibilityHint("Opens incident details")
@@ -63,14 +51,13 @@ struct IncidentRow: View {
                 ProgressView().controlSize(.mini)
                 Text("AI is analyzing…")
             }
-            .font(.footnote.weight(.medium))
-            .foregroundStyle(Color.accentColor)
+            .font(.callout.weight(.medium))
         } else if incident.ai.verified {
             Label(evidenceText, systemImage: "viewfinder")
-                .font(.footnote.weight(.medium))
+                .font(.callout.weight(.semibold))
         } else if incident.type.canBeVerifiedByAI {
             Label("Not verified by AI yet", systemImage: "questionmark.circle")
-                .font(.footnote)
+                .font(.callout)
                 .foregroundStyle(.secondary)
         }
     }
@@ -90,7 +77,7 @@ struct IncidentRow: View {
         let reports = incident.reportCount == 1 ? "1 report" : "\(incident.reportCount) reports"
         let ago = incident.lastReportAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
         return Text("\(reports) · last \(ago)")
-            .font(.caption)
+            .font(.sheetLabel)
             .foregroundStyle(.secondary)
             .lineLimit(1)
             .minimumScaleFactor(0.85)
@@ -104,30 +91,30 @@ struct IncidentRow: View {
     }
 }
 
-/// The big number on the right of a row, tinted by priority level.
+/// The big priority number at the start of a row, with its level under a
+/// rule colored by priority (red high, amber medium, gray low).
 struct PriorityScore: View {
     let priority: Priority
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 2) {
             Text("\(priority.score)")
-                .font(.system(.title2, design: .rounded).weight(.bold))
+                .font(.system(size: 34, weight: .black).width(.condensed))
                 .monospacedDigit()
+            Rectangle().fill(priority.level.color).frame(height: 3)
             Text(priority.level.title)
-                .font(.caption2.weight(.semibold))
+                .font(.sheetLabel)
+                .textCase(.uppercase)
         }
-        .foregroundStyle(.primary)
-        .frame(width: 58, height: 52)
-        .background(priority.level.color.opacity(0.18),
-                    in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        .frame(width: 58, alignment: .leading)
         .accessibilityHidden(true)  // the row's label already says it
     }
 }
 
 #Preview {
-    VStack(spacing: Spacing.m) {
+    VStack(spacing: 0) {
         ForEach(PreviewData.incidents) { IncidentRow(incident: $0) }
     }
     .padding()
-    .background(Color(.systemGroupedBackground))
+    .sheetPage()
 }

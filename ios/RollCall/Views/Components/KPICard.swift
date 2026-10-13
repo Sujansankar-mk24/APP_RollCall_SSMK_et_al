@@ -2,8 +2,9 @@
 //  KPICard.swift
 //  RollCall
 //
-//  A number card: big number, label, and one line of context. It turns red or
-//  amber when its number means "someone needs help".
+//  A number on the sheet: a big condensed figure, its label, and one line of
+//  context, under a rule. The rule turns red or amber when the number means
+//  "someone needs help" (and the caption says why, so color isn't the only clue).
 //
 
 import SwiftUI
@@ -18,31 +19,26 @@ struct KPICard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            Label(title, systemImage: systemImage)
-                .font(.footnote.weight(.medium))
+            Rectangle().fill(emphasis ?? Color.ink).frame(height: 3)
+            Label { Text(title) } icon: { Image(systemName: systemImage) }
+                .sheetLabelStyle()
                 .foregroundStyle(emphasis ?? .secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
+                .padding(.top, Spacing.xs)
             Text(value)
-                .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                .font(.system(size: 44, weight: .black).width(.condensed))
                 .monospacedDigit()
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
                 .contentTransition(.numericText())
             Text(caption)
-                .font(.caption)
+                .font(.callout)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .lineLimit(2)
+                .minimumScaleFactor(0.9)
         }
-        .card(padding: Spacing.m)
-        .overlay(alignment: .topTrailing) {
-            // A small colored dot, so "needs attention" never depends on color
-            // alone: the caption says why.
-            if let emphasis {
-                Circle().fill(emphasis).frame(width: 8, height: 8).padding(Spacing.m)
-            }
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
     }
@@ -51,5 +47,5 @@ struct KPICard: View {
 #Preview {
     KPICard(title: "Needs help", value: "3", caption: "Waiting for a responder", systemImage: "exclamationmark.triangle.fill", emphasis: .red)
         .padding()
-        .background(Color(.systemGroupedBackground))
+        .sheetPage()
 }
