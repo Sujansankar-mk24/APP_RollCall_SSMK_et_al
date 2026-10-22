@@ -58,7 +58,7 @@ final class RollCallUITests: XCTestCase {
     @MainActor
     func testIncidentsTabShowsKPIsAndAPrioritySortedList() {
         let app = launchApp()
-        app.tabBars.buttons["Incidents"].tap()
+        app.buttons["tab_incidents"].tap()
 
         // Four key numbers. In the demo data, 4 incidents are active and 3 are responding.
         let active = app.descendants(matching: .any)["kpi_active"]
@@ -92,7 +92,7 @@ final class RollCallUITests: XCTestCase {
     @MainActor
     func testAboutTabExplainsEachTabAndPrivacy() {
         let app = launchApp()
-        app.tabBars.buttons["About"].tap()
+        app.buttons["tab_about"].tap()
         XCTAssertTrue(app.staticTexts["What's in the app"].waitForExistence(timeout: 5))
         app.swipeUp()
         XCTAssertTrue(app.staticTexts["Who can see your information"].exists)
@@ -349,7 +349,7 @@ final class RollCallUITests: XCTestCase {
         let app = launch(tab: "rollCall")
         openDemoAccount(app, kind: "responder")
         XCTAssertTrue(app.staticTexts["No active emergency"].waitForExistence(timeout: 15))
-        XCTAssertFalse(app.tabBars.buttons["Community"].exists, "Responders don't join communities")
+        XCTAssertFalse(app.buttons["tab_community"].exists, "Responders don't join communities")
     }
 
     // MARK: - Community tab
@@ -428,7 +428,7 @@ final class RollCallUITests: XCTestCase {
     /// Tap a tab. If a late system prompt swallowed the tap, close it and try again.
     @MainActor
     private func open(tab: String, in app: XCUIApplication) {
-        let button = app.tabBars.buttons[tab]
+        let button = app.buttons["tab_\(tab.prefix(1).lowercased() + tab.dropFirst())"]
         for _ in 0..<3 {
             button.tap()
             let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "selected == true"), object: button)
@@ -483,7 +483,7 @@ final class RollCallUITests: XCTestCase {
     /// opens. The test waits for the app, then answers Not Now if it's asked.
     @MainActor
     private func dismissSavePasswordPrompt(_ app: XCUIApplication) {
-        _ = app.tabBars.firstMatch.waitForExistence(timeout: 20)
+        _ = app.descendants(matching: .any)["mainTabBar"].waitForExistence(timeout: 20)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let deadline = Date().addingTimeInterval(12)
         while Date() < deadline {

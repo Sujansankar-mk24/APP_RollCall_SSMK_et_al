@@ -61,30 +61,62 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selection) {
             IncidentMapView(store: store)
-                .tabItem { Label("Map", systemImage: "map.fill") }
+                .roomForTabBar()
                 .tag(RootTab.map)
 
             IncidentsView(store: store)
-                .tabItem { Label("Incidents", systemImage: "list.bullet.rectangle.fill") }
-                .badge(store.needsAttentionCount)   // active, high-priority incidents
+                .roomForTabBar()
                 .tag(RootTab.incidents)
 
             RollCallTabView()
                 .sheetBrand()
-                .tabItem { Label("Roll Call", systemImage: "person.crop.circle.badge.checkmark") }
+                .roomForTabBar()
                 .tag(RootTab.rollCall)
 
             if !me.isResponder {
                 CommunityTabView()
                     .sheetBrand()
-                    .tabItem { Label("Community", systemImage: "house.and.flag.fill") }
-                    .badge(me.community?.status == .pending ? 1 : 0)
+                    .roomForTabBar()
                     .tag(RootTab.community)
             }
 
             AboutView()
-                .tabItem { Label("About", systemImage: "info.circle.fill") }
+                .roomForTabBar()
                 .tag(RootTab.about)
         }
+        // Our own bar instead of the system's glass one (see SlidingTabBar.swift).
+        // TabView still keeps every tab's screen alive, so switching back is
+        // instant and nothing reloads.
+        .overlay(alignment: .bottom) {
+            SlidingTabBar(selection: $selection, items: tabs)
+                .padding(.bottom, Spacing.xs)
+        }
+    }
+
+    private var tabs: [SlidingTabBar<RootTab>.Item] {
+        var items: [SlidingTabBar<RootTab>.Item] = [
+            .init(tab: .map, title: "Map", identifier: "tab_map"),
+            // The badge counts active, high-priority incidents.
+            .init(tab: .incidents, title: "Incidents", badge: store.needsAttentionCount, identifier: "tab_incidents"),
+            .init(tab: .rollCall, title: "Roll Call", identifier: "tab_rollCall"),
+        ]
+        if !me.isResponder {
+            items.append(.init(tab: .community, title: "Community",
+                               badge: me.community?.status == .pending ? 1 : 0, identifier: "tab_community"))
+        }
+        items.append(.init(tab: .about, title: "About", identifier: "tab_about"))
+        return items
+    }
+}
+
+private extension View {
+    /// Hide the system tab bar on this tab, and keep the bottom of the screen
+    /// free for our own bar, so buttons and lists stay above it.
+    func roomForTabBar() -> some View {
+        self
+            .toolbar(.hidden, for: .tabBar)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: SlidingTabBar<MainTabView.RootTab>.height)
+            }
     }
 }
