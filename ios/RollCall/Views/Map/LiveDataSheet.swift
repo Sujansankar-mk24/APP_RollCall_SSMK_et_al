@@ -58,7 +58,7 @@ struct LiveDataSheet: View {
                 } header: {
                     Text("Demo")
                 } footer: {
-                    Text("Shows a realistic Tornado Warning over Greenville for 45 minutes, clearly labeled Demo. It's for practice and presentations; it's not a real alert.")
+                    Text("Shows a realistic Tornado Warning near Greenville for 40 minutes, clearly labeled Demo. It's for practice and presentations; it's not a real alert.")
                 }
 
                 if let note = viewModel.hazardFeed?.note {

@@ -3,7 +3,7 @@
 //  RollCall
 //
 //  Shown only when no account is saved on this phone (the first time, or after
-//  signing out). Sign in, create an account, or open a fictional demo account.
+//  signing out). Sign in or create an account.
 //
 
 import SwiftUI
@@ -11,7 +11,6 @@ import SwiftUI
 struct SignInView: View {
     @Environment(AuthStore.self) private var auth
     @State private var viewModel = SignInViewModel()
-    @State private var showsAllDemoAccounts = false
     @State private var choosesServer = false
     @State private var showsPassword = false
     @FocusState private var focused: Field?
@@ -22,8 +21,8 @@ struct SignInView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 header
+                serverProblem
                 form
-                demoSection
                 serverRow
             }
             .padding(Spacing.l)
@@ -32,17 +31,11 @@ struct SignInView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .sheetPage()
-        .task { await viewModel.loadDemoAccounts() }
+        .task { await viewModel.checkServer() }
         .sheet(isPresented: $choosesServer, onDismiss: {
-            Task { await viewModel.loadDemoAccounts() }   // the new server has its own demo accounts
+            Task { await viewModel.checkServer() }
         }) {
             ServerSheet()
-        }
-        .sheet(isPresented: $showsAllDemoAccounts) {
-            DemoAccountsSheet(accounts: viewModel.demoAccounts) { account in
-                showsAllDemoAccounts = false
-                Task { await viewModel.open(account, with: auth) }
-            }
         }
     }
 
@@ -140,38 +133,17 @@ struct SignInView: View {
         .animation(.snappy(duration: 0.25), value: viewModel.mode)
     }
 
+    /// Shown only when the server can't be reached.
     @ViewBuilder
-    private var demoSection: some View {
+    private var serverProblem: some View {
         if viewModel.serverUnreachable {
             VStack(alignment: .leading, spacing: Spacing.m) {
-                SheetNote(text: "Can't reach the RollCall server, so signing in and the demo accounts won't work yet. Start the backend on this Mac, or choose a shared server below.",
+                SheetNote(text: "Can't reach the RollCall server, so signing in won't work yet. Start the backend on this Mac, or choose a shared server below.",
                           systemImage: "antenna.radiowaves.left.and.right.slash", color: Color(.systemOrange))
-                Button("Try again") { Task { await viewModel.loadDemoAccounts() } }
+                Button("Try again") { Task { await viewModel.checkServer() } }
                     .buttonStyle(InkButtonStyle(prominent: false))
                     .accessibilityIdentifier("retryServer")
             }
-        } else if !viewModel.featured.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                SectionLabel("Trying the demo?")
-                Text("Open a fictional account with one tap. Every person and address in the demo is made up.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.vertical, Spacing.s)
-                RuleLine()
-                ForEach(viewModel.featured) { account in
-                    Button { Task { await viewModel.open(account, with: auth) } } label: {
-                        DemoAccountRow(account: account)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("demo_\(account.kind.rawValue)")
-                }
-                Button("All demo accounts") { showsAllDemoAccounts = true }
-                    .font(.callout.weight(.semibold))
-                    .underline()
-                    .frame(minHeight: minimumTapSize)
-            }
-            .disabled(viewModel.isWorking)
         }
     }
 
@@ -245,62 +217,6 @@ struct SignInView: View {
         guard viewModel.canSubmit else { return }
         focused = nil
         Task { await viewModel.submit(with: auth) }
-    }
-}
-
-struct DemoAccountRow: View {
-    let account: DemoAccount
-
-    var body: some View {
-        HStack(spacing: Spacing.m) {
-            Image(systemName: account.kind.symbol)
-                .font(.title3.weight(.semibold))
-                .frame(width: 44, height: 44)
-                .overlay(Rectangle().strokeBorder(Color.primary.opacity(0.4), lineWidth: 1.5))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(account.name).font(.headline)
-                Text(account.detail.isEmpty ? String(localized: account.kind.title)
-                                            : "\(String(localized: account.kind.title)) · \(account.detail)")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            Image(systemName: "arrow.right").font(.headline).foregroundStyle(.secondary)
-        }
-        .contentShape(Rectangle())
-        .sheetRow()
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// Every fictional demo account, grouped by kind.
-struct DemoAccountsSheet: View {
-    let accounts: [DemoAccount]
-    let onPick: (DemoAccount) -> Void
-
-    var body: some View {
-        NavigationStack {
-            List {
-                ForEach([DemoAccount.Kind.resident, .volunteer, .responder], id: \.self) { kind in
-                    let group = accounts.filter { $0.kind == kind }
-                    if !group.isEmpty {
-                        Section(String(localized: kind.title)) {
-                            ForEach(group) { account in
-                                Button { onPick(account) } label: { DemoAccountRow(account: account) }
-                                    .buttonStyle(.plain)
-                                    .listRowBackground(Color.clear)
-                                    .listRowSeparator(.hidden)
-                            }
-                        }
-                    }
-                }
-            }
-            .scrollContentBackground(.hidden)
-            .listStyle(.plain)
-            .navigationTitle("Demo accounts")
-            .navigationBarTitleDisplayMode(.inline)
-            .sheetPage()
-        }
     }
 }
 

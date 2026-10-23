@@ -85,8 +85,8 @@ struct AboutView: View {
             VStack(alignment: .leading, spacing: 0) {
                 infoRow("building.columns.fill", "Congressional App Challenge 2026",
                         "Built for Texas' 4th District by a high school student.")
-                infoRow("theatermasks.fill", "Demo data",
-                        "Every household, volunteer, name, street and phone number is fictional. Sample photos and videos are public domain or Creative Commons, from Wikimedia Commons.")
+                infoRow("theatermasks.fill", "Demo incidents",
+                        "The community reports already on the map are made-up examples. Their photos and videos are public domain or Creative Commons, from Wikimedia Commons. Live data (diamonds) is real.")
                 infoRow("cross.case.fill", "Not a 911 service",
                         "RollCall helps neighbors and responders, but it doesn't contact 911 for you.")
             }

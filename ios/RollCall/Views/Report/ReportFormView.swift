@@ -4,7 +4,7 @@
 //
 //  The "Report incident" sheet:
 //    What's happening?  (type tiles)
-//    Where?             (address search + map with a draggable pin)
+//    Where?             (address search, "Use my location", map with a draggable pin)
 //    Details            (short description)
 //    Photo or video     (take one with the camera or pick one; checked by the AI)
 //    [Send report]
@@ -110,6 +110,25 @@ struct ReportFormView: View {
     private var locationSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             addressField
+
+            // The quickest way: put the pin where you are right now.
+            Button {
+                Task { await viewModel.useCurrentLocation() }
+            } label: {
+                HStack(spacing: Spacing.s) {
+                    if viewModel.isLocating {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "location.fill")
+                    }
+                    Text(viewModel.isLocating ? "Finding you…" : "Use my location")
+                }
+                .font(.body.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: minimumTapSize)
+            }
+            .buttonStyle(.bordered)
+            .disabled(viewModel.isLocating)
+            .accessibilityIdentifier("useMyLocation")
 
             LocationPickerMap(coordinate: viewModel.coordinate, position: $viewModel.mapPosition) {
                 viewModel.movePin(to: $0)

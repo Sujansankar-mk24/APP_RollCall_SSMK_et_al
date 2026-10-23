@@ -138,16 +138,6 @@ struct APIClient {
         try await send(request("me/volunteer", method: "DELETE"))
     }
 
-    // MARK: - Demo accounts
-
-    func fetchDemoAccounts() async throws(APIError) -> [DemoAccount] {
-        try await send(request("demo/accounts"))
-    }
-
-    func signInDemo(userID: Int) async throws(APIError) -> AuthResponse {
-        try await send(request("demo/signin", method: "POST", body: ["user_id": userID]))
-    }
-
     // MARK: - Households (Roll Call tab)
 
     /// Join the roll call: create this account's household profile.

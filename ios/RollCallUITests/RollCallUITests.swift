@@ -3,14 +3,16 @@
 //  RollCallUITests
 //
 //  End-to-end tests that tap through the real app, exactly like a person
-//  would, against the real backend: the Map, Incidents and Roll Call tabs.
+//  would, against the real backend: the Map and its incident log, sign-in,
+//  Roll Call, Community and About.
 //
-//  Most tests open a fictional demo account from the sign-in screen; a few
-//  create a brand-new account. Before running them, start the backend with
-//  fresh demo data:
+//  Each test makes the accounts it needs (through the backend, like the app
+//  does) and opens the app signed in as one of them. Before running them,
+//  start the backend with fresh demo data, and make the test responder:
 //      cd backend
 //      source .venv/bin/activate
 //      python -m scripts.reset_demo
+//      python -m scripts.make_responder test-responder@example.com "responder password"
 //      uvicorn app.main:app
 //  Then in Xcode: Product > Test (⌘U).
 //
@@ -75,27 +77,11 @@ final class RollCallUITests: XCTestCase {
         snapshot(app, "demo tornado warning")
     }
 
-    /// Switch the demo Tornado Warning on or off through the server (as a
-    /// throwaway account), so the test always starts from a known state.
+    /// Switch the demo Tornado Warning on or off through the server, so the
+    /// test always starts from a known state.
     private func setDemoWarning(on: Bool) throws {
-        let base = URL(string: "http://localhost:8000")!
-        func call(_ path: String, _ method: String, _ body: [String: String]? = nil, token: String? = nil) throws -> Data {
-            var request = URLRequest(url: base.appending(path: path))
-            request.httpMethod = method
-            if let body {
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            }
-            if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-            let done = XCTestExpectation(description: path)
-            var result: Data?
-            URLSession.shared.dataTask(with: request) { data, _, _ in result = data; done.fulfill() }.resume()
-            _ = XCTWaiter.wait(for: [done], timeout: 30)
-            return try XCTUnwrap(result, "No answer from the backend for \(path)")
-        }
-        let signUp = try call("auth/signup", "POST", ["name": "Test Helper", "email": uniqueEmail(), "password": password])
-        let token = try XCTUnwrap((try JSONSerialization.jsonObject(with: signUp) as? [String: Any])?["token"] as? String)
-        _ = try call("demo/tornado-warning", on ? "POST" : "DELETE", token: token)
+        let helper = try newAccount("Test Helper")
+        server("demo/tornado-warning", on ? "POST" : "DELETE", token: helper.token)
     }
 
     // MARK: - Incidents tab
@@ -170,6 +156,26 @@ final class RollCallUITests: XCTestCase {
         let toast = app.descendants(matching: .any)["reportSentToast"]
         XCTAssertTrue(toast.waitForExistence(timeout: 20), "The report confirmation never appeared")
         XCTAssertTrue(toast.label.contains("Added to existing incident"), "Expected a merge, got: \(toast.label)")
+    }
+
+    @MainActor
+    func testUseMyLocationPutsThePinWhereYouAre() {
+        let app = launchApp()
+        app.buttons["reportIncidentButton"].tap()
+        let useMyLocation = app.buttons["useMyLocation"]
+        XCTAssertTrue(useMyLocation.waitForExistence(timeout: 10))
+        // Move the pin away first (search somewhere else), then come back.
+        let search = app.textFields["addressSearchField"]
+        app.swipeUp()
+        search.tap()
+        search.typeText("Sherman, TX")
+        let suggestion = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Sherman, TX'")).firstMatch
+        XCTAssertTrue(suggestion.waitForExistence(timeout: 15))
+        suggestion.tap()
+        waitForPlaceName(in: app, containing: "Sherman")
+        scrollTo(useMyLocation, in: app)
+        useMyLocation.tap()
+        waitForPlaceName(in: app, containing: "Greenville")
     }
 
     @MainActor
@@ -249,17 +255,18 @@ final class RollCallUITests: XCTestCase {
     @MainActor
     func testChoosingAServerChecksTheAddress() {
         let app = launch()
-        let server = app.buttons["serverRow"]
-        scrollTo(server, in: app)
-        server.tap()
+        let serverRow = app.buttons["serverRow"]
+        scrollTo(serverRow, in: app)
+        serverRow.tap()
         // An address with no RollCall server behind it is refused, with a reason.
         type("not-a-rollcall-server.invalid", into: app.textFields["serverAddressField"])
         app.buttons["connectServer"].tap()
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH \"Couldn't reach a RollCall server\"")).firstMatch
             .waitForExistence(timeout: 15))
-        // Going back to this Mac works, and the demo accounts are there again.
+        // Going back to this Mac works, and the server is reachable again.
         app.buttons["useThisMac"].tap()
-        XCTAssertTrue(app.buttons["demo_resident"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["serverRow"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["retryServer"].exists)
     }
 
     @MainActor
@@ -402,11 +409,17 @@ final class RollCallUITests: XCTestCase {
     }
 
     @MainActor
-    func testResidentAcceptsAVolunteersOffer() {
-        let app = launch(tab: "rollCall")
-        openDemoAccount(app, kind: "resident")
+    func testResidentAcceptsAVolunteersOffer() throws {
+        // A resident on the roll call, and a volunteer who typed their address.
+        let resident = try newAccount("Rosa Tester")
+        let address = try registerHousehold(for: resident)
+        let volunteer = try newAccount("Victor Volunteer")
+        server("me/volunteer", "PUT", ["city": "Greenville"], token: volunteer.token)
+        server("buddy/requests/address", "POST", address, token: volunteer.token)
+
+        let app = launchSignedIn(resident, tab: "rollCall")
         let accept = app.buttons["acceptBuddy"]
-        XCTAssertTrue(accept.waitForExistence(timeout: 15), "The demo resident should have a buddy request (reset the demo data)")
+        XCTAssertTrue(accept.waitForExistence(timeout: 15), "The resident should see the volunteer's offer")
         snapshot(app, "buddy request")
         accept.tap()
         XCTAssertTrue(text("Your buddy", in: app).waitForExistence(timeout: 10))
@@ -416,9 +429,10 @@ final class RollCallUITests: XCTestCase {
     // MARK: - Roll Call tab: volunteer and responder
 
     @MainActor
-    func testVolunteerAsksToCheckOnSomeoneByAddress() {
-        let app = launch(tab: "rollCall")
-        openDemoAccount(app, kind: "volunteer")
+    func testVolunteerAsksToCheckOnSomeoneByAddress() throws {
+        let volunteer = try newAccount("Victor Volunteer")
+        server("me/volunteer", "PUT", ["city": "Greenville"], token: volunteer.token)
+        let app = launchSignedIn(volunteer, tab: "rollCall")
         let section = app.buttons["section_buddy"]
         XCTAssertTrue(section.waitForExistence(timeout: 15))
         section.tap()
@@ -437,9 +451,8 @@ final class RollCallUITests: XCTestCase {
     }
 
     @MainActor
-    func testResponderSeesNoHouseholdsWithoutAnEmergency() {
-        let app = launch(tab: "rollCall")
-        openDemoAccount(app, kind: "responder")
+    func testResponderSeesNoHouseholdsWithoutAnEmergency() throws {
+        let app = launchSignedIn(try responderAccount(), tab: "rollCall")
         XCTAssertTrue(app.staticTexts["No active emergency"].waitForExistence(timeout: 15))
         XCTAssertFalse(app.buttons["tab_community"].exists, "Responders don't join communities")
     }
@@ -447,14 +460,18 @@ final class RollCallUITests: XCTestCase {
     // MARK: - Community tab
 
     @MainActor
-    func testAskingToJoinACommunity() {
+    func testAskingToJoinACommunity() throws {
+        let admin = try newAccount("Ada Admin")
+        let name = "Join Test \(Int.random(in: 100_000...999_999))"
+        server("communities", "POST", ["name": name, "city": "Greenville"], token: admin.token)
+
         let app = launch(tab: "community")
         signUp(app, name: "New Neighbor", email: uniqueEmail())
         let search = app.textFields["communitySearch"]
         XCTAssertTrue(search.waitForExistence(timeout: 15))
-        type("Pecan", into: search)
+        type(name, into: search)
         let join = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'join_'")).firstMatch
-        XCTAssertTrue(join.waitForExistence(timeout: 10), "Pecan Hollow wasn't found")
+        XCTAssertTrue(join.waitForExistence(timeout: 10), "\(name) wasn't found")
         join.tap()
         XCTAssertTrue(app.staticTexts["pendingCommunity"].waitForExistence(timeout: 10), "Should be waiting for the admin")
     }
@@ -466,7 +483,7 @@ final class RollCallUITests: XCTestCase {
         let create = app.buttons["createCommunity"]
         XCTAssertTrue(create.waitForExistence(timeout: 15))
         scrollTo(create, in: app)
-        create.tap()
+        tap(create, until: app.textFields["communityNameField"], in: app)
         type("Test Hollow \(Int(Date().timeIntervalSince1970))", into: app.textFields["communityNameField"])
         type("Greenville", into: app.textFields["communityCityField"])
         app.buttons["confirmCreateCommunity"].tap()
@@ -476,11 +493,12 @@ final class RollCallUITests: XCTestCase {
     }
 
     @MainActor
-    func testAdminApprovesAJoinRequest() {
-        let app = launch(tab: "community")
-        openDemoAccount(app, kind: "resident")   // the demo resident runs Pecan Hollow
+    func testAdminApprovesAJoinRequest() throws {
+        let admin = try newAccount("Ada Admin")
+        try communityWithJoinRequest(admin: admin)
+        let app = launchSignedIn(admin, tab: "community")
         let approve = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'approve_'")).firstMatch
-        XCTAssertTrue(approve.waitForExistence(timeout: 15), "The demo community should have a join request (reset the demo data)")
+        XCTAssertTrue(approve.waitForExistence(timeout: 15), "The admin should see the join request")
         snapshot(app, "community admin")
         approve.tap()
         XCTAssertTrue(approve.waitForNonExistence(timeout: 10))
@@ -491,17 +509,26 @@ final class RollCallUITests: XCTestCase {
     /// Opens every main screen in light and dark mode and keeps a picture of
     /// each (in the test results), so the whole app can be checked by eye.
     @MainActor
-    func testScreenshotTourOfEveryScreen() {
-        for mode in ["light", "dark"] {
-            XCUIDevice.shared.location = XCUILocation(location: greenville)
-            let app = XCUIApplication()
-            app.launchArguments = ["-RCSignOut", "YES", "-RCServerURL", "http://localhost:8000", "-appearanceMode", mode]
-            app.launch()
-            XCTAssertTrue(app.textFields["emailField"].waitForExistence(timeout: 20))
-            snapshot(app, "\(mode) 01 sign in")
+    func testScreenshotTourOfEveryScreen() throws {
+        // A resident who runs a community (with someone asking to join) and
+        // has a buddy offer waiting; a volunteer; and a responder if one exists.
+        let resident = try newAccount("Rosa Tester")
+        let address = try registerHousehold(for: resident)
+        let volunteer = try newAccount("Victor Volunteer")
+        server("me/volunteer", "PUT", ["city": "Greenville"], token: volunteer.token)
+        // The offer comes first: once Rosa runs a community, outside volunteers
+        // can't offer unless she allows it (the community rule).
+        server("buddy/requests/address", "POST", address, token: volunteer.token)
+        try communityWithJoinRequest(admin: resident)
+        let responder = try? responderAccount()
 
-            // Resident: the Map and everything on it.
-            openDemoAccount(app, kind: "resident")
+        for mode in ["light", "dark"] {
+            var app = launch(arguments: ["-appearanceMode", mode])
+            snapshot(app, "\(mode) 01 sign in")
+            app.terminate()
+
+            // The Map and everything on it.
+            app = launchSignedIn(resident, arguments: ["-appearanceMode", mode])
             XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 20))
             snapshot(app, "\(mode) 02 map")
             app.buttons["incidentsButton"].tap()
@@ -523,29 +550,28 @@ final class RollCallUITests: XCTestCase {
 
             // Roll Call, Community, About.
             open(tab: "Roll Call", in: app)
-            XCTAssertTrue(app.buttons["section_household"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.buttons["acceptBuddy"].waitForExistence(timeout: 10))
             snapshot(app, "\(mode) 07 roll call")
             open(tab: "Community", in: app)
             XCTAssertTrue(app.descendants(matching: .any)["communityHeader"].waitForExistence(timeout: 10))
             snapshot(app, "\(mode) 08 community")
             open(tab: "About", in: app)
             snapshot(app, "\(mode) 09 about")
+            app.terminate()
 
             // A volunteer's "I check on", and the responder view.
-            app.terminate()
-            app.launchArguments = ["-RCSignOut", "YES", "-RCServerURL", "http://localhost:8000", "-appearanceMode", mode, "-RSTab", "rollCall"]
-            app.launch()
-            openDemoAccount(app, kind: "volunteer")
+            app = launchSignedIn(volunteer, tab: "rollCall", arguments: ["-appearanceMode", mode])
             XCTAssertTrue(app.buttons["section_buddy"].waitForExistence(timeout: 15))
             app.buttons["section_buddy"].tap()
             XCTAssertTrue(text("Neighbors you check on", in: app).waitForExistence(timeout: 10))
             snapshot(app, "\(mode) 10 i check on")
             app.terminate()
-            app.launch()
-            openDemoAccount(app, kind: "responder")
-            XCTAssertTrue(app.staticTexts["No active emergency"].waitForExistence(timeout: 15))
-            snapshot(app, "\(mode) 11 responder")
-            app.terminate()
+            if let responder {
+                app = launchSignedIn(responder, tab: "rollCall", arguments: ["-appearanceMode", mode])
+                XCTAssertTrue(app.staticTexts["No active emergency"].waitForExistence(timeout: 15))
+                snapshot(app, "\(mode) 11 responder")
+                app.terminate()
+            }
         }
     }
 
@@ -555,10 +581,11 @@ final class RollCallUITests: XCTestCase {
 
     /// Start the app signed out, optionally opening on a tab after signing in.
     @MainActor
-    private func launch(tab: String? = nil) -> XCUIApplication {
+    private func launch(tab: String? = nil, arguments: [String] = []) -> XCUIApplication {
         XCUIDevice.shared.location = XCUILocation(location: greenville)
         let app = XCUIApplication()
-        app.launchArguments = ["-RCSignOut", "YES", "-RCServerURL", "http://localhost:8000"] + (tab.map { ["-RSTab", $0] } ?? [])
+        app.launchArguments = ["-RCSignOut", "YES", "-RCServerURL", "http://localhost:8000"]
+            + (tab.map { ["-RSTab", $0] } ?? []) + arguments
         app.launch()
         if !app.textFields["emailField"].waitForExistence(timeout: 20) {
             XCTFail("The sign-in screen didn't appear. Is the backend running? (uvicorn app.main:app)")
@@ -566,18 +593,100 @@ final class RollCallUITests: XCTestCase {
         return app
     }
 
-    /// For the Map/Incidents tests: signed in as the demo resident, on the map.
+    /// Start the app already signed in as an account a test just made.
     @MainActor
-    private func launchApp(arguments: [String] = []) -> XCUIApplication {
-        XCUIDevice.shared.location = XCUILocation(location: besideGreenvilleFire)
+    private func launchSignedIn(_ account: Account, tab: String? = nil, arguments: [String] = [],
+                                at location: CLLocation? = nil) -> XCUIApplication {
+        XCUIDevice.shared.location = XCUILocation(location: location ?? greenville)
         let app = XCUIApplication()
-        app.launchArguments = ["-RCSignOut", "YES", "-RCServerURL", "http://localhost:8000"] + arguments
+        app.launchArguments = ["-RCSignOut", "YES", "-RCToken", account.token, "-RCServerURL", "http://localhost:8000"]
+            + (tab.map { ["-RSTab", $0] } ?? []) + arguments
         app.launch()
-        openDemoAccount(app, kind: "resident")
-        if !app.buttons["reportIncidentButton"].waitForExistence(timeout: 20) {
-            XCTFail("The map didn't load. Is the backend running? (uvicorn app.main:app)")
+        if !app.descendants(matching: .any)["mainTabBar"].waitForExistence(timeout: 20) {
+            XCTFail("The app didn't open signed in. Is the backend running? (uvicorn app.main:app)")
         }
         return app
+    }
+
+    /// For the Map tests: a new account, on the map, next to the demo grass fire.
+    @MainActor
+    private func launchApp(arguments: [String] = []) -> XCUIApplication {
+        let account: Account
+        do { account = try newAccount("Map Tester") } catch {
+            XCTFail("Couldn't make a test account: \(error)")
+            return XCUIApplication()
+        }
+        let app = launchSignedIn(account, arguments: arguments, at: besideGreenvilleFire)
+        if !app.buttons["reportIncidentButton"].waitForExistence(timeout: 20) {
+            XCTFail("The map didn't load.")
+        }
+        return app
+    }
+
+    // MARK: - Setting things up through the server (like the app does)
+
+    struct Account {
+        let email: String
+        let token: String
+    }
+
+    /// Send a request to the backend and return its JSON answer.
+    @discardableResult
+    private func server(_ path: String, _ method: String = "GET", _ body: [String: Any]? = nil,
+                        token: String? = nil) -> [String: Any] {
+        var request = URLRequest(url: URL(string: "http://localhost:8000")!.appending(path: path))
+        request.httpMethod = method
+        if let body {
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        let done = XCTestExpectation(description: path)
+        var answer: Data?
+        URLSession.shared.dataTask(with: request) { data, _, _ in answer = data; done.fulfill() }.resume()
+        _ = XCTWaiter.wait(for: [done], timeout: 30)
+        return answer.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+    }
+
+    private func newAccount(_ name: String) throws -> Account {
+        let email = uniqueEmail()
+        let answer = server("auth/signup", "POST", ["name": name, "email": email, "password": password])
+        let token = try XCTUnwrap(answer["token"] as? String, "Couldn't sign up through the backend. Is it running?")
+        return Account(email: email, token: token)
+    }
+
+    /// Join the roll call with a made-up address near Greenville. Returns the
+    /// address (as the buddy-request body), so a volunteer can type it.
+    private func registerHousehold(for account: Account) throws -> [String: Any] {
+        let street = "\(Int.random(in: 1_000...9_999)) Test Lane"
+        let household = server("households", "POST", [
+            "contact_name": "Rosa Tester", "address": street, "city": "Greenville", "zip_code": "75401",
+            "latitude": 33.14, "longitude": -96.11, "seniors": 1, "wants_buddy": true,
+        ], token: account.token)
+        XCTAssertNotNil(household["id"], "Couldn't register the test household")
+        return ["address": street, "city": "Greenville", "zip_code": "75401"]
+    }
+
+    /// A community run by `admin`, with one other person asking to join.
+    private func communityWithJoinRequest(admin: Account) throws {
+        let community = server("communities", "POST",
+                               ["name": "Test Hollow \(Int.random(in: 100_000...999_999))", "city": "Greenville"],
+                               token: admin.token)
+        let id = try XCTUnwrap(community["id"] as? Int, "Couldn't create the test community")
+        let newcomer = try newAccount("Grace Newcomer")
+        server("communities/\(id)/join", "POST", token: newcomer.token)
+    }
+
+    /// The responder account for tests. Responders are issued, not signed up, so
+    /// make it once before testing:
+    ///   python -m scripts.make_responder test-responder@example.com "responder password"
+    private func responderAccount() throws -> Account {
+        let email = "test-responder@example.com"
+        let answer = server("auth/signin", "POST", ["email": email, "password": "responder password"])
+        guard let token = answer["token"] as? String else {
+            throw XCTSkip("No test responder. Run: python -m scripts.make_responder \(email) \"responder password\"")
+        }
+        return Account(email: email, token: token)
     }
 
     /// Tap a tab. If a late system prompt swallowed the tap, close it and try again.
@@ -610,14 +719,6 @@ final class RollCallUITests: XCTestCase {
             dismissSavePasswordPrompt(app)
         }
         XCTFail("Tapping \(button) didn't work")
-    }
-
-    @MainActor
-    private func openDemoAccount(_ app: XCUIApplication, kind: String) {
-        let button = app.buttons["demo_\(kind)"]
-        XCTAssertTrue(button.waitForExistence(timeout: 20), "No demo \(kind) account. Run python -m scripts.reset_demo")
-        scrollTo(button, in: app)
-        button.tap()
     }
 
     @MainActor
@@ -690,7 +791,7 @@ final class RollCallUITests: XCTestCase {
     }
 
     private func uniqueEmail() -> String {
-        "test\(Int(Date().timeIntervalSince1970 * 1000))@example.com"
+        "test-\(UUID().uuidString.prefix(8).lowercased())@example.com"
     }
 
     @MainActor

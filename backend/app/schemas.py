@@ -385,19 +385,3 @@ class CommunityDetailOut(CommunityOut):
 
 class CommunityPatch(BaseModel):
     allow_outside_buddies: bool
-
-
-# ---------------------------------------------------------------------------
-# Demo accounts (for judges and the demo video)
-# ---------------------------------------------------------------------------
-
-class DemoAccount(BaseModel):
-    user_id: int
-    name: str
-    kind: str        # "resident", "volunteer" or "responder"
-    detail: str      # e.g. "Greenville · Pecan Hollow"
-    featured: bool   # shown as a one-tap button on the sign-in screen
-
-
-class DemoAccountLogin(BaseModel):
-    user_id: int

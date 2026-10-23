@@ -103,12 +103,15 @@ def test_one_source_failing_does_not_hide_the_others():
     assert "estimates" in out.note
 
 
-def test_demo_tornado_warning_lasts_45_minutes():
+def test_demo_tornado_warning_looks_real_and_lasts_40_minutes():
     demo.start(NOW)
-    titles = [h.title for h in demo.hazards(NOW + timedelta(minutes=10))]
-    assert titles == ["Tornado Watch", "Tornado Warning"]
-    assert all(h.is_demo for h in demo.hazards(NOW))
-    assert demo.hazards(NOW + timedelta(minutes=46)) == []
+    (warning,) = demo.hazards(NOW + timedelta(minutes=10))
+    assert warning.title == "Tornado Warning" and warning.is_demo and warning.level == ZoneLevel.immediate
+    corners = warning.zones[0].polygon
+    assert 4 <= len(corners) <= 7                        # like real warnings: a few corners, not a strip
+    lats, lons = [c[0] for c in corners], [c[1] for c in corners]
+    assert 20 < (max(lats) - min(lats)) * 111 < 60       # tens of km long, like real ones
+    assert demo.hazards(NOW + timedelta(minutes=41)) == []
     demo.stop()
 
 
@@ -124,7 +127,7 @@ def test_demo_warning_endpoints_need_sign_in(monkeypatch):
     assert client.post("/demo/tornado-warning").status_code == 401
     me = sign_up()
     started = client.post("/demo/tornado-warning", headers=me).json()
-    assert [h["title"] for h in started["hazards"]][:2] == ["Tornado Warning", "Tornado Watch"]   # most serious first
+    assert [h["title"] for h in started["hazards"]] == ["Tornado Warning"]
     assert client.delete("/demo/tornado-warning", headers=me).status_code == 204
     assert client.get("/hazards").json()["hazards"] == []
 

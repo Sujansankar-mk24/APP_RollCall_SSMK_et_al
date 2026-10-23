@@ -1,10 +1,17 @@
 """
-A demo Tornado Warning over Greenville, for the demo video and for judges on
+A demo Tornado Warning near Greenville, for the demo video and for judges on
 a day with no real severe weather. Always labeled "Demo" in the app.
 
-It looks like a real National Weather Service warning: a narrow box along the
-storm's path (Immediate danger) inside a larger Tornado Watch (Be cautious),
-lasting 45 minutes from when it's started.
+Its shape copies how real National Weather Service tornado warnings look
+(checked against archived warnings from the Fort Worth, Norman and Wichita
+offices): a polygon that starts at the storm and widens along its expected
+path, because the exact track is uncertain, often cut straight along a
+county line on one side. Here:
+  * the storm is near Caddo Mills, southwest of Greenville, moving northeast
+    at 30 mph, and the warning lasts 40 minutes (about 34 km of travel);
+  * about 12 km wide at the storm, widening to about 26 km at the far end;
+  * the east side stops at a north-south county line.
+The icon sits where the tornado is: the storm end of the polygon.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -13,12 +20,17 @@ from typing import Optional
 from app.hazards.models import HazardOut, ZoneOut
 from app.hazards.zones import HazardKind, ZoneLevel
 
-DURATION = timedelta(minutes=45)
+DURATION = timedelta(minutes=40)
 
-# The warning box: the storm is southwest of Greenville moving northeast.
-WARNING_BOX = [[33.030, -96.260], [33.200, -96.020], [33.160, -95.980], [32.990, -96.215]]
-# The watch covers several counties around it.
-WATCH_AREA = [[33.55, -96.70], [33.55, -95.55], [32.75, -95.55], [32.75, -96.70]]
+# [latitude, longitude] corners, going around the polygon.
+WARNING_AREA = [
+    [33.039, -96.308],   # storm end, northwest corner
+    [33.319, -96.080],   # far end, northwest corner
+    [33.210, -95.950],   # far end, where it meets the county line
+    [33.116, -95.950],   # along the county line
+    [32.963, -96.217],   # storm end, southeast corner
+]
+STORM = (33.02, -96.24)
 
 _started: Optional[datetime] = None
 
@@ -41,32 +53,16 @@ def active(now: Optional[datetime] = None) -> bool:
 def hazards(now: Optional[datetime] = None) -> list[HazardOut]:
     if not active(now):
         return []
-    ends = _started + DURATION
-    return [
-        HazardOut(
-            id="demo:tornado-watch",
-            source="demo",
-            source_label="Demo (not a real alert)",
-            kind=HazardKind.tornado,
-            title="Tornado Watch",
-            detail="DEMO. Conditions are right for tornadoes in Hunt, Collin, Fannin and Hopkins counties. Be ready to take shelter.",
-            level=ZoneLevel.cautious,
-            # Its icon sits in the northwest of the watch, away from the warning's icon.
-            latitude=33.42, longitude=-96.48,
-            zones=[ZoneOut(level=ZoneLevel.cautious, polygon=WATCH_AREA)],
-            observed_at=_started, ends_at=ends, is_demo=True,
-        ),
-        HazardOut(
-            id="demo:tornado-warning",
-            source="demo",
-            source_label="Demo (not a real alert)",
-            kind=HazardKind.tornado,
-            title="Tornado Warning",
-            detail="DEMO. A tornado was spotted southwest of Greenville moving northeast at 30 mph. Take shelter now in an inside room on the lowest floor.",
-            level=ZoneLevel.immediate,
-            # The icon sits where the tornado is: the southwest end of the box.
-            latitude=33.045, longitude=-96.215,
-            zones=[ZoneOut(level=ZoneLevel.immediate, polygon=WARNING_BOX)],
-            observed_at=_started, ends_at=ends, is_demo=True,
-        ),
-    ]
+    return [HazardOut(
+        id="demo:tornado-warning",
+        source="demo",
+        source_label="Demo (not a real alert)",
+        kind=HazardKind.tornado,
+        title="Tornado Warning",
+        detail=("DEMO. A tornado was spotted near Caddo Mills, moving northeast at 30 mph toward Greenville "
+                "and Campbell. Take shelter now in an inside room on the lowest floor."),
+        level=ZoneLevel.immediate,
+        latitude=STORM[0], longitude=STORM[1],
+        zones=[ZoneOut(level=ZoneLevel.immediate, polygon=WARNING_AREA)],
+        observed_at=_started, ends_at=_started + DURATION, is_demo=True,
+    )]

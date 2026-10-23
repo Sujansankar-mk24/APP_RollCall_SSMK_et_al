@@ -6,8 +6,8 @@
 //  account on this phone: the first time, or after signing out. Otherwise the
 //  saved token (in the Keychain) signs in automatically when the app opens.
 //
-//  (Debug tip: launch with "-RCSignOut YES" to start signed out, as the UI
-//  tests do.)
+//  (Debug tips: launch with "-RCSignOut YES" to start signed out, or
+//  "-RCToken <token>" to start signed in, as the UI tests do.)
 //
 
 import Foundation
@@ -31,6 +31,8 @@ final class AuthStore {
         self.api = api
         #if DEBUG
         if UserDefaults.standard.bool(forKey: "RCSignOut") { Keychain.deleteToken() }
+        // UI tests can start signed in as an account they just made: -RCToken <token>
+        if let token = UserDefaults.standard.string(forKey: "RCToken"), !token.isEmpty { Keychain.saveToken(token) }
         #endif
         APIClient.token = Keychain.loadToken()
         // If the server ever says the token is no longer valid, go back to sign-in.
@@ -75,10 +77,6 @@ final class AuthStore {
 
     func signIn(email: String, password: String) async throws(APIError) {
         use(try await api.signIn(email: email, password: password))
-    }
-
-    func signIn(demo account: DemoAccount) async throws(APIError) {
-        use(try await api.signInDemo(userID: account.userId))
     }
 
     func signOut() async {

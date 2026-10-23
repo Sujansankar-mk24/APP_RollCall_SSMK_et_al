@@ -2,7 +2,7 @@
 //  SignInViewModel.swift
 //  RollCall
 //
-//  What's typed on the sign-in screen, plus the fictional demo accounts.
+//  What's typed on the sign-in screen, and whether the server can be reached.
 //
 
 import Foundation
@@ -21,8 +21,7 @@ final class SignInViewModel {
     /// Signing up with an email that already has an account: offer "Sign in instead".
     private(set) var emailAlreadyUsed = false
 
-    private(set) var demoAccounts: [DemoAccount] = []
-    /// True if the server couldn't be reached to list the demo accounts.
+    /// True if the server couldn't be reached.
     private(set) var serverUnreachable = false
     private let api: APIClient
 
@@ -76,33 +75,11 @@ final class SignInViewModel {
         }
     }
 
-    // MARK: - Demo accounts
+    // MARK: - Server check
 
-    func loadDemoAccounts() async {
-        do {
-            demoAccounts = try await api.fetchDemoAccounts()
-            serverUnreachable = false
-        } catch {
-            demoAccounts = []
-            serverUnreachable = true
-        }
-    }
-
-    /// The one-tap accounts the server picked: a resident, a volunteer from
-    /// the same neighborhood, and a responder.
-    var featured: [DemoAccount] {
-        let order: [DemoAccount.Kind] = [.resident, .volunteer, .responder]
-        return demoAccounts.filter(\.featured).sorted { order.firstIndex(of: $0.kind)! < order.firstIndex(of: $1.kind)! }
-    }
-
-    func open(_ account: DemoAccount, with auth: AuthStore) async {
-        isWorking = true
-        error = nil
-        defer { isWorking = false }
-        do {
-            try await auth.signIn(demo: account)
-        } catch {
-            self.error = error
-        }
+    /// Is the server reachable? (If not, the screen says so instead of
+    /// letting sign-in fail with a confusing error.)
+    func checkServer() async {
+        serverUnreachable = !(await api.isRollCallServer(at: AppConfig.apiBaseURL))
     }
 }

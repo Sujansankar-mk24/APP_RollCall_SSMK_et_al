@@ -20,7 +20,7 @@ Make sure no one gets left behind. RollCall is a community emergency app for Nor
 
 **The look:** the Map keeps its blue map style. Every other screen looks like a paper roll-call sheet: warm paper, ink-black type and square buttons, ruled rows instead of floating cards, and color only on the "stamped" status labels (green safe, red needs help, amber waiting). Text never goes below 15 pt. The pieces live in `ios/RollCall/Design/Sheet.swift`.
 
-You sign in once; the app remembers you until you sign out. For judges, the sign-in screen has one-tap **demo accounts** (all fictional): José Ochoa (a resident and the admin of Pecan Hollow, with a buddy offer and a join request waiting), Daniel Okafor (a volunteer in Pecan Hollow) and Alex Rivera (a responder).
+You sign in once; the app remembers you until you sign out. There are no placeholder people or communities: everything in Roll Call and Community comes from real accounts made in the app.
 
 ## What works so far
 
@@ -51,7 +51,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # 2. Load the demo data: 10 incidents (downloads sample photos/video the first
-#    time, then runs the AI on them) plus 40 fictional households and 8 volunteers
+#    time, then runs the AI on them). There are no placeholder accounts.
 python -m scripts.reset_demo
 
 # 3. Start the server
@@ -74,7 +74,7 @@ In a new terminal, run `source .venv/bin/activate` again before using `python` o
 2. Open `ios/RollCall.xcodeproj` in Xcode.
 3. Pick an iPhone simulator at the top of the window (for example, iPhone 18 Pro) and press **Run** (⌘R).
 
-The first time, the app shows the sign-in screen: create an account, or tap one of the demo accounts. After that it opens straight to the Map. To switch accounts, tap your name at the top left of the Roll Call or Community tab (or go to About) and choose **Sign out**.
+The first time, the app shows the sign-in screen: create an account (or sign in). After that it opens straight to the Map. To switch accounts, tap your name at the top left of the Roll Call or Community tab (or go to About) and choose **Sign out**.
 
 The app reads the server address from `ios/RollCall/Config/AppConfig.swift` (`http://localhost:8000`). If the backend isn't running, the app shows "Can't reach RollCall" with a **Try again** button. New Swift files added anywhere inside `ios/RollCall/` are included in the project automatically.
 
@@ -99,7 +99,7 @@ Each hazard has a level (`backend/app/hazards/zones.py`): **Immediate danger**, 
 
 **Setup:** put your free NASA FIRMS key (from firms.modaps.eosdis.nasa.gov/api/map_key) in `backend/.env` as `FIRMS_MAP_KEY=...`. That file is never committed. Without it, everything else still works.
 
-**Demo:** the **Live** pill on the map opens the sources and a **Start a demo Tornado Warning** button: a realistic warning over Greenville for 45 minutes, labeled Demo everywhere. Use it for the demo video or on a quiet weather day.
+**Demo:** the **Live** pill on the map opens the sources and a **Start a demo Tornado Warning** button: a realistic warning near Greenville for 40 minutes, labeled Demo everywhere. Use it for the demo video or on a quiet weather day.
 
 ## Sharing one server between Macs
 
@@ -116,7 +116,7 @@ Things to know:
 - The address changes every time sharing restarts, so send the new one.
 - Everyone's data lives on the sharing Mac (`backend/rollcall.db`). Running `reset_demo` there wipes everyone's accounts.
 - It only works while the sharing Mac is awake with the script running.
-- Anyone with the address can reach the server. Real accounts still need their password, and demo accounts are fictional.
+- Anyone with the address can reach the server. Accounts still need their password.
 - To go back, choose **Server → Use the server on this Mac**.
 
 ## Map and the incident log
@@ -154,9 +154,13 @@ Reports can be about any of these, grouped into "modes" so the map can show one 
 
 These rules are enforced by the server (`backend/app/privacy.py`), not just hidden in the app, and the tests check them.
 
-**Accounts:** passwords are never stored, only a salted scrypt hash. Signing in gives the app a random token, kept in the iPhone Keychain and sent with each request; the server stores only a hash of it. Demo accounts can be opened without a password, but only accounts the seed script marked as demo.
+**Accounts:** passwords are never stored, only a salted scrypt hash. Signing in gives the app a random token, kept in the iPhone Keychain and sent with each request; the server stores only a hash of it.
 
-All demo households and volunteers are fictional: made-up names, made-up street numbers, and `555-01xx` phone numbers.
+**Responder accounts** can see households during an emergency, so they aren't made through sign-up. Issue one from the `backend` folder:
+
+```bash
+python -m scripts.make_responder chief@example.com "a long password" "Alex Rivera"
+```
 
 ## API
 
@@ -180,7 +184,6 @@ All demo households and volunteers are fictional: made-up names, made-up street 
 | `GET` `POST` | `/communities` | Search or create a community |
 | `GET` `PATCH` | `/communities/{id}` | Details; the admin allows or blocks outside buddies |
 | `POST` | `/communities/{id}/join`, `/leave`, `/requests/{user}/approve`, `/decline` | Joining and admin approval |
-| `GET` `POST` | `/demo/accounts`, `/demo/signin` | Fictional demo accounts for judges |
 
 Every Roll Call and Community request must be signed in (`Authorization: Bearer <token>`).
 
@@ -221,7 +224,7 @@ The −20 only applies to types the AI can check. It looks for flames, smoke and
 ## Automated tests
 
 - **Backend:** `cd backend && python -m pytest`. Covers report merging, priority scoring, the AI's scene rules, the incident API, accounts and password safety, household sign-up checks, the privacy rules, buddy offers (including that a typed address reveals nothing), communities and admin approval, Delete my data, and the demo data.
-- **iPhone app (UI tests):** start the backend with fresh demo data (`python -m scripts.reset_demo`, then `uvicorn app.main:app`), then press **⌘U** in Xcode. The tests tap through the real app: zooming the map, the Incidents list, reporting a fire that merges into an existing one, searching an address, attaching a photo and waiting for the AI result, the About tab, creating an account and signing out and back in, staying signed in, "Not now", joining the roll call step by step and deleting it, accepting a buddy offer, offering to help by address, a responder seeing nothing without an emergency, asking to join a community, starting one, and an admin approving a member.
+- **iPhone app (UI tests):** start the backend with fresh demo data and the test responder (`python -m scripts.reset_demo`, then `python -m scripts.make_responder test-responder@example.com "responder password"`, then `uvicorn app.main:app`), and press **⌘U** in Xcode. Each test makes the accounts it needs and taps through the real app: the map, the incident log, live data and the demo Tornado Warning, reporting (including Use my location and attaching a photo the AI checks), signing up, in and out, joining the roll call and deleting it, buddy offers, a responder's view, communities and admin approval, and a light/dark screenshot tour of every screen.
 
 ## Known limitations
 

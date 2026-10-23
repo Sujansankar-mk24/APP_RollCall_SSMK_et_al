@@ -14,15 +14,16 @@
 import MapKit
 import SwiftUI
 
-/// The area an official alert covers (e.g. a Tornado Warning's box), drawn
-/// as one shape. Rings around points aren't drawn: the icons say enough.
+/// The area a serious official alert covers (e.g. a Tornado Warning), drawn
+/// as one shaded shape. "Be cautious" areas (watches, advisories) and rings
+/// around points aren't drawn, to keep the map clean: their icons say enough.
 struct ZoneShapes: MapContent {
     let zones: [HazardZone]
     let center: CLLocationCoordinate2D
     let color: Color
 
     var body: some MapContent {
-        ForEach(Array(zones.outsideIn.filter { $0.polygon != nil }.enumerated()), id: \.offset) { _, zone in
+        ForEach(Array(zones.outsideIn.filter { $0.polygon != nil && $0.level != .cautious }.enumerated()), id: \.offset) { _, zone in
             MapPolygon(coordinates: zone.outline)
                 .foregroundStyle(color.opacity(zone.level.fillOpacity))
                 .stroke(color.opacity(0.9), style: zone.level.edge)

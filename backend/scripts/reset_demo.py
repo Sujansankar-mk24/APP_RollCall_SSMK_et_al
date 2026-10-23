@@ -1,7 +1,7 @@
 """
-Wipe all incidents, uploaded media, households and volunteers, then load the
-demo data again. Handy before recording the demo video or showing the app to
-judges.
+Wipe EVERYTHING (incidents, uploaded media, accounts, households and
+communities), then load the demo incidents on the Map again. Handy before
+recording the demo video or showing the app to judges.
 
 Run from the backend folder:
     python -m scripts.reset_demo
