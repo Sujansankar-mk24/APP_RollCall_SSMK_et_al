@@ -6,12 +6,12 @@
 //  bar; otherwise it shows the sign-in screen.
 //
 //  The tab bar along the bottom:
-//    Map        incidents on a map; report one with a photo or video
-//    Incidents  the same incidents as a priority list for responders
+//    Map        live hazards and community reports on a map, the incident log
+//               (the Incidents button, top left), and reporting
 //    Roll Call  your household and the neighbors you check on
 //    Community  your neighborhood (not shown to responders)
 //    About      what RollCall is, how privacy works, your account
-//  Map and Incidents share one IncidentStore, so they always show the same data.
+//  The map and its incident log share one IncidentStore, so they always agree.
 //  Every tab except the Map uses the roll-call sheet look (Design/Sheet.swift).
 //
 
@@ -55,7 +55,7 @@ struct MainTabView: View {
     @State private var selection: RootTab = DebugLaunchOptions.startTab
 
     enum RootTab: String, Hashable {
-        case map, incidents, rollCall, community, about
+        case map, rollCall, community, about
     }
 
     var body: some View {
@@ -63,10 +63,6 @@ struct MainTabView: View {
             IncidentMapView(store: store)
                 .roomForTabBar()
                 .tag(RootTab.map)
-
-            IncidentsView(store: store)
-                .roomForTabBar()
-                .tag(RootTab.incidents)
 
             RollCallTabView()
                 .sheetBrand()
@@ -96,8 +92,6 @@ struct MainTabView: View {
     private var tabs: [SlidingTabBar<RootTab>.Item] {
         var items: [SlidingTabBar<RootTab>.Item] = [
             .init(tab: .map, title: "Map", identifier: "tab_map"),
-            // The badge counts active, high-priority incidents.
-            .init(tab: .incidents, title: "Incidents", badge: store.needsAttentionCount, identifier: "tab_incidents"),
             .init(tab: .rollCall, title: "Roll Call", identifier: "tab_rollCall"),
         ]
         if !me.isResponder {

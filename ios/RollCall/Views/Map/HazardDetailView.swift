@@ -34,7 +34,6 @@ struct HazardDetailView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                EmergencyBanner()
             }
             .padding(Spacing.l)
         }

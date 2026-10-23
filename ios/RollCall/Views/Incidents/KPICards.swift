@@ -40,11 +40,11 @@ struct KPICards: View {
                 identifier: "kpi_unverified"
             )
             KPICard(
-                title: "Avg. response time",
+                title: "Response time",
                 value: kpis.averageResponseText,
                 caption: kpis.responseCount == 0
                     ? "No responses yet"
-                    : "From \(kpis.responseCount) \(kpis.responseCount == 1 ? "incident" : "incidents")",
+                    : "Average of \(kpis.responseCount) \(kpis.responseCount == 1 ? "incident" : "incidents")",
                 systemImage: "stopwatch.fill",
                 emphasis: nil,
                 identifier: "kpi_response"

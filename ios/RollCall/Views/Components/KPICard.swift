@@ -23,8 +23,8 @@ struct KPICard: View {
             Label { Text(title) } icon: { Image(systemName: systemImage) }
                 .sheetLabelStyle()
                 .foregroundStyle(emphasis ?? .secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, Spacing.xs)
             Text(value)
                 .font(.system(size: 44, weight: .black).width(.condensed))

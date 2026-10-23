@@ -64,7 +64,8 @@ def hazards(now: Optional[datetime] = None) -> list[HazardOut]:
             title="Tornado Warning",
             detail="DEMO. A tornado was spotted southwest of Greenville moving northeast at 30 mph. Take shelter now in an inside room on the lowest floor.",
             level=ZoneLevel.immediate,
-            latitude=33.095, longitude=-96.12,
+            # The icon sits where the tornado is: the southwest end of the box.
+            latitude=33.045, longitude=-96.215,
             zones=[ZoneOut(level=ZoneLevel.immediate, polygon=WARNING_BOX)],
             observed_at=_started, ends_at=ends, is_demo=True,
         ),

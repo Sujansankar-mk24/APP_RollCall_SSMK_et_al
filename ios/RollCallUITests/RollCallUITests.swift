@@ -101,9 +101,10 @@ final class RollCallUITests: XCTestCase {
     // MARK: - Incidents tab
 
     @MainActor
-    func testIncidentsTabShowsKPIsAndAPrioritySortedList() {
+    func testIncidentLogOpensFromTheMapAndShowsAnIncident() {
         let app = launchApp()
-        app.buttons["tab_incidents"].tap()
+        // The Incidents button (top left of the Map) unrolls the incident log.
+        app.buttons["incidentsButton"].tap()
 
         // Four key numbers. In the demo data, 4 incidents are active and 3 are responding.
         let active = app.descendants(matching: .any)["kpi_active"]
@@ -125,11 +126,19 @@ final class RollCallUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["incidentRow_1"].exists)
         app.buttons["Open (7)"].tap()
 
-        // Tapping a row opens the same detail sheet as on the map.
+        snapshot(app, "incident log")
+
+        // The X folds it up again, and the map is back.
+        app.buttons["closeIncidents"].tap()
+        XCTAssertTrue(app.buttons["reportIncidentButton"].isHittable)
+        XCTAssertFalse(app.descendants(matching: .any)["kpi_active"].isHittable)
+
+        // Tapping a row folds the log up and shows that incident on the map.
+        app.buttons["incidentsButton"].tap()
         let first = app.descendants(matching: .any)["incidentRow_1"]
         XCTAssertTrue(first.waitForExistence(timeout: 5))
         first.tap()
-        XCTAssertTrue(app.staticTexts["AI analysis"].waitForExistence(timeout: 10), "The detail sheet didn't open")
+        XCTAssertTrue(app.staticTexts["AI analysis"].waitForExistence(timeout: 10), "The incident's details didn't open")
     }
 
     // MARK: - About tab
@@ -439,6 +448,69 @@ final class RollCallUITests: XCTestCase {
         XCTAssertTrue(approve.waitForNonExistence(timeout: 10))
     }
 
+    // MARK: - Screenshot tour
+
+    /// Opens every main screen in light and dark mode and keeps a picture of
+    /// each (in the test results), so the whole app can be checked by eye.
+    @MainActor
+    func testScreenshotTourOfEveryScreen() {
+        for mode in ["light", "dark"] {
+            XCUIDevice.shared.location = XCUILocation(location: greenville)
+            let app = XCUIApplication()
+            app.launchArguments = ["-RCSignOut", "YES", "-RCServerURL", "http://localhost:8000", "-appearanceMode", mode]
+            app.launch()
+            XCTAssertTrue(app.textFields["emailField"].waitForExistence(timeout: 20))
+            snapshot(app, "\(mode) 01 sign in")
+
+            // Resident: the Map and everything on it.
+            openDemoAccount(app, kind: "resident")
+            XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 20))
+            snapshot(app, "\(mode) 02 map")
+            app.buttons["incidentsButton"].tap()
+            let row = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'incidentRow_'")).firstMatch
+            XCTAssertTrue(row.waitForExistence(timeout: 10))
+            snapshot(app, "\(mode) 03 incident log")
+            row.tap()
+            XCTAssertTrue(app.staticTexts["AI analysis"].waitForExistence(timeout: 10))
+            snapshot(app, "\(mode) 04 incident detail")
+            app.swipeDown(velocity: .fast)
+            app.buttons["liveDataPill"].tap()
+            XCTAssertTrue(app.switches["liveDataToggle"].waitForExistence(timeout: 10))
+            snapshot(app, "\(mode) 05 live data")
+            app.buttons["Done"].tap()
+            app.buttons["reportIncidentButton"].tap()
+            XCTAssertTrue(app.buttons["sendReportButton"].waitForExistence(timeout: 10))
+            snapshot(app, "\(mode) 06 report form")
+            app.buttons["Cancel"].firstMatch.tap()
+
+            // Roll Call, Community, About.
+            open(tab: "Roll Call", in: app)
+            XCTAssertTrue(app.buttons["section_household"].waitForExistence(timeout: 10))
+            snapshot(app, "\(mode) 07 roll call")
+            open(tab: "Community", in: app)
+            XCTAssertTrue(app.descendants(matching: .any)["communityHeader"].waitForExistence(timeout: 10))
+            snapshot(app, "\(mode) 08 community")
+            open(tab: "About", in: app)
+            snapshot(app, "\(mode) 09 about")
+
+            // A volunteer's "I check on", and the responder view.
+            app.terminate()
+            app.launchArguments = ["-RCSignOut", "YES", "-RCServerURL", "http://localhost:8000", "-appearanceMode", mode, "-RSTab", "rollCall"]
+            app.launch()
+            openDemoAccount(app, kind: "volunteer")
+            XCTAssertTrue(app.buttons["section_buddy"].waitForExistence(timeout: 15))
+            app.buttons["section_buddy"].tap()
+            XCTAssertTrue(text("Neighbors you check on", in: app).waitForExistence(timeout: 10))
+            snapshot(app, "\(mode) 10 i check on")
+            app.terminate()
+            app.launch()
+            openDemoAccount(app, kind: "responder")
+            XCTAssertTrue(app.staticTexts["No active emergency"].waitForExistence(timeout: 15))
+            snapshot(app, "\(mode) 11 responder")
+            app.terminate()
+        }
+    }
+
     // MARK: - Helpers
 
     private let password = "correct horse battery"
@@ -473,7 +545,8 @@ final class RollCallUITests: XCTestCase {
     /// Tap a tab. If a late system prompt swallowed the tap, close it and try again.
     @MainActor
     private func open(tab: String, in app: XCUIApplication) {
-        let button = app.buttons["tab_\(tab.prefix(1).lowercased() + tab.dropFirst())"]
+        let name = tab.replacingOccurrences(of: " ", with: "")
+        let button = app.buttons["tab_\(name.prefix(1).lowercased() + name.dropFirst())"]
         for _ in 0..<3 {
             button.tap()
             let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "selected == true"), object: button)

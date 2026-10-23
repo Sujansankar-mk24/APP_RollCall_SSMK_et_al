@@ -13,8 +13,9 @@
 //  solid, the more dangerous), colored by the kind of hazard.
 //
 //  Layout (top to bottom):
-//    filter chips
-//    "Updated ... ago"                  legend
+//    [Incidents ⌄]  filter chips
+//    "Updated ... ago", "Live"          legend
+//    (the Incidents button unrolls the incident log over the top left)
 //    (map with zones and markers)
 //                                       display (light/night) button
 //                                       zoom in / zoom out
@@ -43,6 +44,11 @@ struct IncidentMapView: View {
     /// The live hazard whose sheet is open.
     @State private var selectedHazard: Hazard?
     @State private var showsLiveData = false
+    /// The incident log panel (top left), opened from the Incidents button.
+    @State private var showsIncidents = DebugLaunchOptions.opensIncidents
+    /// The map's size on screen (the incident log is sized from it).
+    @State private var mapSize: CGSize = .zero
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(store: IncidentStore) {
         _viewModel = State(initialValue: MapViewModel(store: store))
@@ -88,9 +94,20 @@ struct IncidentMapView: View {
         .onMapCameraChange(frequency: .onEnd) { context in
             visibleRegion = context.region
         }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { mapSize = $0 }
         .safeAreaInset(edge: .top) {
             if viewModel.loadState == .loaded {
-                topControls
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    topBar
+                        // The incident log hangs just below the button row, on
+                        // top of everything else (it doesn't push anything down).
+                        .overlay(alignment: .bottomLeading) {
+                            incidentsPanel
+                                .alignmentGuide(.bottom) { panel in panel[.top] - Spacing.s }
+                        }
+                        .zIndex(1)
+                    infoRow
+                }
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -135,6 +152,7 @@ struct IncidentMapView: View {
         .onChange(of: selectedIncidentID) { _, newValue in
             if newValue != nil {
                 selectedHazard = nil
+                if showsIncidents { setIncidents(open: false) }   // tapped on the map with the log open
                 focusOnSelectedIncident()
             }
         }
@@ -242,6 +260,7 @@ struct IncidentMapView: View {
     /// Open a live hazard's sheet and fit its zones on screen above it.
     private func select(_ hazard: Hazard) {
         selectedIncidentID = nil
+        if showsIncidents { setIncidents(open: false) }
         selectedHazard = hazard
         // Show the widest zone (or about 10 km for an outlined area).
         let widest = hazard.zones.compactMap(\.radiusM).max().map(Double.init) ?? 5_000
@@ -276,34 +295,81 @@ struct IncidentMapView: View {
 
     // MARK: - Floating controls
 
-    private var topControls: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            MapFilterBar(filters: $viewModel.filters)
-
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: Spacing.s) {
-                    UpdateStatusPill(
-                        lastUpdated: viewModel.lastUpdated,
-                        refreshError: viewModel.refreshError,
-                        isRefreshing: viewModel.isRefreshing,
-                        onRetry: { Task { await viewModel.load() } }
-                    )
-                    LiveDataPill(feed: viewModel.hazardFeed, hasError: viewModel.hazardError != nil) {
-                        openLiveData()
-                    }
-                }
-                Spacer()
-                MapLegend()
+    /// The Incidents button and the filter chips.
+    private var topBar: some View {
+        HStack(spacing: 0) {
+            IncidentsButton(isOpen: showsIncidents, urgentCount: viewModel.store.needsAttentionCount) {
+                setIncidents(open: !showsIncidents)
             }
-            .padding(.horizontal, Spacing.l)
+            .padding(.leading, Spacing.l)
+            MapFilterBar(filters: $viewModel.filters)
         }
         .padding(.top, Spacing.xs)
+    }
+
+    /// "Updated ... ago" and "Live" on the left, the legend on the right.
+    private var infoRow: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                UpdateStatusPill(
+                    lastUpdated: viewModel.lastUpdated,
+                    refreshError: viewModel.refreshError,
+                    isRefreshing: viewModel.isRefreshing,
+                    onRetry: { Task { await viewModel.load() } }
+                )
+                LiveDataPill(feed: viewModel.hazardFeed, hasError: viewModel.hazardError != nil) {
+                    openLiveData()
+                }
+            }
+            Spacer()
+            MapLegend()
+        }
+        .padding(.horizontal, Spacing.l)
+    }
+
+    /// The incident log over the top left of the screen. A strip on the right
+    /// and the bottom of the map stay visible and usable. It unrolls from the
+    /// top (the panel's height grows) like an accordion.
+    @ViewBuilder
+    private var incidentsPanel: some View {
+        if showsIncidents {
+            IncidentsPanel(store: viewModel.store,
+                           onSelect: { show($0) },
+                           onClose: { setIncidents(open: false) })
+                // Most of the screen's top left. It starts over the status
+                // pills and stops just above Report incident, so the right
+                // strip and the bottom of the map stay visible and usable.
+                // (mapSize is the map below the top bar.)
+                .frame(width: max(mapSize.width - Spacing.l * 2 - 56, 280),
+                       height: max(min(mapSize.height, 680), 320))
+                .shadow(color: .black.opacity(0.25), radius: 16, y: 6)
+                .padding(.leading, Spacing.l)
+                .transition(reduceMotion ? .opacity : Accordion.reveal)
+        }
+    }
+
+    private func setIncidents(open: Bool) {
+        if open {
+            // One thing at a time: close any open sheet first.
+            selectedIncidentID = nil
+            selectedHazard = nil
+        }
+        withAnimation(reduceMotion ? nil : Accordion.motion) { showsIncidents = open }
+    }
+
+    /// From the incident log: fold it up, then fly to the incident and open it.
+    private func show(_ incident: IncidentSummary) {
+        setIncidents(open: false)
+        if !viewModel.filters.matches(incident) { viewModel.clearFilters() }   // make sure it's on the map
+        selectedIncidentID = incident.id
     }
 
     /// The main action on the map.
     private var reportButton: some View {
         Button {
             selectedIncidentID = nil
+            selectedHazard = nil
+            if showsIncidents { setIncidents(open: false) }
             lastReport = nil
             isReporting = true
         } label: {

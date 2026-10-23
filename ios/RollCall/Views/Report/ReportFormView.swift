@@ -3,7 +3,6 @@
 //  RollCall
 //
 //  The "Report incident" sheet:
-//    911 banner
 //    What's happening?  (type tiles)
 //    Where?             (address search + map with a draggable pin)
 //    Details            (short description)
@@ -31,8 +30,6 @@ struct ReportFormView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
-                    EmergencyBanner()
-
                     formSection("What's happening?") {
                         TypePickerGrid(selection: $viewModel.selectedType)
                     }
