@@ -120,7 +120,15 @@ struct SignInView: View {
 
     @ViewBuilder
     private var demoSection: some View {
-        if !viewModel.featured.isEmpty {
+        if viewModel.serverUnreachable {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                SheetNote(text: "Can't reach the RollCall server, so signing in and the demo accounts won't work yet. Start the backend on this Mac, or choose a shared server below.",
+                          systemImage: "antenna.radiowaves.left.and.right.slash", color: Color(.systemOrange))
+                Button("Try again") { Task { await viewModel.loadDemoAccounts() } }
+                    .buttonStyle(InkButtonStyle(prominent: false))
+                    .accessibilityIdentifier("retryServer")
+            }
+        } else if !viewModel.featured.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
                 SectionLabel("Trying the demo?")
                 Text("Open a fictional account with one tap. Every person and address in the demo is made up.")

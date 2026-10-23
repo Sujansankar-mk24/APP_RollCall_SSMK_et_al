@@ -82,7 +82,6 @@ struct ResidentHomeView: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("privacyLink")
                 }
-                CallNineOneOne()
             }
         }
     }

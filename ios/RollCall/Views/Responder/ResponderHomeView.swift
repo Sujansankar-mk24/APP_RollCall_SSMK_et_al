@@ -30,6 +30,8 @@ struct ResponderHomeView: View {
                     }
                     .sheetBox(emphasis: true)
                     .padding(Spacing.l)
+                    // The map runs under the tab bar; keep this panel above it.
+                    .padding(.bottom, SlidingTabBar<MainTabView.RootTab>.height)
                     .accessibilityElement(children: .combine)
                 }
                 .toolbar {

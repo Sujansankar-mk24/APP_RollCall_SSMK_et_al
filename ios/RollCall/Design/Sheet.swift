@@ -300,32 +300,3 @@ struct SheetMessage: View {
         .sheetBox()
     }
 }
-
-/// "In a life-threatening emergency, call 911", drawn as a red-ink box.
-struct CallNineOneOne: View {
-    var body: some View {
-        HStack(spacing: Spacing.m) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("In a life-threatening emergency, call 911.")
-                    .font(.headline)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("RollCall helps responders, but it is not a 911 service.")
-                    .font(.callout).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-            Link(destination: URL(string: "tel:911")!) {
-                Label("Call 911", systemImage: "phone.fill")
-                    .labelStyle(.titleAndIcon)
-                    .font(.callout.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, Spacing.m)
-                    .frame(minHeight: minimumTapSize)
-                    .background(Color(.systemRed))
-            }
-            .accessibilityLabel("Call 911")
-        }
-        .padding(Spacing.m)
-        .overlay(Rectangle().strokeBorder(Color(.systemRed), lineWidth: 2))
-    }
-}

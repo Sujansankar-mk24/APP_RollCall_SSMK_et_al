@@ -20,6 +20,8 @@ final class SignInViewModel {
     var error: APIError?
 
     private(set) var demoAccounts: [DemoAccount] = []
+    /// True if the server couldn't be reached to list the demo accounts.
+    private(set) var serverUnreachable = false
     private let api: APIClient
 
     init(api: APIClient = .shared) { self.api = api }
@@ -52,7 +54,13 @@ final class SignInViewModel {
     // MARK: - Demo accounts
 
     func loadDemoAccounts() async {
-        demoAccounts = (try? await api.fetchDemoAccounts()) ?? []
+        do {
+            demoAccounts = try await api.fetchDemoAccounts()
+            serverUnreachable = false
+        } catch {
+            demoAccounts = []
+            serverUnreachable = true
+        }
     }
 
     /// The one-tap accounts the server picked: a resident, a volunteer from

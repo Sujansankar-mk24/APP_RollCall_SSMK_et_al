@@ -16,7 +16,6 @@ struct AboutView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     header
-                    CallNineOneOne()
                     tabsSection
                     privacySection
                     projectSection
@@ -50,7 +49,7 @@ struct AboutView: View {
                 infoRow("map.fill", "Map",
                         "See emergencies near you and report one with a photo or video. Reports close together merge into one incident, and AI checks the photos for fire, smoke and people.")
                 infoRow("list.bullet.rectangle.fill", "Incidents",
-                        "For responders: every incident sorted by priority, with a \"Why this priority?\" breakdown anyone can check.")
+                        "On the Map, the Incidents button (top left) opens every incident sorted by priority, with a \"Why this priority?\" breakdown anyone can check.")
                 infoRow("person.crop.circle.badge.checkmark", "Roll Call",
                         "Households sign up ahead of time (or choose \"Not now\"). When an emergency hits, everyone in the area is asked if they're safe, a volunteer buddy checks on anyone who doesn't answer, and responders see who still needs help.")
                 infoRow("house.and.flag.fill", "Community",
@@ -88,6 +87,8 @@ struct AboutView: View {
                         "Built for Texas' 4th District by a high school student.")
                 infoRow("theatermasks.fill", "Demo data",
                         "Every household, volunteer, name, street and phone number is fictional. Sample photos and videos are public domain or Creative Commons, from Wikimedia Commons.")
+                infoRow("cross.case.fill", "Not a 911 service",
+                        "RollCall helps neighbors and responders, but it doesn't contact 911 for you.")
             }
         }
     }

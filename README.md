@@ -5,7 +5,7 @@ Make sure no one gets left behind. RollCall is a community emergency app for Nor
 - **An incident map.** Residents report emergencies with a pin and a photo or video. Reports from the same area merge into one incident, AI checks the media for fire, smoke and people, and responders get a priority-ranked list with the evidence before they head out.
 - **A roll call.** Households sign up ahead of time and say who lives there and what could make leaving hard: seniors living alone, oxygen or dialysis, no car, pets or livestock. When a tornado warning or flood hits, RollCall asks everyone in the area "Are you safe?". A volunteer buddy checks on anyone who doesn't answer, and responders see who still needs help, most urgent first.
 
-> RollCall supports emergency services. It does not replace 911. **In a life-threatening emergency, call 911.**
+> RollCall supports emergency services. It doesn't replace 911 or contact it for you.
 
 *This README grows with the project. The full version (how RollCall differs from Watch Duty, an architecture diagram, risk scoring, limitations and future work) comes with the final polish step.*
 
@@ -13,8 +13,7 @@ Make sure no one gets left behind. RollCall is a community emergency app for Nor
 
 | Tab | What it's for |
 |---|---|
-| **Map** | Incidents as colored circles you can tap for details. **Report incident** with a pin, address search, and a photo or video. Filters, legend, zoom, night mode. |
-| **Incidents** | For responders: key numbers and every incident sorted by priority, with "Why this priority?". |
+| **Map** | Live hazards (diamonds) and community reports (circles) with their danger zones; tap one for details. **Incidents** (top left) unrolls the incident log: key numbers and every incident sorted by priority, with "Why this priority?". **Report incident** with a pin, address search, and a photo or video. Filters, legend, zoom, night mode. |
 | **Roll Call** | **My household**: join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, privacy and Delete my data. **I check on**: be a volunteer buddy. Responders see their own view. |
 | **Community** | Find your neighborhood and ask to join, or start one and be its admin: approve members, and decide whether buddies from outside are allowed. |
 | **About** | What RollCall does, who can see your information, credits, and your account (Sign out). |
@@ -25,7 +24,7 @@ You sign in once; the app remembers you until you sign out. For judges, the sign
 
 ## What works so far
 
-- **Map and Incidents tabs:** reporting with photo/video, merging, AI photo/video checks, priority scoring, responder status updates, timeline.
+- **Map and incident log:** live hazard data with danger zones, reporting with photo/video, merging, AI photo/video checks, priority scoring, responder status updates, timeline.
 - **Accounts:** sign up, sign in, stay signed in, sign out. Passwords are hashed with scrypt; the sign-in token lives in the iPhone Keychain.
 - **Roll Call, step 1 — household profile:** a five-step sign-up (home, who lives here, needs, contact, review) with a typed address checked on the map and by GPS, **Not now** for people who'd rather not, a clear "who can see this" privacy screen, and **Delete my data**, which really deletes everything.
 - **Communities and buddies:** neighborhoods with admin approval; buddy offers from community neighbors or by exact address, always accepted or declined by the resident.
@@ -123,20 +122,20 @@ Things to know:
 - Anyone with the address can reach the server. Real accounts still need their password, and demo accounts are fictional.
 - To go back, choose **Server → Use the server on this Mac**.
 
-## Map and Incidents tabs
+## Map and the incident log
 
-### Incidents tab
+### Incident log
 
-The second tab is for responders. At the top are four numbers, each a simple count you can check:
+The **Incidents** button at the top left of the Map unrolls the incident log over the top left of the screen (the map stays usable around it; the X closes it). It's for responders. At the top are four numbers, each a simple count you can check:
 
 | Card | What it counts |
 |---|---|
 | Active incidents | Incidents nobody is responding to yet (and how many are responding) |
 | People detected | The most people the AI has seen at each open incident, added up (and how many may be down) |
 | Unverified | Open incidents with no AI evidence yet. Weather reports count here too, since the AI can't recognize a tornado |
-| Avg. response time | Average time from the first report to a responder tapping "Mark responding" |
+| Response time | Average time from the first report to a responder tapping "Mark responding" |
 
-Below them, every incident is listed by priority (highest first), with Open / Resolved / All filters. Tap one to open the same detail sheet as on the map, including "Why this priority?". Pull down to refresh. The tab badge shows how many incidents are active and high priority. The Map and Incidents tabs share one copy of the data, so a status change shows up on both immediately.
+Below them, every incident is listed by priority (highest first), with Open / Resolved / All filters. Tap one and the log folds up, the map flies to it, and its detail sheet opens, including "Why this priority?". Pull down to refresh. The red number on the button counts incidents that are active and high priority. The map and the log share one copy of the data, so a status change shows up on both immediately.
 
 ### Incident types
 
