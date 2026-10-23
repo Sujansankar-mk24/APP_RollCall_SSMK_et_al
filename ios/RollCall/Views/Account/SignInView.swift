@@ -13,6 +13,7 @@ struct SignInView: View {
     @State private var viewModel = SignInViewModel()
     @State private var showsAllDemoAccounts = false
     @State private var choosesServer = false
+    @State private var showsPassword = false
     @FocusState private var focused: Field?
 
     private enum Field: Hashable { case name, email, password }
@@ -63,42 +64,63 @@ struct SignInView: View {
                 (value: .createAccount, title: String(localized: "Create account")),
             ], identifierPrefix: "authMode_")
 
-            VStack(spacing: Spacing.l) {
+            VStack(alignment: .leading, spacing: Spacing.l) {
                 if viewModel.mode == .createAccount {
                     TextField("Your name", text: $viewModel.name)
                         .textContentType(.name)
+                        .textInputAutocapitalization(.words)   // "Jordan Tatum", never ALL CAPS
+                        .autocorrectionDisabled()
                         .focused($focused, equals: .name)
                         .submitLabel(.next)
                         .onSubmit { focused = .email }
                         .authField()
                         .accessibilityIdentifier("signUpName")
                 }
-                TextField("Email", text: $viewModel.email)
-                    .textContentType(.emailAddress)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($focused, equals: .email)
-                    .submitLabel(.next)
-                    .onSubmit { focused = .password }
-                    .authField()
-                    .accessibilityIdentifier("emailField")
-                SecureField(viewModel.mode == .createAccount ? "Password (at least 8 characters)" : "Password",
-                            text: $viewModel.password)
-                    .textContentType(viewModel.mode == .createAccount ? .newPassword : .password)
-                    .focused($focused, equals: .password)
-                    .submitLabel(.go)
-                    .onSubmit { submit() }
-                    .authField()
-                    .accessibilityIdentifier("passwordField")
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    TextField("Email", text: $viewModel.email)
+                        .textContentType(.emailAddress)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($focused, equals: .email)
+                        .submitLabel(.next)
+                        .onSubmit { focused = .password }
+                        .authField()
+                        .accessibilityIdentifier("emailField")
+                    if !viewModel.email.isEmpty && focused != .email && !viewModel.emailLooksRight {
+                        hint("Check the email, like name@example.com", ok: false)
+                    }
+                }
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    passwordField
+                    if viewModel.mode == .createAccount {
+                        hint(viewModel.passwordIsLongEnough
+                             ? "At least 8 characters"
+                             : "At least 8 characters (\(SignInViewModel.minimumPasswordLength - viewModel.password.count) more)",
+                             ok: viewModel.passwordIsLongEnough)
+                    }
+                }
             }
+            .onChange(of: viewModel.name) { viewModel.edited() }
+            .onChange(of: viewModel.email) { viewModel.edited() }
+            .onChange(of: viewModel.password) { viewModel.edited() }
 
             if let error = viewModel.error {
-                Label(error.message, systemImage: "exclamationmark.circle.fill")
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(Color(.systemRed))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("signInError")
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    Label(error.message, systemImage: "exclamationmark.circle.fill")
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(Color(.systemRed))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("signInError")
+                    if viewModel.emailAlreadyUsed {
+                        Button("Sign in instead") {
+                            focused = nil
+                            Task { await viewModel.signInInstead(with: auth) }
+                        }
+                        .buttonStyle(SmallInkButtonStyle(prominent: false))
+                        .accessibilityIdentifier("signInInstead")
+                    }
+                }
             }
 
             Button(action: submit) {
@@ -176,6 +198,47 @@ struct SignInView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("serverRow")
         }
+    }
+
+    /// The password, with a button to show or hide what's typed.
+    private var passwordField: some View {
+        HStack(spacing: Spacing.s) {
+            Group {
+                if showsPassword {
+                    TextField(passwordPrompt, text: $viewModel.password)
+                } else {
+                    SecureField(passwordPrompt, text: $viewModel.password)
+                }
+            }
+            .textContentType(viewModel.mode == .createAccount ? .newPassword : .password)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .focused($focused, equals: .password)
+            .submitLabel(.go)
+            .onSubmit { submit() }
+            .accessibilityIdentifier("passwordField")
+            Button {
+                showsPassword.toggle()
+            } label: {
+                Image(systemName: showsPassword ? "eye.slash" : "eye")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: minimumTapSize, height: minimumTapSize)
+            }
+            .accessibilityLabel(showsPassword ? "Hide password" : "Show password")
+        }
+        .authField()
+    }
+
+    private var passwordPrompt: LocalizedStringKey {
+        viewModel.mode == .createAccount ? "Choose a password" : "Password"
+    }
+
+    /// A small line under a field: a green check when it's right, gray otherwise.
+    private func hint(_ text: String, ok: Bool) -> some View {
+        Label(text, systemImage: ok ? "checkmark.circle.fill" : "info.circle")
+            .font(.callout)
+            .foregroundStyle(ok ? Color(.systemGreen) : .secondary)
     }
 
     private func submit() {

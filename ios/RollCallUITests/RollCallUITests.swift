@@ -275,6 +275,44 @@ final class RollCallUITests: XCTestCase {
         XCTAssertFalse(again.textFields["emailField"].exists)
     }
 
+    @MainActor
+    func testSignUpKeepsWhatYouTypeAndHelpsWithMistakes() {
+        let app = launch()
+        app.buttons["authMode_1"].tap()
+        type("jordan tatum", into: app.textFields["signUpName"])
+        let email = uniqueEmail()
+        type(email, into: app.textFields["emailField"])
+        // Typed text is never forced into capitals.
+        XCTAssertEqual(app.textFields["signUpName"].value as? String, "jordan tatum")
+        XCTAssertEqual(app.textFields["emailField"].value as? String, email)
+        // The password rule is shown while typing, and the button waits for it.
+        let password = app.secureTextFields["passwordField"]
+        password.tap()
+        dismissStrongPasswordSheet(app)
+        password.tap()
+        password.typeText("short")
+        XCTAssertTrue(app.staticTexts["At least 8 characters (3 more)"].exists)
+        XCTAssertFalse(app.buttons["submitAuth"].isEnabled)
+    }
+
+    @MainActor
+    func testUsingAnEmailTwiceOffersToSignInInstead() {
+        let app = launch()
+        let email = uniqueEmail()
+        signUp(app, name: "First Person", email: email)
+        XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 20))
+        open(tab: "About", in: app)
+        let signOut = app.buttons["signOut"]
+        scrollTo(signOut, in: app)
+        signOut.tap()
+
+        signUp(app, name: "Second Person", email: email)
+        XCTAssertTrue(app.descendants(matching: .any)["signInError"].waitForExistence(timeout: 10))
+        // One tap signs in with what was already typed.
+        app.buttons["signInInstead"].tap()
+        XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 20))
+    }
+
     // MARK: - Roll Call tab: resident
 
     @MainActor
