@@ -3,8 +3,8 @@
 //  RollCall
 //
 //  The sheet that opens when you tap a live hazard (a diamond on the map):
-//  what it is, who reported it and when, its danger zones and what to do in
-//  each, and a link to the official source.
+//  what it is, who reported it and when, how serious it is and what to do,
+//  and a link to the official source.
 //
 
 import SwiftUI
@@ -20,7 +20,7 @@ struct HazardDetailView: View {
                 Text(hazard.detail)
                     .font(.body)
                     .fixedSize(horizontal: false, vertical: true)
-                zones
+                whatToDo
                 if let url = hazard.linkURL {
                     Link(destination: url) {
                         Label("Official details", systemImage: "arrow.up.right.square")
@@ -78,33 +78,23 @@ struct HazardDetailView: View {
         }
     }
 
-    /// Each zone with its color swatch, size, and what to do there.
-    private var zones: some View {
-        SectionCard(title: "Danger zones", systemImage: "circle.circle") {
-            ForEach(Array(hazard.zones.sorted { $0.level.rank > $1.level.rank }.enumerated()), id: \.offset) { _, zone in
-                HStack(alignment: .top, spacing: Spacing.m) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(hazard.kind.color.opacity(zone.level.fillOpacity * 2))
-                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(hazard.kind.color, style: zone.level.edge))
-                        .frame(width: 22, height: 22)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(zone.level.title).font(.headline)
-                        Text(size(of: zone)).font(.callout).foregroundStyle(.secondary)
-                        Text(zone.level.advice).font(.callout)
-                    }
-                }
-                .accessibilityElement(children: .combine)
-            }
+    /// How serious it is, in one line: "Immediate danger: get away or take shelter now."
+    private var whatToDo: some View {
+        Label {
+            Text("\(Text(hazard.level.title).bold()): \(hazard.level.advice.lowercasedFirst)")
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(hazard.kind.color)
         }
+        .font(.body)
+        .padding(Spacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(hazard.kind.color.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
+}
 
-    private func size(of zone: HazardZone) -> String {
-        if let radius = zone.radiusM {
-            let distance = Measurement(value: Double(radius), unit: UnitLength.meters).converted(to: .miles)
-            return "Within \(distance.formatted(.measurement(width: .abbreviated, usage: .road))) of the center"
-        }
-        if hazard.isDemo { return "The demo warning's area" }
-        return hazard.source == "nws" ? "The area the National Weather Service drew" : "The marked area"
-    }
+private extension String {
+    /// "Get away now." -> "get away now." (to follow a colon).
+    var lowercasedFirst: String { prefix(1).lowercased() + dropFirst() }
 }

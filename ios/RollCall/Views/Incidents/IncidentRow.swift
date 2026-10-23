@@ -20,13 +20,16 @@ struct IncidentRow: View {
                 HStack(alignment: .center, spacing: Spacing.s) {
                     Label(incident.type.title, systemImage: incident.type.symbol)
                         .font(.title3.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                     Spacer(minLength: Spacing.xs)
                     Stamp(text: incident.status.title, color: incident.status.color)
                         .fixedSize()
                 }
                 Text(incident.locationName)
                     .font(.body)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 aiLine
                 metaLine
             }
@@ -55,10 +58,14 @@ struct IncidentRow: View {
         } else if incident.ai.verified {
             Label(evidenceText, systemImage: "viewfinder")
                 .font(.callout.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         } else if incident.type.canBeVerifiedByAI {
             Label("Not verified by AI yet", systemImage: "questionmark.circle")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
     }
 
@@ -80,7 +87,7 @@ struct IncidentRow: View {
             .font(.sheetLabel)
             .foregroundStyle(.secondary)
             .lineLimit(1)
-            .minimumScaleFactor(0.85)
+            .minimumScaleFactor(0.6)
     }
 
     private var accessibilityText: String {

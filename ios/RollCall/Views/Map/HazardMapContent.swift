@@ -4,8 +4,9 @@
 //
 //  Drawing danger zones and live-hazard markers on the map.
 //
-//    Zones     colored by the kind of hazard; the more dangerous the zone,
-//              the more solid it is (see ZoneLevel in Models/Hazard.swift).
+//    Areas     official alerts (like a Tornado Warning) shade the area they
+//              cover, colored by the kind of hazard; the more serious, the
+//              more solid (see ZoneLevel in Models/Hazard.swift).
 //    Markers   live data (official alerts, satellite fires, storm reports) is
 //              a DIAMOND; community reports are CIRCLES (IncidentMarker).
 //
@@ -13,25 +14,18 @@
 import MapKit
 import SwiftUI
 
-/// A hazard's zones: circles around its center, or the exact outline an
-/// official alert covers. The widest zone is drawn first, so the most
-/// dangerous one ends up on top.
+/// The area an official alert covers (e.g. a Tornado Warning's box), drawn
+/// as one shape. Rings around points aren't drawn: the icons say enough.
 struct ZoneShapes: MapContent {
     let zones: [HazardZone]
     let center: CLLocationCoordinate2D
     let color: Color
 
     var body: some MapContent {
-        ForEach(Array(zones.outsideIn.enumerated()), id: \.offset) { _, zone in
-            if let radius = zone.radiusM {
-                MapCircle(center: center, radius: CLLocationDistance(radius))
-                    .foregroundStyle(color.opacity(zone.level.fillOpacity))
-                    .stroke(color.opacity(0.9), style: zone.level.edge)
-            } else {
-                MapPolygon(coordinates: zone.outline)
-                    .foregroundStyle(color.opacity(zone.level.fillOpacity))
-                    .stroke(color.opacity(0.9), style: zone.level.edge)
-            }
+        ForEach(Array(zones.outsideIn.filter { $0.polygon != nil }.enumerated()), id: \.offset) { _, zone in
+            MapPolygon(coordinates: zone.outline)
+                .foregroundStyle(color.opacity(zone.level.fillOpacity))
+                .stroke(color.opacity(0.9), style: zone.level.edge)
         }
     }
 }

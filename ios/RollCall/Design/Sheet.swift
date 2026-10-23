@@ -153,7 +153,7 @@ struct SheetTabs<Value: Hashable>: View {
                         .font(.headline)
                         .foregroundStyle(isSelected ? Color.primary : Color.secondary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .minimumScaleFactor(0.6)
                         .frame(maxWidth: .infinity, minHeight: minimumTapSize)
                         .overlay(alignment: .bottom) {
                             Rectangle().fill(isSelected ? Color.ink : Color.clear).frame(height: 3)
@@ -228,6 +228,8 @@ struct Stamp: View {
         HStack(spacing: 5) {
             if let systemImage { Image(systemName: systemImage).font(.subheadline.weight(.bold)) }
             Text(text).font(.sheetLabel.weight(.bold)).textCase(.uppercase).tracking(1)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
         }
         .foregroundStyle(color)
         .padding(.horizontal, 10)

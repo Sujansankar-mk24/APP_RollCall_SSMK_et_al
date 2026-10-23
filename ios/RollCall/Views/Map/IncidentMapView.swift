@@ -9,8 +9,7 @@
 //    live data (diamonds)        real National Weather Service alerts, NASA
 //                                satellite fires and NOAA storm reports
 //    community reports (circles) what residents reported in the app
-//  Each has three zones: Immediate danger, Evacuate, Be cautious (the more
-//  solid, the more dangerous), colored by the kind of hazard.
+//  Colors show the kind of hazard; official alerts also shade their area.
 //
 //  Layout (top to bottom):
 //    [Incidents ⌄]  filter chips
@@ -74,8 +73,6 @@ struct IncidentMapView: View {
             }
 
             ForEach(viewModel.visibleIncidents) { incident in
-                // Its three zones: see-through, so streets stay readable.
-                ZoneShapes(zones: incident.zones, center: incident.coordinate, color: incident.type.color)
 
                 // The icon in the middle of the zone. Tapping it selects the incident.
                 Annotation(incident.locationName, coordinate: incident.coordinate, anchor: .center) {

@@ -23,8 +23,8 @@ struct KPICard: View {
             Label { Text(title) } icon: { Image(systemName: systemImage) }
                 .sheetLabelStyle()
                 .foregroundStyle(emphasis ?? .secondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)   // shrink to fit instead of wrapping
                 .padding(.top, Spacing.xs)
             Text(value)
                 .font(.system(size: 44, weight: .black).width(.condensed))
@@ -35,8 +35,8 @@ struct KPICard: View {
             Text(caption)
                 .font(.callout)
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.9)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
