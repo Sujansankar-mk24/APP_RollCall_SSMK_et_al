@@ -20,6 +20,7 @@ backend/models/*.pt
 # Server sharing (downloaded by scripts/share_server.sh) and its logs
 backend/tools/
 backend/server.log
+backend/cache/
 
 # Xcode
 xcuserdata/

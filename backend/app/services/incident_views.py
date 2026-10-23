@@ -9,7 +9,9 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
-from app.models import AnalysisStatus, Incident, Media, Report, TimelineEvent
+from app.hazards.models import ZoneOut
+from app.hazards.zones import HazardKind, report_scale, ring_radii
+from app.models import AnalysisStatus, Incident, IncidentStatus, Media, Report, TimelineEvent
 from app.schemas import (
     AISummaryOut,
     AnalysisOut,
@@ -95,7 +97,16 @@ def to_summary(incident: Incident, reports: list[Report], media: list[Media]) ->
             low_light_used=any(m.low_light_used for m in analyzed),
         ),
         cover_thumbnail_url=media_url(cover.thumbnail_name) if cover else None,
+        zones=incident_zones(incident, len(reports)),
     )
+
+
+def incident_zones(incident: Incident, report_count: int) -> list[ZoneOut]:
+    """Three rings around a community report, sized by its type and how many people reported it."""
+    if incident.status == IncidentStatus.resolved:
+        return []
+    radii = ring_radii(HazardKind(incident.type.value), report_scale(report_count))
+    return [ZoneOut(level=level, radius_m=radius) for level, radius in radii.items()]
 
 
 def to_media_out(item: Media) -> MediaOut:

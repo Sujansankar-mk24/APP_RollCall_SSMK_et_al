@@ -11,6 +11,8 @@ import tempfile
 _test_dir = tempfile.mkdtemp(prefix="rollcall-tests-")
 os.environ["ROLLCALL_DB_PATH"] = os.path.join(_test_dir, "test.db")
 os.environ["ROLLCALL_MEDIA_DIR"] = os.path.join(_test_dir, "media")
+os.environ["ROLLCALL_CACHE_DIR"] = os.path.join(_test_dir, "cache")
+os.environ["FIRMS_MAP_KEY"] = ""   # tests never call the real NASA service
 
 import pytest  # noqa: E402
 from sqlmodel import SQLModel  # noqa: E402

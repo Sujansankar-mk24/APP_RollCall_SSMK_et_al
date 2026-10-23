@@ -2,8 +2,15 @@
 //  IncidentMapView.swift
 //  RollCall
 //
-//  The home screen: a full-screen map of North Texas with a colored zone
-//  for every incident, plus floating controls on top.
+//  The home screen: a full-screen map of North Texas with danger zones
+//  around every hazard, plus floating controls on top.
+//
+//  Two kinds of hazards share the map:
+//    live data (diamonds)        real National Weather Service alerts, NASA
+//                                satellite fires and NOAA storm reports
+//    community reports (circles) what residents reported in the app
+//  Each has three zones: Immediate danger, Evacuate, Be cautious (the more
+//  solid, the more dangerous), colored by the kind of hazard.
 //
 //  Layout (top to bottom):
 //    filter chips
@@ -33,6 +40,9 @@ struct IncidentMapView: View {
     @State private var lastReport: ReportCreated?
     /// What the AI found in that report's photo/video (updates live).
     @State private var lastReportAnalysis: ReportAnalysisState = .noMedia
+    /// The live hazard whose sheet is open.
+    @State private var selectedHazard: Hazard?
+    @State private var showsLiveData = false
 
     init(store: IncidentStore) {
         _viewModel = State(initialValue: MapViewModel(store: store))
@@ -45,11 +55,21 @@ struct IncidentMapView: View {
 
     var body: some View {
         Map(position: $cameraPosition, selection: $selectedIncidentID) {
+            // Live hazards first (underneath), then community reports on top.
+            ForEach(viewModel.visibleHazards) { hazard in
+                ZoneShapes(zones: hazard.zones, center: hazard.coordinate, color: hazard.kind.color)
+                Annotation(hazard.title, coordinate: hazard.coordinate, anchor: .center) {
+                    Button { select(hazard) } label: {
+                        HazardMarker(hazard: hazard, isSelected: selectedHazard?.id == hazard.id)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .annotationTitles(.hidden)
+            }
+
             ForEach(viewModel.visibleIncidents) { incident in
-                // The zone: see-through fill so streets stay readable, solid edge.
-                MapCircle(center: incident.coordinate, radius: incident.zoneRadius)
-                    .foregroundStyle(incident.status.color.opacity(0.28))
-                    .stroke(incident.status.color.opacity(0.9), lineWidth: 1.5)
+                // Its three zones: see-through, so streets stay readable.
+                ZoneShapes(zones: incident.zones, center: incident.coordinate, color: incident.type.color)
 
                 // The icon in the middle of the zone. Tapping it selects the incident.
                 Annotation(incident.locationName, coordinate: incident.coordinate, anchor: .center) {
@@ -113,7 +133,21 @@ struct IncidentMapView: View {
         }
         .animation(.easeOut(duration: 0.2), value: viewModel.loadState)
         .onChange(of: selectedIncidentID) { _, newValue in
-            if newValue != nil { focusOnSelectedIncident() }
+            if newValue != nil {
+                selectedHazard = nil
+                focusOnSelectedIncident()
+            }
+        }
+        .sheet(item: $selectedHazard) { hazard in
+            HazardDetailView(hazard: hazard, note: viewModel.hazardFeed?.note ?? "")
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(Radius.panel)
+                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+        }
+        .sheet(isPresented: $showsLiveData) {
+            LiveDataSheet(viewModel: viewModel)
+                .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: isShowingDetail) {
             if let incident = selectedIncident {
@@ -193,6 +227,32 @@ struct IncidentMapView: View {
         selectedIncidentID = id
     }
 
+    /// Only one sheet can be open at a time: close a hazard or incident sheet
+    /// first, then open the Live data sheet once it has slid away.
+    private func openLiveData() {
+        let wasShowingSheet = selectedHazard != nil || selectedIncidentID != nil
+        selectedHazard = nil
+        selectedIncidentID = nil
+        Task {
+            if wasShowingSheet { try? await Task.sleep(for: .milliseconds(450)) }
+            showsLiveData = true
+        }
+    }
+
+    /// Open a live hazard's sheet and fit its zones on screen above it.
+    private func select(_ hazard: Hazard) {
+        selectedIncidentID = nil
+        selectedHazard = hazard
+        // Show the widest zone (or about 10 km for an outlined area).
+        let widest = hazard.zones.compactMap(\.radiusM).max().map(Double.init) ?? 5_000
+        let height = min(max(widest * 2.6 / 111_000, 0.02), 3)   // degrees of latitude on screen
+        let center = CLLocationCoordinate2D(latitude: hazard.latitude - height * 0.3, longitude: hazard.longitude)
+        withAnimation(.easeInOut(duration: 0.6)) {
+            cameraPosition = .region(MKCoordinateRegion(
+                center: center, span: MKCoordinateSpan(latitudeDelta: height, longitudeDelta: 0.001)))
+        }
+    }
+
     private func focusOnSelectedIncident() {
         guard let incident = selectedIncident else { return }
         focus(on: incident, leavingRoomForSheet: true)
@@ -221,12 +281,17 @@ struct IncidentMapView: View {
             MapFilterBar(filters: $viewModel.filters)
 
             HStack(alignment: .top) {
-                UpdateStatusPill(
-                    lastUpdated: viewModel.lastUpdated,
-                    refreshError: viewModel.refreshError,
-                    isRefreshing: viewModel.isRefreshing,
-                    onRetry: { Task { await viewModel.load() } }
-                )
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    UpdateStatusPill(
+                        lastUpdated: viewModel.lastUpdated,
+                        refreshError: viewModel.refreshError,
+                        isRefreshing: viewModel.isRefreshing,
+                        onRetry: { Task { await viewModel.load() } }
+                    )
+                    LiveDataPill(feed: viewModel.hazardFeed, hasError: viewModel.hazardError != nil) {
+                        openLiveData()
+                    }
+                }
                 Spacer()
                 MapLegend()
             }
@@ -332,7 +397,9 @@ struct IncidentMapView: View {
             .padding(Spacing.l)
 
         case .loaded:
-            if viewModel.incidents.isEmpty {
+            if !viewModel.visibleHazards.isEmpty {
+                EmptyView()   // live data is on the map, so it isn't empty
+            } else if viewModel.incidents.isEmpty {
                 MessageCard(
                     systemImage: "checkmark.shield",
                     title: "No incidents reported",

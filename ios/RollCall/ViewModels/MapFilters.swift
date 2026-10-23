@@ -39,6 +39,8 @@ struct MapFilters: Equatable {
     var types: Set<IncidentType> = Set(IncidentType.allCases)
     var statuses: Set<IncidentStatus> = Set(IncidentStatus.allCases)
     var timeWindow: TimeWindow = .week
+    /// Show live data (official alerts, satellite fires, storm reports) too.
+    var showsLiveData = true
 
     /// True when nothing is filtered out (used to hide the "Clear" chip).
     var isDefault: Bool { self == MapFilters() }
@@ -48,6 +50,12 @@ struct MapFilters: Equatable {
         types.contains(incident.type)
             && statuses.contains(incident.status)
             && now.timeIntervalSince(incident.lastReportAt) <= timeWindow.duration
+    }
+
+    /// Should this live hazard be shown? Live hazards are happening now, so
+    /// only the Type filter (and the live-data switch) applies.
+    func matches(_ hazard: Hazard) -> Bool {
+        showsLiveData && types.contains(hazard.kind.filterType) && statuses.contains(.active)
     }
 
     // MARK: Chip labels

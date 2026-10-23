@@ -83,6 +83,28 @@ The app reads the server address from `ios/RollCall/Config/AppConfig.swift` (`ht
 - **Location:** the simulator starts out in California. Set a North Texas location in the simulator's menu (Features → Location → Custom Location), or run `xcrun simctl location booted set 33.0712,-96.1043` (next to the demo grass fire, so a fire report there merges into it).
 - **Photos and videos:** add some to the simulator's Photos app by dragging files onto the simulator window, or run `xcrun simctl addmedia booted backend/sample_media/grass_fire_crew.jpg backend/sample_media/grass_fire_clip.mp4`. **Take photo or video** only appears on a real iPhone; the simulator has no camera.
 
+## Live hazard data and danger zones
+
+The Map shows real, current hazards next to community reports, refreshed every few minutes:
+
+| Source | What it adds | Key |
+|---|---|---|
+| National Weather Service (api.weather.gov) | Official warnings, watches and advisories, with the exact area each covers | none |
+| NASA FIRMS | Fires seen by the VIIRS satellites in the last 2 days (nearby hot spots joined into one fire) | free key in `backend/.env` |
+| NASA EONET | Named wildfires NASA is tracking (updated in the last week) | none |
+| NOAA Storm Prediction Center | Today's confirmed tornado, wind and hail reports in Texas | none |
+
+Live data is a **diamond** on the map, a community report a **circle**. The color is the kind of hazard: fire red-orange, tornado purple, severe storm amber, flood blue, hurricane magenta, winter storm icy cyan, smoke and air quality gray or brown, injury pink. Tap one for details, its zones and a link to the official source.
+
+Every hazard has up to three zones (`backend/app/hazards/zones.py`): **Immediate danger** (most solid), **Evacuate**, and **Be cautious** (faint, dashed). Outside them is normal.
+- Official alerts keep the area the Weather Service drew, with a level from the alert type: a Tornado Warning is Immediate danger, a Tornado Watch Be cautious.
+- Points get three rings sized by type (a tornado report 1 / 3 / 8 km, a grass fire 0.5 / 1.5 / 3 km, ...), bigger for bigger events. A satellite fire's rings follow the heat it measured, since small hot spots are often controlled burns.
+- Zones are estimates to help people plan, not official evacuation orders, and the app says so.
+
+**Setup:** put your free NASA FIRMS key (from firms.modaps.eosdis.nasa.gov/api/map_key) in `backend/.env` as `FIRMS_MAP_KEY=...`. That file is never committed. Without it, everything else still works.
+
+**Demo:** the **Live** pill on the map opens the sources and a **Start a demo Tornado Warning** button: a realistic warning over Greenville for 45 minutes, labeled Demo everywhere. Use it for the demo video or on a quiet weather day.
+
 ## Sharing one server between Macs
 
 Each Mac normally runs its own server with its own data. To test together (for example, you create an account and your teammate sees your community on their Mac), one Mac shares its server and everyone else connects to it:

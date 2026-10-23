@@ -16,6 +16,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.auth import MIN_PASSWORD_LENGTH
+from app.hazards.models import ZoneOut
 from app.config import MAX_NOTE_LENGTH, MAX_PEOPLE_PER_HOUSEHOLD, MAX_TEXT_LENGTH, MEDICAL_EQUIPMENT
 from app.models import (
     AnalysisStatus,
@@ -119,6 +120,7 @@ class IncidentSummaryOut(BaseModel):
     priority: PriorityOut
     ai: AISummaryOut
     cover_thumbnail_url: Optional[str]  # a preview picture for list rows
+    zones: list[ZoneOut] = []           # danger zones on the map (none once resolved)
 
 
 class IncidentDetailOut(IncidentSummaryOut):

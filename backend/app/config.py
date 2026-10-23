@@ -16,6 +16,25 @@ from pathlib import Path
 # The "backend" folder (this file is backend/app/config.py, so go up two levels).
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
+
+def _load_private_settings() -> None:
+    """
+    Read backend/.env (KEY=value lines) into the environment. It holds private
+    things like the NASA FIRMS key and is never committed (see .gitignore).
+    Real environment variables win over the file.
+    """
+    path = BACKEND_DIR / ".env"
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_private_settings()
+
 # SQLite stores the whole database in a single file.
 DATABASE_PATH = Path(os.environ.get("ROLLCALL_DB_PATH", BACKEND_DIR / "rollcall.db"))
 
@@ -83,3 +102,25 @@ MEDICAL_EQUIPMENT = ["oxygen", "dialysis", "cpap", "ventilator", "power_wheelcha
 
 # Buddy matching: only suggest volunteers this close.
 BUDDY_MAX_DISTANCE_KM = 15
+
+# ---------------------------------------------------------------------------
+# Live hazard data (Map tab)
+# ---------------------------------------------------------------------------
+# Every request to a data source says who we are (the Weather Service asks for this).
+DATA_USER_AGENT = "RollCall/1.0 (Congressional App Challenge student project)"
+
+# Ask the sources again at most this often; in between, the saved copy is used.
+HAZARD_REFRESH_SECONDS = 300
+
+# Texas, as (west, south, east, north). Live hazards outside it are left out.
+HAZARD_AREA = (-106.7, 25.8, -93.5, 36.6)
+HAZARD_STATE = "TX"
+
+# NASA FIRMS satellite fire data needs a free key (in backend/.env). Without
+# it, fires still come from NASA EONET.
+FIRMS_MAP_KEY = os.environ.get("FIRMS_MAP_KEY") or None
+FIRMS_DAYS = 2   # look back this many days (1 to 10)
+
+# NWS forecast-zone shapes never change, so they're saved here after the first download.
+HAZARD_CACHE_DIR = Path(os.environ.get("ROLLCALL_CACHE_DIR", BACKEND_DIR / "cache"))
+HAZARD_CACHE_DIR.mkdir(parents=True, exist_ok=True)

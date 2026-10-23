@@ -53,6 +53,51 @@ final class RollCallUITests: XCTestCase {
         XCTAssertTrue(app.buttons["reportIncidentButton"].isHittable)
     }
 
+    @MainActor
+    func testLiveDataAndTheDemoTornadoWarning() throws {
+        try setDemoWarning(on: true)
+        defer { try? setDemoWarning(on: false) }   // other tests start without it
+        let app = launchApp()
+
+        // The Live sheet says where data comes from and that the demo is on.
+        app.buttons["liveDataPill"].tap()
+        XCTAssertTrue(app.switches["liveDataToggle"].waitForExistence(timeout: 15))
+        app.swipeUp()   // full height, so the Demo section is on screen
+        XCTAssertTrue(app.buttons["End the demo Tornado Warning"].waitForExistence(timeout: 10))
+        app.buttons["Done"].tap()
+
+        // The warning is on the map; tapping it explains it and its zones.
+        let warning = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Demo. Tornado Warning'")).firstMatch
+        XCTAssertTrue(warning.waitForExistence(timeout: 15), "The demo warning isn't on the map")
+        warning.tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'DEMO. A tornado was spotted'")).firstMatch
+            .waitForExistence(timeout: 10), "The Tornado Warning's sheet didn't open")
+        snapshot(app, "demo tornado warning")
+    }
+
+    /// Switch the demo Tornado Warning on or off through the server (as a
+    /// throwaway account), so the test always starts from a known state.
+    private func setDemoWarning(on: Bool) throws {
+        let base = URL(string: "http://localhost:8000")!
+        func call(_ path: String, _ method: String, _ body: [String: String]? = nil, token: String? = nil) throws -> Data {
+            var request = URLRequest(url: base.appending(path: path))
+            request.httpMethod = method
+            if let body {
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            }
+            if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+            let done = XCTestExpectation(description: path)
+            var result: Data?
+            URLSession.shared.dataTask(with: request) { data, _, _ in result = data; done.fulfill() }.resume()
+            _ = XCTWaiter.wait(for: [done], timeout: 30)
+            return try XCTUnwrap(result, "No answer from the backend for \(path)")
+        }
+        let signUp = try call("auth/signup", "POST", ["name": "Test Helper", "email": uniqueEmail(), "password": password])
+        let token = try XCTUnwrap((try JSONSerialization.jsonObject(with: signUp) as? [String: Any])?["token"] as? String)
+        _ = try call("demo/tornado-warning", on ? "POST" : "DELETE", token: token)
+    }
+
     // MARK: - Incidents tab
 
     @MainActor

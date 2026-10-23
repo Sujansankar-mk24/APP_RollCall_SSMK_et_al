@@ -96,6 +96,18 @@ struct APIClient {
         return String(data: data, encoding: .utf8)?.contains("ok") ?? false
     }
 
+    // MARK: - Live hazards (Map tab)
+
+    /// Real alerts, fires and storm reports, with their danger zones.
+    func fetchHazards() async throws(APIError) -> HazardFeed {
+        try await send(request("hazards"))
+    }
+
+    /// Start (or end) the demo Tornado Warning over Greenville.
+    func setDemoWarning(on: Bool) async throws(APIError) {
+        try await sendWithoutAnswer(request("demo/tornado-warning", method: on ? "POST" : "DELETE"))
+    }
+
     // MARK: - Accounts
 
     func signUp(name: String, email: String, password: String) async throws(APIError) -> AuthResponse {

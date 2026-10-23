@@ -185,15 +185,11 @@ struct IncidentSummary: Codable, Identifiable, Hashable {
     let priority: Priority
     let ai: AISummary
     let coverThumbnailUrl: String?
+    /// The three danger zones around it (none once it's resolved).
+    let zones: [HazardZone]
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-    }
-
-    /// Size of the colored zone on the map, in meters. It grows with each
-    /// merged report (400 m for one report, +150 m per extra, up to 1 km).
-    var zoneRadius: CLLocationDistance {
-        min(400 + 150 * Double(max(reportCount - 1, 0)), 1000)
     }
 
     /// Active, high-priority incidents get a gentle pulse on the map.

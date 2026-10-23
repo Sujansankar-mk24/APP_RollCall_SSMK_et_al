@@ -2,8 +2,10 @@
 //  IncidentMarker.swift
 //  RollCall
 //
-//  The round icon drawn at the center of each incident zone.
-//  Color = status, symbol = type. Active high-priority incidents pulse.
+//  The round icon for a community report.
+//  Color and symbol = the kind of incident (tornado purple, fire red-orange,
+//  ...). A small badge shows the status: responders on the way, or resolved
+//  (resolved reports also fade). Active high-priority incidents pulse.
 //  A small spinner shows while the AI is still checking a photo/video.
 //
 
@@ -26,7 +28,7 @@ struct IncidentMarker: View {
             }
 
             Circle()
-                .fill(incident.status.color)
+                .fill(incident.status == .resolved ? Color(.systemGray) : incident.type.color)
                 .overlay(Circle().strokeBorder(.white, lineWidth: 2.5))
                 .shadow(color: .black.opacity(0.25), radius: 3, y: 1.5)
                 .frame(width: diameter, height: diameter)
@@ -35,6 +37,19 @@ struct IncidentMarker: View {
                 .font(.system(size: isSelected ? 19 : 15, weight: .semibold))
                 .foregroundStyle(.white)
         }
+        .overlay(alignment: .bottomTrailing) {
+            if incident.status != .active {
+                // Status badge: an orange "on the way" or a gray check.
+                Image(systemName: incident.status == .responding ? "car.fill" : "checkmark")
+                    .font(.system(size: 8, weight: .heavy))
+                    .foregroundStyle(.white)
+                    .frame(width: 16, height: 16)
+                    .background(incident.status.color, in: Circle())
+                    .overlay(Circle().strokeBorder(.white, lineWidth: 1.5))
+                    .offset(x: 3, y: 3)
+            }
+        }
+        .opacity(incident.status == .resolved ? 0.7 : 1)
         .overlay(alignment: .topTrailing) {
             if incident.ai.analyzing {
                 ProgressView()
@@ -58,7 +73,7 @@ struct IncidentMarker: View {
     /// A ring that grows and fades out, over and over.
     private var pulseRing: some View {
         Circle()
-            .stroke(incident.status.color, lineWidth: 2)
+            .stroke(incident.type.color, lineWidth: 2)
             .frame(width: 34, height: 34)
             .scaleEffect(isPulsing ? 2.1 : 1)
             .opacity(isPulsing ? 0 : 0.7)

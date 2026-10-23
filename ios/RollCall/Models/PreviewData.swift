@@ -33,7 +33,7 @@ enum PreviewData {
             ai: AISummary(verified: score > 20, analyzing: false, fireDetected: type == .fire,
                           smokeDetected: false, peopleCount: 0, peopleDown: 0, peopleNearFire: 0,
                           lowLightUsed: false),
-            coverThumbnailUrl: nil
+            coverThumbnailUrl: nil, zones: []
         )
     }
 }

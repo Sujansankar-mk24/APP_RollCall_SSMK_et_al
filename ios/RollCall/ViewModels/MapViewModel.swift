@@ -4,7 +4,8 @@
 //
 //  The "brain" behind the map screen (the VM in MVVM). The incident data
 //  itself lives in the shared IncidentStore; this adds what is specific to
-//  the map: the filter chips and which incidents pass them.
+//  the map: live hazards (real alerts and fires), the filter chips, and
+//  what passes them.
 //
 //  @Observable means SwiftUI automatically redraws the map whenever one of
 //  these properties changes.
@@ -18,8 +19,16 @@ final class MapViewModel {
     let store: IncidentStore
     var filters = MapFilters()
 
-    init(store: IncidentStore) {
+    /// Live hazards from the National Weather Service, NASA and NOAA.
+    private(set) var hazardFeed: HazardFeed?
+    private(set) var hazardError: APIError?
+    private(set) var isChangingDemo = false
+
+    private let api: APIClient
+
+    init(store: IncidentStore, api: APIClient = .shared) {
         self.store = store
+        self.api = api
     }
 
     // The shared data, passed through so the map view reads it from one place.
@@ -34,9 +43,49 @@ final class MapViewModel {
         store.incidents.filter { filters.matches($0) }
     }
 
-    func load() async { await store.load() }
+    /// Live hazards that pass the filters, least serious first (so the most
+    /// serious are drawn on top).
+    var visibleHazards: [Hazard] {
+        (hazardFeed?.hazards ?? []).filter { filters.matches($0) }.sorted { $0.level.rank < $1.level.rank }
+    }
+
+    var isDemoWarningOn: Bool { hazardFeed?.hazards.contains { $0.isDemo } ?? false }
+
+    func load() async {
+        async let incidents: () = store.load()
+        async let hazards: () = loadHazards()
+        _ = await (incidents, hazards)
+    }
+
     func retry() async { await store.retry() }
-    func keepRefreshing() async { await store.keepRefreshing() }
+
+    /// Refresh incidents and live hazards every so often while the map is on screen.
+    func keepRefreshing() async {
+        async let incidents: () = store.keepRefreshing()
+        while !Task.isCancelled {
+            try? await Task.sleep(for: AppConfig.refreshInterval)
+            guard !Task.isCancelled else { break }
+            await loadHazards()
+        }
+        await incidents
+    }
+
+    func loadHazards() async {
+        do {
+            hazardFeed = try await api.fetchHazards()
+            hazardError = nil
+        } catch {
+            hazardError = error   // keep showing the last good data
+        }
+    }
+
+    /// Start or end the demo Tornado Warning (labeled "Demo" everywhere).
+    func setDemoWarning(on: Bool) async {
+        isChangingDemo = true
+        defer { isChangingDemo = false }
+        try? await api.setDemoWarning(on: on)
+        await loadHazards()
+    }
 
     func waitForAnalysis(incidentID: Int, mediaID: Int) async -> MediaAnalysis? {
         await store.waitForAnalysis(incidentID: incidentID, mediaID: mediaID)

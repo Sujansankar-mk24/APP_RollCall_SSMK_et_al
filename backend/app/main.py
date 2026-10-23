@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import MEDIA_DIR
 from app.database import create_tables
-from app.routers import accounts, buddies, communities, demo, households, incidents, reports
+from app.routers import accounts, buddies, communities, demo, hazards, households, incidents, reports
 
 
 @asynccontextmanager
@@ -30,6 +30,7 @@ app = FastAPI(
 )
 
 # Map and Incidents tabs
+app.include_router(hazards.router)
 app.include_router(incidents.router)
 app.include_router(reports.router)
 # Accounts
