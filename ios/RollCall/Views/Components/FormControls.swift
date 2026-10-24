@@ -186,7 +186,6 @@ struct LabeledField: View {
                 .padding(.horizontal, Spacing.m)
                 .frame(minHeight: 50)
                 .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(Color.ink.opacity(0.25), lineWidth: 1))
                 .accessibilityLabel(label)
                 .accessibilityIdentifier(identifier)
         }

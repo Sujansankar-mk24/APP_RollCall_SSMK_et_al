@@ -25,12 +25,14 @@ def buddy_of(session: Session, household_id: int) -> Optional[BuddyOut]:
         return None
     volunteer = session.get(Volunteer, link.volunteer_id)
     user = session.get(User, volunteer.user_id)
-    return BuddyOut(id=volunteer.id, name=user.name, phone=volunteer.phone, city=volunteer.city)
+    return BuddyOut(id=volunteer.id, user_id=user.id, name=user.name,
+                    phone=volunteer.phone or user.phone, city=volunteer.city)
 
 
 def to_out(session: Session, household: Household) -> HouseholdOut:
     return HouseholdOut(
         id=household.id,
+        owner_id=household.owner_id,
         contact_name=household.contact_name,
         phone=household.phone,
         address=household.address,

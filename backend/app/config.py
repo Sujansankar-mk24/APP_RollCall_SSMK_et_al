@@ -51,10 +51,19 @@ SAMPLE_MEDIA_DIR = BACKEND_DIR / "sample_media"
 # AI model weights.
 MODELS_DIR = BACKEND_DIR / "models"
 PEOPLE_MODEL_PATH = MODELS_DIR / "yolov8n.pt"  # downloaded automatically the first time
-FIRE_MODEL_PATH = MODELS_DIR / "fire.pt"       # optional: drop a fire/smoke YOLO model here
+# The trained fire/smoke model (python -m scripts.download_fire_model). Without
+# it, a simple color-based detector is used instead.
+FIRE_MODEL_PATH = Path(os.environ.get("ROLLCALL_FIRE_MODEL", MODELS_DIR / "fire.pt"))
+
+PROFILES_DIR = MEDIA_DIR / "profiles"    # profile and community pictures, and Weekly Recap photos
+
+# First responders' ID photos are kept OUTSIDE media/, so the server never
+# shares them. Each one is deleted as soon as the application is reviewed.
+PRIVATE_DIR = Path(os.environ.get("ROLLCALL_PRIVATE_DIR", BACKEND_DIR / "private"))
+ID_PHOTOS_DIR = PRIVATE_DIR / "ids"
 
 # Make sure the folders exist before anything tries to save into them.
-for folder in (UPLOADS_DIR, ANNOTATED_DIR, THUMBS_DIR, SAMPLE_MEDIA_DIR, MODELS_DIR):
+for folder in (UPLOADS_DIR, ANNOTATED_DIR, THUMBS_DIR, SAMPLE_MEDIA_DIR, MODELS_DIR, PROFILES_DIR, ID_PHOTOS_DIR):
     folder.mkdir(parents=True, exist_ok=True)
 
 # Incidents are in North Texas, so "night" and times are judged on Central Time.
@@ -105,6 +114,20 @@ MEDICAL_EQUIPMENT = ["oxygen", "dialysis", "cpap", "ventilator", "power_wheelcha
 
 # Buddy matching: only suggest volunteers this close.
 BUDDY_MAX_DISTANCE_KM = 15
+
+# Profiles
+MAX_BIO_LENGTH = 160
+MAX_PHOTO_BYTES = 15 * 1024 * 1024   # 15 MB
+
+# Kinds of hazards nobody can stop (they end when the weather does), so
+# responders can't mark them responding or resolved.
+NATURAL_HAZARD_TYPES = {"tornado", "hurricane", "severe_storm", "heavy_rain", "winter_storm"}
+
+# Why someone can report a first responder.
+RESPONDER_REPORT_REASONS = ["fake", "abuse", "reckless", "other"]
+
+# Weekly Recap: approved photos disappear after this many days unless pinned.
+RECAP_DAYS = 7
 
 # ---------------------------------------------------------------------------
 # Live hazard data (Map tab)

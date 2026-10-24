@@ -16,6 +16,11 @@ PROFILE = {
 }
 
 
+def ADDRESS_OF(profile: dict = PROFILE) -> dict:
+    """The address a volunteer types to ask to check on a household."""
+    return {"address": profile["address"], "city": profile["city"], "zip_code": profile["zip_code"]}
+
+
 def photo(name: str = "photo.jpg") -> dict:
     """A small JPEG to attach to a report (every report needs one)."""
     import cv2
@@ -32,6 +37,15 @@ def sign_up(name: str = "Test Person") -> dict:
                                                  "password": "correct horse"})
     assert response.status_code == 201, response.text
     return {"Authorization": f"Bearer {response.json()['token']}"}
+
+
+def responder(email: str = "chief@example.com") -> dict:
+    """A verified first responder. Returns the headers that act as them."""
+    from scripts.make_responder import make_responder
+
+    make_responder(email, "a long password", "Alex Rivera")
+    token = client.post("/auth/signin", json={"email": email, "password": "a long password"}).json()["token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
 def register(headers: dict, **changes) -> dict:

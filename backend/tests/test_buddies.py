@@ -59,20 +59,15 @@ def test_outsiders_cannot_pick_from_a_community_list():
     assert refused.status_code == 403
 
 
-def test_community_admin_decides_about_outside_buddies():
+def test_people_in_a_community_get_buddies_from_it():
     admin, resident, outsider = sign_up(), sign_up(), sign_up()
-    community_id = community(admin, "Pecan Hollow", resident)
+    community(admin, "Pecan Hollow", resident)
     register(resident)
     volunteer(outsider)
-    # Outside buddies not allowed: the typed address goes nowhere (silently).
+    # Someone outside the community can't become their buddy: the typed
+    # address goes nowhere (silently, so nobody learns who lives there).
     client.post("/buddy/requests/address", json=ADDRESS, headers=outsider)
     assert client.get("/me/buddy-requests", headers=resident).json() == []
-    # The admin allows them; now a typed address reaches the resident.
-    client.patch(f"/communities/{community_id}", json={"allow_outside_buddies": True}, headers=admin)
-    other = sign_up()
-    volunteer(other)
-    client.post("/buddy/requests/address", json=ADDRESS, headers=other)
-    assert len(client.get("/me/buddy-requests", headers=resident).json()) == 1
 
 
 def test_resident_can_end_the_match():

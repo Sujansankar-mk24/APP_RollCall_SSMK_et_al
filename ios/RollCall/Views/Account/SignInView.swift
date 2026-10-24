@@ -127,6 +127,17 @@ struct SignInView: View {
             .accessibilityIdentifier("submitAuth")
 
             if viewModel.mode == .createAccount {
+                Toggle(isOn: Bindable(auth).opensResponderApplication) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Label("I'm a first responder", systemImage: "cross.case.fill").font(.headline)
+                        Text("Firefighters, EMS, police and emergency managers. You'll add your agency and ID next, and a person checks it.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .tint(Color(.systemBlue))
+                .sheetBox(padding: Spacing.l)
+                .accessibilityIdentifier("signUpAsResponder")
                 SheetNote(text: "Your password is stored scrambled, so not even RollCall can read it.", systemImage: "lock.fill")
             }
         }
@@ -228,7 +239,6 @@ private extension View {
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: 54)
             .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(Color.ink.opacity(0.25), lineWidth: 1))
     }
 }
 

@@ -57,8 +57,9 @@ enum MedicalEquipment: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-struct Buddy: Codable, Hashable {
+struct Buddy: Codable, Hashable, Identifiable {
     let id: Int
+    let userId: Int   // to open their profile
     let name: String
     let phone: String
     let city: String
@@ -66,6 +67,7 @@ struct Buddy: Codable, Hashable {
 
 struct Household: Codable, Identifiable, Hashable {
     let id: Int
+    let ownerId: Int   // the resident's account, to open their profile
     let contactName: String
     let phone: String
     let address: String

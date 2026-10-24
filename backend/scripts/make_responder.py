@@ -1,9 +1,10 @@
 """
 Create a responder account (fire department / emergency coordinator).
 
-Anyone can sign up as a resident or volunteer in the app, but responders can
-see households during an emergency, so their accounts are issued here
-instead of through sign-up.
+Responders can mark incidents responding or resolved and will see households
+during an emergency. In the app they apply with their agency, badge number
+and an ID photo, and you approve them with scripts/review_responders.py. This
+script skips that step, for test and demo accounts.
 
 Run from the backend folder:
     python -m scripts.make_responder responder@example.com "a long password" "Alex Rivera"
@@ -17,7 +18,7 @@ from sqlmodel import Session, select
 
 from app.auth import MIN_PASSWORD_LENGTH, hash_password
 from app.database import create_tables, engine
-from app.models import User
+from app.models import ResponderStatus, User
 
 
 def make_responder(email: str, password: str, name: str = "Responder") -> User:
@@ -29,6 +30,10 @@ def make_responder(email: str, password: str, name: str = "Responder") -> User:
         user = session.exec(select(User).where(User.email == email)).first() or User(name=name, email=email, password_hash="")
         user.password_hash = hash_password(password)
         user.is_responder = True
+        user.responder_status = ResponderStatus.approved
+        user.responder_agency = user.responder_agency or "Hunt County Emergency Management"
+        user.responder_role = user.responder_role or "Emergency coordinator"
+        user.responder_city = user.responder_city or "Greenville"
         session.add(user)
         session.commit()
         session.refresh(user)

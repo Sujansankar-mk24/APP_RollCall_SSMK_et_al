@@ -3,7 +3,8 @@
 //  RollCall
 //
 //  Everything on the Community tab: searching neighborhoods, asking to join,
-//  creating one, and (for admins) approving people and changing settings.
+//  creating one, the Weekly Recap, the first responders nearby, and (for
+//  admins) approving people and photos.
 //
 
 import Foundation
@@ -75,12 +76,58 @@ final class CommunityViewModel {
         }
     }
 
-    func setOutsideBuddies(_ allowed: Bool, in community: CommunityDetail) async {
-        do {
-            detail = .loaded(try await api.setOutsideBuddies(communityID: community.id, allowed: allowed))
+    // MARK: - Community picture and Weekly Recap
+
+    /// Set after a photo is sent for the recap, to show a confirmation.
+    var photoSent = false
+
+    func setPhoto(_ jpeg: Data, in community: CommunityDetail) async {
+        await updateDetail { () async throws(APIError) in try await self.api.setCommunityPhoto(communityID: community.id, jpeg: jpeg) }
+    }
+
+    func addRecapPhoto(_ jpeg: Data, caption: String, in community: CommunityDetail) async {
+        if await updateDetail({ () async throws(APIError) in
+            try await self.api.addRecapPhoto(communityID: community.id, jpeg: jpeg, caption: caption.trimmed)
+        }) {
+            photoSent = true
+        }
+    }
+
+    func change(_ photo: RecapPhoto, _ action: APIClient.RecapAction, in community: CommunityDetail) async {
+        await updateDetail { () async throws(APIError) in
+            try await self.api.changeRecapPhoto(communityID: community.id, photoID: photo.id, action)
+        }
+    }
+
+    func remove(_ photo: RecapPhoto, in community: CommunityDetail) async {
+        do throws(APIError) {
+            try await api.deleteRecapPhoto(communityID: community.id, photoID: photo.id)
+            await loadDetail(id: community.id)
         } catch {
             actionError = error
         }
+    }
+
+    @discardableResult
+    private func updateDetail(_ work: () async throws(APIError) -> CommunityDetail) async -> Bool {
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            detail = .loaded(try await work())
+            return true
+        } catch {
+            actionError = error
+            return false
+        }
+    }
+
+    // MARK: - First responders nearby
+
+    private(set) var responders: [Person] = []
+
+    /// Verified first responders in this town (or everywhere, if no town).
+    func loadResponders(city: String?) async {
+        responders = (try? await api.fetchResponders(city: city)) ?? []
     }
 
     @discardableResult

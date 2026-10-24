@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import MEDIA_DIR
 from app.database import create_tables
-from app.routers import accounts, buddies, communities, hazards, households, incidents, reports
+from app.routers import accounts, buddies, communities, hazards, households, incidents, people, reports
 
 
 @asynccontextmanager
@@ -39,6 +39,7 @@ app.include_router(accounts.router)
 app.include_router(households.router)
 app.include_router(buddies.router)
 app.include_router(communities.router)
+app.include_router(people.router)
 
 # Photos, videos and AI-annotated images are served as plain files, e.g.
 # http://localhost:8000/media/annotated/12.jpg

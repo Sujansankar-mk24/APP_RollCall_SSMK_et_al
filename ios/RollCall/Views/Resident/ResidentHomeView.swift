@@ -18,6 +18,9 @@ struct ResidentHomeView: View {
     @State private var viewModel: ResidentHomeViewModel
     @State private var isEditing = false
     @State private var confirmsEndingMatch = false
+    @State private var openPerson: Int?
+    @State private var buddyNeedsHelp: Buddy?
+    @Environment(\.openURL) private var openURL
 
     init(householdID: Int) {
         _viewModel = State(initialValue: ResidentHomeViewModel(householdID: householdID))
@@ -40,6 +43,10 @@ struct ResidentHomeView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(viewModel.actionError?.message ?? "")
+            }
+            .sheet(item: $openPerson) { id in PersonProfileView(personID: id).sheetBrand() }
+            .fullScreenCover(item: $buddyNeedsHelp) { buddy in
+                EmergencyHelpView(name: buddy.name, address: nil, facts: [], emergencyContact: nil).sheetBrand()
             }
             .confirmationDialog("End your buddy match?", isPresented: $confirmsEndingMatch, titleVisibility: .visible) {
                 Button("End match", role: .destructive) { Task { await viewModel.removeBuddy() } }
@@ -182,20 +189,23 @@ struct ResidentHomeView: View {
             SectionLabel("Buddy")
             SheetCard {
             if let buddy = household.buddy {
+                VStack(alignment: .leading, spacing: Spacing.m) {
                 HStack(spacing: Spacing.m) {
-                    Text(initials(buddy.name))
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(Color.paper)
-                        .frame(width: 48, height: 48)
-                        .background(Color.ink, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Your buddy").sheetLabelStyle().foregroundStyle(.secondary)
-                        Text(verbatim: buddy.name).sheetEntryStyle()
-                        Text("Checks on you if you don't answer during an emergency.")
-                            .font(.callout).foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                    Button { openPerson = buddy.userId } label: {
+                        HStack(spacing: Spacing.m) {
+                            Avatar(url: nil, name: buddy.name, size: 48)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Your buddy").sheetLabelStyle().foregroundStyle(.secondary)
+                                Text(verbatim: buddy.name).sheetEntryStyle()
+                                Text("Checks on you if you don't answer during an emergency.")
+                                    .font(.callout).foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens their profile")
                     Spacer(minLength: 0)
                     Menu {
                         Button("End buddy match", systemImage: "person.badge.minus", role: .destructive) {
@@ -207,6 +217,22 @@ struct ResidentHomeView: View {
                             .frame(width: minimumTapSize, height: minimumTapSize)
                     }
                     .accessibilityLabel("Buddy options")
+                }
+                if let digits = PersonProfileView.digits(buddy.phone) {
+                    HStack(spacing: Spacing.s) {
+                        Button { open("tel:\(digits)") } label: { Label("Call", systemImage: "phone.fill") }
+                            .buttonStyle(InkButtonStyle())
+                            .accessibilityIdentifier("callBuddy")
+                        Button { open("sms:\(digits)") } label: { Label("Text", systemImage: "message.fill") }
+                            .buttonStyle(InkButtonStyle(prominent: false))
+                            .accessibilityIdentifier("textBuddy")
+                    }
+                }
+                Button { buddyNeedsHelp = buddy } label: {
+                    Label("My buddy needs help", systemImage: "cross.case.fill")
+                }
+                .buttonStyle(InkButtonStyle(prominent: false, destructive: true))
+                .accessibilityIdentifier("buddyNeedsHelp")
                 }
                 .sheetRow()
                 .accessibilityElement(children: .contain)
@@ -221,6 +247,10 @@ struct ResidentHomeView: View {
             }
             }
         }
+    }
+
+    private func open(_ link: String) {
+        if let url = URL(string: link) { openURL(url) }
     }
 
     private func textRow(title: LocalizedStringKey, subtitle: LocalizedStringKey) -> some View {

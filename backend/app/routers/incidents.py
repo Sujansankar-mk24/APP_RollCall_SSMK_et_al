@@ -3,17 +3,22 @@ Incident endpoints:
 
   GET   /incidents               list incidents (with optional filters)
   GET   /incidents/{id}          one incident with reports, media, AI results and timeline
-  PATCH /incidents/{id}/status   responder marks it responding / resolved
+  PATCH /incidents/{id}/status   a verified first responder marks it responding / resolved
+                                 (not for tornadoes, hurricanes and other weather nobody can stop)
 """
 
 from datetime import timedelta
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.auth import current_user
+from app.config import NATURAL_HAZARD_TYPES
+from app.services.people import is_verified_responder
 from sqlmodel import Session, select
 
 from app.database import get_session
-from app.models import Incident, IncidentStatus, IncidentType, TimelineKind, utc_now
+from app.models import Incident, IncidentStatus, IncidentType, TimelineKind, User, utc_now
 from app.schemas import IncidentDetailOut, IncidentSummaryOut, StatusUpdateIn
 from app.services.incident_views import load_children, to_detail, to_summary
 from app.services.timeline import add_event
@@ -69,8 +74,15 @@ def get_incident(incident_id: int, session: Session = Depends(get_session)):
 
 
 @router.patch("/{incident_id}/status", response_model=IncidentDetailOut)
-def update_status(incident_id: int, update: StatusUpdateIn, session: Session = Depends(get_session)):
+def update_status(incident_id: int, update: StatusUpdateIn, user: User = Depends(current_user),
+                  session: Session = Depends(get_session)):
+    if not is_verified_responder(user):
+        raise HTTPException(status_code=403,
+                            detail="Only verified first responders can mark an incident responding or resolved.")
     incident = get_incident_or_404(session, incident_id)
+    if incident.type.value in NATURAL_HAZARD_TYPES:
+        raise HTTPException(status_code=400,
+                            detail="Nobody can stop this kind of hazard, so it ends on its own when the weather passes.")
     if incident.status != update.status:
         now = utc_now()
         incident.status = update.status
@@ -80,7 +92,8 @@ def update_status(incident_id: int, update: StatusUpdateIn, session: Session = D
         if update.status == IncidentStatus.resolved and incident.resolved_at is None:
             incident.resolved_at = now
         session.add(incident)
-        add_event(session, incident.id, TimelineKind.status_change, STATUS_MESSAGES[update.status], at=now)
+        who = f" ({user.responder_agency})" if user.responder_agency else ""
+        add_event(session, incident.id, TimelineKind.status_change, STATUS_MESSAGES[update.status] + who, at=now)
         session.commit()
         session.refresh(incident)
     return to_detail(session, incident)

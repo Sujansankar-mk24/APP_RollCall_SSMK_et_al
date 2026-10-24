@@ -12,6 +12,8 @@ _test_dir = tempfile.mkdtemp(prefix="rollcall-tests-")
 os.environ["ROLLCALL_DB_PATH"] = os.path.join(_test_dir, "test.db")
 os.environ["ROLLCALL_MEDIA_DIR"] = os.path.join(_test_dir, "media")
 os.environ["ROLLCALL_CACHE_DIR"] = os.path.join(_test_dir, "cache")
+os.environ["ROLLCALL_PRIVATE_DIR"] = os.path.join(_test_dir, "private")
+os.environ["ROLLCALL_FIRE_MODEL"] = os.path.join(_test_dir, "no-model.pt")   # test the simple detector
 os.environ["FIRMS_MAP_KEY"] = ""   # tests never call the real NASA service
 
 import pytest  # noqa: E402

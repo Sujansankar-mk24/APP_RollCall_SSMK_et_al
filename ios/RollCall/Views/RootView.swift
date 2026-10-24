@@ -20,17 +20,21 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AuthStore.self) private var auth
+    /// The intro pages show once, the first time the app is opened.
+    @AppStorage("hasSeenIntro") private var hasSeenIntro = DebugLaunchOptions.skipsIntro
 
     var body: some View {
         Group {
             switch auth.state {
             case .checking:
-                ProgressView()
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .sheetPage()
+                SplashView()
             case .signedOut:
-                SignInView()
+                if hasSeenIntro {
+                    SignInView()
+                } else {
+                    IntroView { withAnimation(.easeInOut) { hasSeenIntro = true } }
+                        .transition(.opacity)
+                }
             case .offline(let error):
                 // There's a saved account, but the server can't be reached.
                 VStack(spacing: Spacing.l) {
@@ -52,6 +56,7 @@ struct RootView: View {
 
 struct MainTabView: View {
     let me: Me
+    @Environment(AuthStore.self) private var auth
     @State private var store = IncidentStore()
     @State private var selection: RootTab = DebugLaunchOptions.startTab
 
@@ -94,6 +99,10 @@ struct MainTabView: View {
         .overlay(alignment: .bottom) {
             SlidingTabBar(selection: $selection, items: tabs)
                 .padding(.bottom, Spacing.xs)
+        }
+        // Signed up as a first responder: the application comes right next.
+        .sheet(isPresented: Bindable(auth).opensResponderApplication) {
+            ResponderApplicationView().sheetBrand()
         }
     }
 

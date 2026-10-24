@@ -33,6 +33,24 @@ enum DebugLaunchOptions {
         #endif
     }
 
+    /// Show the intro pages again, as on a first launch: -RSResetIntro YES
+    static func resetIntroIfRequested() {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "RSResetIntro") {
+            UserDefaults.standard.removeObject(forKey: "hasSeenIntro")
+        }
+        #endif
+    }
+
+    /// Skip the first-launch intro pages (the UI tests do): -RSSkipIntro YES
+    static var skipsIntro: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "RSSkipIntro")
+        #else
+        return false
+        #endif
+    }
+
     /// Turn on "Use my location" as soon as the map loads: -RSTrackLocation YES
     static var tracksLocation: Bool {
         #if DEBUG

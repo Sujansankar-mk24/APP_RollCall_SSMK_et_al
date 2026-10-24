@@ -133,6 +133,27 @@ final class RollCallUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["AI analysis"].waitForExistence(timeout: 10), "The incident's details didn't open")
     }
 
+    // MARK: - First launch
+
+    /// The very first time, three intro pages come before sign-in.
+    @MainActor
+    func testFirstLaunchShowsTheIntroThenSignIn() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-RCSignOut", "YES", "-RSResetIntro", "YES", "-RCServerURL", "http://localhost:8000"]
+        app.launch()
+        let next = app.buttons["introNext"]
+        XCTAssertTrue(next.waitForExistence(timeout: 15), "No intro on first launch")
+        XCTAssertTrue(app.staticTexts["Know who's safe"].exists)
+        snapshot(app, "intro 1")
+        next.tap()
+        XCTAssertTrue(app.staticTexts["See danger near you"].waitForExistence(timeout: 5))
+        next.tap()
+        XCTAssertTrue(app.staticTexts["Neighbors check on neighbors"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Get started"].exists)
+        next.tap()
+        XCTAssertTrue(app.textFields["emailField"].waitForExistence(timeout: 10), "Get started didn't lead to sign-in")
+    }
+
     // MARK: - Settings (the gear)
 
     @MainActor
@@ -303,7 +324,7 @@ final class RollCallUITests: XCTestCase {
         choose.tap()
         // The photo picker is part of iOS. Its pictures are "images" labeled
         // "Photo, <date>". Pick the first one.
-        let photo = app.images.matching(NSPredicate(format: "identifier == 'PXGGridLayout-Info' AND label BEGINSWITH 'Photo,'")).firstMatch
+        let photo = firstPickerPhoto(in: app)
         guard photo.waitForExistence(timeout: 15) else {
             throw XCTSkip("No photos found in the picker. Add one with: xcrun simctl addmedia booted <photo.jpg>")
         }
@@ -580,6 +601,201 @@ final class RollCallUITests: XCTestCase {
         XCTAssertTrue(approve.waitForNonExistence(timeout: 10))
     }
 
+    // MARK: - Profiles and first responders
+
+    @MainActor
+    func testEditingYourBioShowsOnYourProfile() throws {
+        let app = launchSignedIn(try newAccount("Paula Profile"))
+        openSettings("Your profile", in: app)
+        let editBio = app.buttons["edit_bio"]
+        XCTAssertTrue(editBio.waitForExistence(timeout: 10))
+        editBio.tap()
+        type("Nurse. Two dogs. Happy to help.", into: app.textViews["editField"].exists ? app.textViews["editField"] : app.textFields["editField"])
+        app.buttons["saveField"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["successOverlay"].waitForExistence(timeout: 10), "No Saved confirmation")
+        XCTAssertTrue(app.staticTexts["Nurse. Two dogs. Happy to help."].waitForExistence(timeout: 10))
+        // What neighbors see.
+        app.buttons["previewProfile"].tap()
+        let header = app.descendants(matching: .any)["personHeader"]
+        XCTAssertTrue(header.waitForExistence(timeout: 10))
+        XCTAssertTrue(header.label.contains("Nurse. Two dogs."), "Unexpected: \(header.label)")
+        snapshot(app, "profile preview")
+    }
+
+    @MainActor
+    func testSigningUpAsAFirstResponderSendsAnApplication() throws {
+        let app = launch()
+        app.buttons["authMode_1"].tap()
+        let asResponder = app.switches["signUpAsResponder"]
+        scrollTo(asResponder, in: app)
+        asResponder.switches.firstMatch.tap()
+        signUp(app, name: "Jordan Fields", email: uniqueEmail(), alreadyOnCreateAccount: true)
+        // The application opens right after the account is made.
+        let agency = app.textFields["responderAgency"]
+        XCTAssertTrue(agency.waitForExistence(timeout: 20), "The first responder application didn't open")
+        // Return after each field puts the keyboard away, so it never covers the next one.
+        type("Greenville Fire-Rescue\n", into: agency)
+        type("Firefighter\n", into: app.textFields["responderRole"])
+        let badge = app.textFields["responderBadge"]
+        scrollTo(badge, in: app)
+        type("GFR-2231\n", into: badge)
+        let city = app.textFields["responderCity"]
+        scrollTo(city, in: app)
+        type("Greenville\n", into: city)
+        try choosePhoto(from: app.buttons["responderIDPhoto"].firstMatch, in: app)
+        let send = app.buttons["sendResponderApplication"]
+        scrollTo(send, in: app)
+        XCTAssertTrue(send.isEnabled, "Everything was filled in, but Send stayed off")
+        send.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["successOverlay"].waitForExistence(timeout: 15))
+        // Until a person approves it, it's waiting.
+        XCTAssertTrue(app.descendants(matching: .any)["successOverlay"].waitForNonExistence(timeout: 10))
+        openSettings("Your profile", in: app)
+        let pending = app.descendants(matching: .any)["responderPending"]
+        scrollTo(pending, in: app)
+        XCTAssertTrue(pending.exists, "The profile should say the application is waiting")
+    }
+
+    @MainActor
+    func testOnlyVerifiedRespondersSeeTheStatusButtons() throws {
+        reportFire(at: besideGreenvilleFire)
+        // A regular account: a note instead of the buttons.
+        var app = launchApp()
+        openFirstIncident(in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["statusNote"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.buttons["Mark responding"].exists)
+        app.terminate()
+        // A verified first responder can change it.
+        app = launchSignedIn(try responderAccount(), at: besideGreenvilleFire)
+        XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 20))
+        openFirstIncident(in: app)
+        let respond = app.buttons.matching(NSPredicate(format: "label CONTAINS 'responding' OR label CONTAINS 'resolved'")).firstMatch
+        XCTAssertTrue(respond.waitForExistence(timeout: 15), "The responder should see the status buttons")
+    }
+
+    @MainActor
+    func testCommunityShowsWhoNeedsABuddyAndResponders() throws {
+        let admin = try newAccount("Ada Admin")
+        let member = try newAccount("Rosa Tester")
+        let communityID = try community(admin: admin, with: member)
+        _ = try registerHousehold(for: member)   // asks for a buddy
+        let app = launchSignedIn(admin, tab: "community")
+        let needing = app.descendants(matching: .any)["membersWithoutBuddy"]
+        scrollTo(needing, in: app)
+        XCTAssertTrue(needing.waitForExistence(timeout: 15), "No 'No buddy yet' group")
+        snapshot(app, "community members")
+        // Tap a member to see their profile, with their address (same community).
+        let row = app.descendants(matching: .any).matching(NSPredicate(format: "identifier == 'member_\(member.id)'")).firstMatch
+        scrollTo(row, in: app)
+        row.tap()
+        let header = app.descendants(matching: .any)["personHeader"]
+        XCTAssertTrue(header.waitForExistence(timeout: 10))
+        XCTAssertTrue(header.label.contains("Looking for a buddy"), "Unexpected: \(header.label)")
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Test Lane'")).firstMatch.exists,
+                      "Neighbors should see the address")
+        app.buttons["closePerson"].tap()
+        _ = communityID
+        // First responders nearby, and reporting one.
+        guard (try? responderAccount()) != nil else { return }
+        let responder = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'responder_'")).firstMatch
+        scrollTo(responder, in: app)
+        XCTAssertTrue(responder.waitForExistence(timeout: 10), "No first responders listed")
+        responder.tap()
+        let report = app.buttons["reportResponder"]
+        scrollTo(report, in: app)
+        report.tap()
+        app.buttons["sendResponderReport"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["successOverlay"].waitForExistence(timeout: 10))
+    }
+
+    @MainActor
+    func testAdminsWeeklyRecapPhotoShowsRightAway() throws {
+        let admin = try newAccount("Ada Admin")
+        let member = try newAccount("Mo Member")
+        _ = try community(admin: admin, with: member)
+        let app = launchSignedIn(admin, tab: "community")
+        XCTAssertTrue(app.descendants(matching: .any)["weeklyRecapEmpty"].waitForExistence(timeout: 15))
+        try choosePhoto(from: app.buttons["addRecapPhoto"].firstMatch, in: app)
+        type("Block party on Oak St\n", into: app.textFields["recapCaption"])
+        app.buttons["sendRecapPhoto"].tap()
+        // The admin's own photos don't need approving.
+        XCTAssertTrue(app.descendants(matching: .any)["weeklyRecap"].waitForExistence(timeout: 20), "The photo isn't in the recap")
+        snapshot(app, "weekly recap")
+    }
+
+    @MainActor
+    func testBuddyCanCallTextAndGetHelp() throws {
+        let resident = try newAccount("Rosa Tester")
+        let address = try registerHousehold(for: resident)
+        let volunteer = try newAccount("Victor Volunteer")
+        server("me/volunteer", "PUT", ["city": "Greenville"], token: volunteer.token)
+        server("buddy/requests/address", "POST", address, token: volunteer.token)
+        let requests = serverList("me/buddy-requests", token: resident.token)
+        let requestID = try XCTUnwrap(requests.first?["id"] as? Int)
+        server("me/buddy-requests/\(requestID)/accept", "POST", token: resident.token)
+
+        let app = launchSignedIn(volunteer, tab: "rollCall")
+        app.buttons["section_buddy"].tap()
+        XCTAssertTrue(app.buttons["callResident"].waitForExistence(timeout: 15), "No Call button for the buddy")
+        XCTAssertTrue(app.buttons["textResident"].exists)
+        snapshot(app, "buddy actions")
+        let help = app.buttons["theyNeedHelp"]
+        scrollTo(help, in: app)
+        help.tap()
+        XCTAssertTrue(app.buttons["call911"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'over 65'")).firstMatch.exists,
+                      "The dispatcher info should say who lives there")
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'Test Lane'")).firstMatch.exists)
+        snapshot(app, "they need help")
+    }
+
+    /// Tap a photo button (camera or library), choose the library, and pick
+    /// the first photo.
+    @MainActor
+    private func choosePhoto(from button: XCUIElement, in app: XCUIApplication) throws {
+        scrollTo(button, in: app)
+        button.tap()
+        let library = app.buttons["Choose from library"]
+        XCTAssertTrue(library.waitForExistence(timeout: 5), "No photo menu")
+        library.tap()
+        let photo = firstPickerPhoto(in: app)
+        if photo.waitForExistence(timeout: 8) {
+            photo.tap()
+        } else {
+            // Opened from inside another sheet, the picker's photos can be
+            // hidden from tests. Tap where the first one sits instead.
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.17, dy: 0.42)).tap()
+        }
+    }
+
+    /// The first photo in iOS's photo picker. Its pictures are images
+    /// labeled "Photo, <date>" (a first-time banner can change the rest).
+    @MainActor
+    private func firstPickerPhoto(in app: XCUIApplication) -> XCUIElement {
+        let photos = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Photo,'"))
+        let grid = photos.matching(NSPredicate(format: "identifier == 'PXGGridLayout-Info'")).firstMatch
+        return grid.waitForExistence(timeout: 4) ? grid : photos.firstMatch
+    }
+
+    @MainActor
+    private func openFirstIncident(in app: XCUIApplication) {
+        app.buttons["incidentsButton"].tap()
+        let row = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'incidentRow_'")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+    }
+
+    /// A community run by `admin`, with `member` already let in.
+    private func community(admin: Account, with member: Account) throws -> Int {
+        let community = server("communities", "POST",
+                               ["name": "Test Hollow \(Int.random(in: 100_000...999_999))", "city": "Greenville"],
+                               token: admin.token)
+        let id = try XCTUnwrap(community["id"] as? Int, "Couldn't create the test community")
+        server("communities/\(id)/join", "POST", token: member.token)
+        server("communities/\(id)/requests/\(member.id)/approve", "POST", token: admin.token)
+        return id
+    }
+
     // MARK: - Screenshot tour
 
     /// Opens every main screen in light and dark mode and keeps a picture of
@@ -690,7 +906,7 @@ final class RollCallUITests: XCTestCase {
     private func launch(tab: String? = nil, arguments: [String] = []) -> XCUIApplication {
         XCUIDevice.shared.location = XCUILocation(location: greenville)
         let app = XCUIApplication()
-        app.launchArguments = ["-RCSignOut", "YES", "-RCServerURL", "http://localhost:8000"]
+        app.launchArguments = ["-RCSignOut", "YES", "-RSSkipIntro", "YES", "-RCServerURL", "http://localhost:8000"]
             + (tab.map { ["-RSTab", $0] } ?? []) + arguments
         app.launch()
         if !app.textFields["emailField"].waitForExistence(timeout: 20) {
@@ -705,7 +921,7 @@ final class RollCallUITests: XCTestCase {
                                 at location: CLLocation? = nil) -> XCUIApplication {
         XCUIDevice.shared.location = XCUILocation(location: location ?? greenville)
         let app = XCUIApplication()
-        app.launchArguments = ["-RCSignOut", "YES", "-RCToken", account.token, "-RCServerURL", "http://localhost:8000"]
+        app.launchArguments = ["-RCSignOut", "YES", "-RSSkipIntro", "YES", "-RCToken", account.token, "-RCServerURL", "http://localhost:8000"]
             + (tab.map { ["-RSTab", $0] } ?? []) + arguments
         app.launch()
         if !app.descendants(matching: .any)["mainTabBar"].waitForExistence(timeout: 20) {
@@ -731,9 +947,16 @@ final class RollCallUITests: XCTestCase {
 
     // MARK: - Setting things up through the server (like the app does)
 
+    /// Holds a server answer while the test waits for it. (The test reads
+    /// it only after the request has finished.)
+    final class Answer: @unchecked Sendable {
+        var data: Data?
+    }
+
     struct Account {
         let email: String
         let token: String
+        var id: Int = 0
     }
 
     /// Send a request to the backend and return its JSON answer.
@@ -748,21 +971,23 @@ final class RollCallUITests: XCTestCase {
         }
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         let done = XCTestExpectation(description: path)
-        var answer: Data?
-        URLSession.shared.dataTask(with: request) { data, _, _ in answer = data; done.fulfill() }.resume()
+        let answer = Answer()
+        URLSession.shared.dataTask(with: request) { data, _, _ in answer.data = data; done.fulfill() }.resume()
         _ = XCTWaiter.wait(for: [done], timeout: 30)
-        return answer.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+        return answer.data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
     }
 
     /// A backend list, like GET /incidents.
-    private func serverList(_ path: String) -> [[String: Any]] {
+    private func serverList(_ path: String, token: String? = nil) -> [[String: Any]] {
         let done = XCTestExpectation(description: path)
-        var answer: Data?
-        URLSession.shared.dataTask(with: URL(string: "http://localhost:8000")!.appending(path: path)) { data, _, _ in
-            answer = data; done.fulfill()
+        let answer = Answer()
+        var request = URLRequest(url: URL(string: "http://localhost:8000")!.appending(path: path))
+        if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            answer.data = data; done.fulfill()
         }.resume()
         _ = XCTWaiter.wait(for: [done], timeout: 30)
-        return answer.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [[String: Any]] } ?? []
+        return answer.data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [[String: Any]] } ?? []
     }
 
     /// Send a fire report through the backend, like the app's report form
@@ -796,7 +1021,8 @@ final class RollCallUITests: XCTestCase {
         let email = uniqueEmail()
         let answer = server("auth/signup", "POST", ["name": name, "email": email, "password": password])
         let token = try XCTUnwrap(answer["token"] as? String, "Couldn't sign up through the backend. Is it running?")
-        return Account(email: email, token: token)
+        let id = (answer["me"] as? [String: Any])?["id"] as? Int ?? 0
+        return Account(email: email, token: token, id: id)
     }
 
     /// Join the roll call with a made-up address near Greenville. Returns the
@@ -804,7 +1030,8 @@ final class RollCallUITests: XCTestCase {
     private func registerHousehold(for account: Account) throws -> [String: Any] {
         let street = "\(Int.random(in: 1_000...9_999)) Test Lane"
         let household = server("households", "POST", [
-            "contact_name": "Rosa Tester", "address": street, "city": "Greenville", "zip_code": "75401",
+            "contact_name": "Rosa Tester", "phone": "(903) 555-0142",
+            "address": street, "city": "Greenville", "zip_code": "75401",
             "latitude": 33.14, "longitude": -96.11, "seniors": 1, "wants_buddy": true,
         ], token: account.token)
         XCTAssertNotNil(household["id"], "Couldn't register the test household")
@@ -866,8 +1093,8 @@ final class RollCallUITests: XCTestCase {
     }
 
     @MainActor
-    private func signUp(_ app: XCUIApplication, name: String, email: String) {
-        app.buttons["authMode_1"].tap()   // the "Create account" tab
+    private func signUp(_ app: XCUIApplication, name: String, email: String, alreadyOnCreateAccount: Bool = false) {
+        if !alreadyOnCreateAccount { app.buttons["authMode_1"].tap() }   // the "Create account" tab
         type(name, into: app.textFields["signUpName"])
         type(email, into: app.textFields["emailField"])
         let secret = app.secureTextFields["passwordField"]

@@ -14,6 +14,10 @@ struct RollCallApp: App {
     /// The display choice (Match iPhone / Light / Night mode), saved on the device.
     @AppStorage(AppearanceMode.storageKey) private var appearance: AppearanceMode = .system
 
+    init() {
+        DebugLaunchOptions.resetIntroIfRequested()   // debug builds only (UI tests)
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

@@ -26,6 +26,15 @@ enum IncidentType: String, Codable, CaseIterable, Identifiable {
 
     var id: Self { self }
 
+    /// Weather nobody can stop. It ends when the weather passes, so nobody
+    /// marks it "responding" or "resolved".
+    var isNatural: Bool {
+        switch self {
+        case .tornado, .hurricane, .severeStorm, .heavyRain, .winterStorm: true
+        default: false
+        }
+    }
+
     /// Name shown in the app.
     var title: String {
         switch self {

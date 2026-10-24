@@ -23,6 +23,9 @@ final class AuthStore {
     }
 
     private(set) var state: State = .checking
+    /// Set when someone signs up as a first responder, so the app opens the
+    /// application form right after the account is made.
+    var opensResponderApplication = false
     /// The server this app talks to (see ServerSettings).
     private(set) var serverURL = ServerSettings.url
     private let api: APIClient
@@ -112,5 +115,23 @@ final class AuthStore {
 
     func setVolunteer(_ on: Bool, city: String = "") async throws(APIError) {
         state = .signedIn(on ? try await api.becomeVolunteer(city: city) : try await api.stopVolunteering())
+    }
+
+    // MARK: - Profile
+
+    func updateProfile(_ change: APIClient.ProfileChange) async throws(APIError) {
+        state = .signedIn(try await api.updateProfile(change))
+    }
+
+    func setProfilePhoto(_ jpeg: Data?) async throws(APIError) {
+        if let jpeg {
+            state = .signedIn(try await api.setProfilePhoto(jpeg: jpeg))
+        } else {
+            state = .signedIn(try await api.removeProfilePhoto())
+        }
+    }
+
+    func applyAsResponder(_ application: APIClient.ResponderApplication, idPhoto: Data) async throws(APIError) {
+        state = .signedIn(try await api.applyAsResponder(application, idPhoto: idPhoto))
     }
 }

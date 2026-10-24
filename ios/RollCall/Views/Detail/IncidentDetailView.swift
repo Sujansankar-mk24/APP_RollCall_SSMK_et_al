@@ -16,6 +16,7 @@ import SwiftUI
 struct IncidentDetailView: View {
     @State private var viewModel: IncidentDetailViewModel
     @State private var openMedia: MediaItem?
+    @Environment(AuthStore.self) private var auth
 
     /// Tells the map to refresh after a responder changes the status.
     let onStatusChanged: () -> Void
@@ -23,6 +24,19 @@ struct IncidentDetailView: View {
     init(summary: IncidentSummary, onStatusChanged: @escaping () -> Void) {
         _viewModel = State(initialValue: IncidentDetailViewModel(summary: summary))
         self.onStatusChanged = onStatusChanged
+    }
+
+    /// Shown at the bottom instead of the responder buttons.
+    private func statusNote(_ text: LocalizedStringKey, systemImage: String) -> some View {
+        Label(text, systemImage: systemImage)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
+            .background(Color(.systemBackground))
+            .overlay(alignment: .top) { Divider() }
+            .accessibilityIdentifier("statusNote")
     }
 
     var body: some View {
@@ -38,10 +52,19 @@ struct IncidentDetailView: View {
         .background(Color(.systemGroupedBackground))
         .safeAreaInset(edge: .bottom) {
             if viewModel.detail != nil {
-                ResponderActionBar(summary: viewModel.summary, isWorking: viewModel.isUpdatingStatus) { status in
-                    Task {
-                        if await viewModel.setStatus(status) { onStatusChanged() }
+                if viewModel.summary.type.isNatural {
+                    statusNote("Nobody can stop a \(viewModel.summary.type.title.lowercased()). It ends when the weather passes, so there's nothing to resolve.",
+                               systemImage: "cloud.bolt.fill")
+                } else if auth.me?.isResponder == true {
+                    // Only verified first responders can change an incident.
+                    ResponderActionBar(summary: viewModel.summary, isWorking: viewModel.isUpdatingStatus) { status in
+                        Task {
+                            if await viewModel.setStatus(status) { onStatusChanged() }
+                        }
                     }
+                } else {
+                    statusNote("Only verified first responders can mark this responding or resolved.",
+                               systemImage: "checkmark.seal")
                 }
             }
         }

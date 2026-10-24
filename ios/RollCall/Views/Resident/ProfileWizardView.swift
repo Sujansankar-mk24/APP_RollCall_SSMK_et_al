@@ -231,7 +231,6 @@ struct ProfileWizardView: View {
                     .lineLimit(2...5)
                     .padding(Spacing.m)
                     .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(Color.ink.opacity(0.25), lineWidth: 1))
             }
         }
     }

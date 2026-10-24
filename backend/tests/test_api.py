@@ -5,7 +5,7 @@ import numpy as np
 from fastapi.testclient import TestClient
 
 from app.main import app
-from tests.helpers import photo
+from tests.helpers import photo, responder, sign_up
 
 client = TestClient(app)
 GREENVILLE = {"latitude": 33.0705, "longitude": -96.1050}
@@ -65,10 +65,26 @@ def test_detail_has_reports_timeline_and_priority_breakdown():
 
 def test_status_update_records_time_and_timeline():
     incident_id = report().json()["incident_id"]
-    detail = client.patch(f"/incidents/{incident_id}/status", json={"status": "responding"}).json()
+    detail = client.patch(f"/incidents/{incident_id}/status", json={"status": "responding"},
+                          headers=responder()).json()
     assert detail["status"] == "responding"
     assert detail["responding_at"] is not None
     assert detail["timeline"][-1]["kind"] == "status_change"
+    assert "Hunt County Emergency Management" in detail["timeline"][-1]["message"]
+
+
+def test_only_verified_responders_change_an_incidents_status():
+    incident_id = report().json()["incident_id"]
+    change = {"status": "resolved"}
+    assert client.patch(f"/incidents/{incident_id}/status", json=change).status_code == 401
+    assert client.patch(f"/incidents/{incident_id}/status", json=change, headers=sign_up()).status_code == 403
+
+
+def test_nobody_can_resolve_a_tornado():
+    incident_id = report(type="tornado", description="Funnel cloud to the west").json()["incident_id"]
+    refused = client.patch(f"/incidents/{incident_id}/status", json={"status": "resolved"}, headers=responder())
+    assert refused.status_code == 400
+    assert "Nobody can stop" in refused.json()["detail"]
 
 
 def test_missing_incident_returns_404():

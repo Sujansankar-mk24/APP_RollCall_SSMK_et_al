@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from app.models import Community, Household, User
 from app.privacy import membership, volunteer_of
 from app.schemas import MeOut, MyCommunityOut
+from app.services.incident_views import media_url
 
 
 def household_of(session: Session, user: User):
@@ -29,4 +30,12 @@ def me_out(session: Session, user: User) -> MeOut:
         community=MyCommunityOut(id=community.id, name=community.name, city=community.city,
                                  status=m.status, is_admin=m.is_admin) if community else None,
         is_demo=user.is_demo,
+        bio=user.bio,
+        photo_url=media_url(user.photo_path),
+        phone=user.phone,
+        away_from_home=user.away_from_home,
+        responder_status=user.responder_status,
+        responder_agency=user.responder_agency,
+        responder_role=user.responder_role,
+        responder_city=user.responder_city,
     )

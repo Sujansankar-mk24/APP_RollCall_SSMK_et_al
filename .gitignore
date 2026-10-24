@@ -11,6 +11,8 @@ __pycache__/
 # Backend runtime data (recreated by `python -m scripts.reset_demo`)
 backend/rollcall.db
 backend/media/
+# First responders' ID photos (never shared, deleted after review)
+backend/private/
 
 # Downloaded files (recreated by `python -m scripts.download_samples`)
 backend/sample_media/*

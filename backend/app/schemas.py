@@ -17,7 +17,8 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.auth import MIN_PASSWORD_LENGTH
 from app.hazards.models import ZoneOut
-from app.config import MAX_NOTE_LENGTH, MAX_PEOPLE_PER_HOUSEHOLD, MAX_TEXT_LENGTH, MEDICAL_EQUIPMENT
+from app.config import (MAX_BIO_LENGTH, MAX_NOTE_LENGTH, MAX_PEOPLE_PER_HOUSEHOLD, MAX_TEXT_LENGTH, MEDICAL_EQUIPMENT,
+                        RESPONDER_REPORT_REASONS)
 from app.models import (
     AnalysisStatus,
     BuddyStatus,
@@ -26,6 +27,8 @@ from app.models import (
     Language,
     MediaKind,
     MemberStatus,
+    PhotoStatus,
+    ResponderStatus,
     TimelineKind,
 )
 
@@ -198,6 +201,16 @@ class MeOut(BaseModel):
     is_volunteer: bool              # agreed to check on neighbors
     community: Optional[MyCommunityOut]
     is_demo: bool
+    # Profile
+    bio: str
+    photo_url: Optional[str]
+    phone: str
+    away_from_home: bool
+    # First responder application: none, pending, approved or rejected
+    responder_status: ResponderStatus
+    responder_agency: str
+    responder_role: str
+    responder_city: str
 
 
 class AuthOut(BaseModel):
@@ -207,6 +220,58 @@ class AuthOut(BaseModel):
 
 class MePatch(BaseModel):
     roll_call_opt_out: bool
+
+
+class ProfilePatch(BaseModel):
+    """Change any of these (fields left out stay the same)."""
+
+    name: Optional[str] = Field(default=None, min_length=1, max_length=MAX_TEXT_LENGTH)
+    bio: Optional[str] = Field(default=None, max_length=MAX_BIO_LENGTH)
+    phone: Optional[str] = Field(default=None, max_length=MAX_TEXT_LENGTH)
+    away_from_home: Optional[bool] = None
+
+
+class ResponderInfoOut(BaseModel):
+    agency: str
+    role: str
+    city: str
+
+
+class PersonOut(BaseModel):
+    """
+    Someone's profile, as another person sees it. What's included depends on
+    who's looking (see app/routers/people.py): the address only for people in
+    the same community, the phone only for their buddy.
+    """
+
+    id: int
+    name: str
+    photo_url: Optional[str]
+    bio: str
+    member_since: datetime
+    community_id: Optional[int]
+    community_name: Optional[str]
+    is_community_admin: bool
+    away_from_home: bool
+    is_volunteer: bool
+    wants_buddy: bool         # joined the roll call and asked for a buddy
+    has_buddy: bool
+    is_my_buddy: bool         # you check on them, or they check on you
+    responder: Optional[ResponderInfoOut]   # only for verified first responders
+    address: Optional[str]    # only shown to people in the same community
+    phone: Optional[str]      # only shown to their buddy
+
+
+class ResponderReportIn(BaseModel):
+    reason: str
+    details: str = Field(default="", max_length=MAX_NOTE_LENGTH)
+
+    @field_validator("reason")
+    @classmethod
+    def known_reason(cls, value: str) -> str:
+        if value not in RESPONDER_REPORT_REASONS:
+            raise ValueError(f"reason must be one of {RESPONDER_REPORT_REASONS}")
+        return value
 
 
 class VolunteerIn(BaseModel):
@@ -266,6 +331,7 @@ class BuddyOut(BaseModel):
     """What a resident sees about their volunteer buddy."""
 
     id: int
+    user_id: int              # to open their profile
     name: str
     phone: str
     city: str
@@ -275,6 +341,7 @@ class HouseholdOut(BaseModel):
     """A household as shown to someone allowed to see it."""
 
     id: int
+    owner_id: int             # the resident's account, to open their profile
     contact_name: str
     phone: str
     address: str
@@ -365,6 +432,7 @@ class CommunityOut(BaseModel):
     id: int
     name: str
     city: str
+    photo_url: Optional[str]
     member_count: int
     my_status: Optional[MemberStatus]   # None if the viewer hasn't asked to join
     is_admin: bool
@@ -375,13 +443,32 @@ class MemberOut(BaseModel):
     name: str
     is_admin: bool
     since: datetime
+    photo_url: Optional[str]
+    away_from_home: bool
+    has_buddy: bool           # someone checks on them (or they check on someone)
+    is_volunteer: bool
+    wants_buddy: bool         # asked for a buddy and doesn't have one yet
+
+
+class RecapPhotoOut(BaseModel):
+    """One photo in a community's Weekly Recap."""
+
+    id: int
+    url: str
+    caption: str
+    uploader_name: str
+    status: PhotoStatus
+    pinned: bool
+    created_at: datetime
+    expires_at: Optional[datetime]   # None when pinned
 
 
 class CommunityDetailOut(CommunityOut):
-    allow_outside_buddies: bool
     members: list[MemberOut]            # only shown to members
     join_requests: list[MemberOut]      # only shown to admins
+    recap: list[RecapPhotoOut]          # approved photos: anyone can see them
+    pending_photos: list[RecapPhotoOut] # only shown to admins
 
 
 class CommunityPatch(BaseModel):
-    allow_outside_buddies: bool
+    name: Optional[str] = Field(default=None, min_length=2, max_length=MAX_TEXT_LENGTH)

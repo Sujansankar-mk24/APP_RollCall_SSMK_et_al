@@ -232,8 +232,83 @@ struct APIClient {
         try await send(request("communities/\(communityID)/requests/\(userID)/\(approve ? "approve" : "decline")", method: "POST"))
     }
 
-    func setOutsideBuddies(communityID: Int, allowed: Bool) async throws(APIError) -> CommunityDetail {
-        try await send(request("communities/\(communityID)", method: "PATCH", body: ["allow_outside_buddies": allowed]))
+    /// The admin sets the community's picture.
+    func setCommunityPhoto(communityID: Int, jpeg: Data) async throws(APIError) -> CommunityDetail {
+        try await send(upload("communities/\(communityID)/photo", method: "PUT", jpeg: jpeg))
+    }
+
+    // MARK: - Weekly Recap
+
+    /// A member adds a photo. It shows in the recap once the admin approves it.
+    func addRecapPhoto(communityID: Int, jpeg: Data, caption: String) async throws(APIError) -> CommunityDetail {
+        try await send(upload("communities/\(communityID)/recap", method: "POST", jpeg: jpeg, fields: ["caption": caption]))
+    }
+
+    enum RecapAction: String { case approve, reject, pin, unpin }
+
+    /// The admin approves, rejects, pins or unpins a photo.
+    func changeRecapPhoto(communityID: Int, photoID: Int, _ action: RecapAction) async throws(APIError) -> CommunityDetail {
+        try await send(request("communities/\(communityID)/recap/\(photoID)/\(action.rawValue)", method: "POST"))
+    }
+
+    func deleteRecapPhoto(communityID: Int, photoID: Int) async throws(APIError) {
+        try await sendWithoutAnswer(request("communities/\(communityID)/recap/\(photoID)", method: "DELETE"))
+    }
+
+    // MARK: - Profiles
+
+    struct ProfileChange: Encodable {
+        var name: String?
+        var bio: String?
+        var phone: String?
+        var awayFromHome: Bool?
+    }
+
+    func updateProfile(_ change: ProfileChange) async throws(APIError) -> Me {
+        try await send(request("me/profile", method: "PATCH", body: change))
+    }
+
+    func setProfilePhoto(jpeg: Data) async throws(APIError) -> Me {
+        try await send(upload("me/photo", method: "PUT", jpeg: jpeg))
+    }
+
+    func removeProfilePhoto() async throws(APIError) -> Me {
+        try await send(request("me/photo", method: "DELETE"))
+    }
+
+    /// Someone's profile (only people you're allowed to see).
+    func fetchPerson(id: Int) async throws(APIError) -> Person {
+        try await send(request("people/\(id)"))
+    }
+
+    // MARK: - First responders
+
+    struct ResponderApplication {
+        var agency = ""
+        var role = ""
+        var badgeNumber = ""
+        var city = ""
+    }
+
+    /// Apply as a first responder, with a photo of your ID. A person reviews it.
+    func applyAsResponder(_ application: ResponderApplication, idPhoto jpeg: Data) async throws(APIError) -> Me {
+        try await send(upload("me/responder-application", method: "POST", jpeg: jpeg, fileField: "id_photo",
+                              fields: ["agency": application.agency, "role": application.role,
+                                       "badge_number": application.badgeNumber, "city": application.city]))
+    }
+
+    /// Verified first responders, in one area or all of them.
+    func fetchResponders(city: String? = nil) async throws(APIError) -> [Person] {
+        var request = request("responders")
+        if let city, !city.isEmpty {
+            request.url = request.url?.appending(queryItems: [URLQueryItem(name: "city", value: city)])
+        }
+        return try await send(request)
+    }
+
+    func reportResponder(id: Int, reason: ResponderReportReason, details: String) async throws(APIError) {
+        try await sendWithoutAnswer(request("responders/\(id)/report", method: "POST",
+                                            body: ["reason": reason.rawValue, "details": details]))
     }
 
     // MARK: - Plumbing
@@ -243,6 +318,19 @@ struct APIClient {
 
     /// Posted when the server says the saved sign-in is no longer valid.
     static let signedOutNotification = Notification.Name("RollCallSignedOut")
+
+    /// A request that uploads one JPEG (and maybe some text fields) as a form.
+    private func upload(_ path: String, method: String, jpeg: Data, fileField: String = "file",
+                        fields: [String: String] = [:]) -> URLRequest {
+        var form = MultipartForm()
+        for (name, value) in fields { form.addField(name, value) }
+        form.addFile(fileField, fileName: "photo.jpg", mimeType: "image/jpeg", data: jpeg)
+        var request = request(path, method: method)
+        request.setValue(form.contentType, forHTTPHeaderField: "Content-Type")
+        request.httpBody = form.finished()
+        request.timeoutInterval = 60
+        return request
+    }
 
     private func request(_ path: String, method: String = "GET", body: (some Encodable)? = Optional<Int>.none) -> URLRequest {
         var request = URLRequest(url: baseURL.appending(path: path))

@@ -2,22 +2,23 @@
 //  Sheet.swift
 //  RollCall
 //
-//  The "roll-call sheet" look used everywhere except the Map: like the
-//  printed sign-in sheet a teacher or a fire captain fills in.
+//  RollCall's look everywhere except the Map, inspired by apps like
+//  Phantom and WHOOP: calm, bold and simple.
 //
-//    Printed and written  everything the app says is printed in the system
-//                         font. What a person wrote in (a name, an address,
-//                         a neighborhood) is in handwriting, like a name
-//                         written on the line of a real roll call.
-//    Paper cards          related things sit together on a card of lighter
-//                         paper with a thin border. No lines across the page.
-//    Stamps               the only color: status labels stamped like a rubber
-//                         stamp (green SAFE, red NEEDS HELP, amber NO ANSWER)
-//    Easy to read         nothing smaller than 15 pt, and every size follows
-//                         the user's text size setting
+//    Dark first      a near-black page in dark mode (a soft gray one in
+//                    light mode) with rounded cards on top
+//                    (Assets > Paper, PaperRaised, Ink)
+//    Big, bold type  large titles, and small uppercase labels with wide
+//                    letter spacing for sections ("YOUR HOUSEHOLD")
+//    Pill buttons    full-width capsules. The main one is filled with the
+//                    text color (black in light mode, white in dark mode)
+//    Grouped rows    related rows share one rounded card, split by thin lines
+//    Badges          the only color: small tinted labels for status
+//                    (green SAFE, red NEEDS HELP, amber WAITING, ...)
 //
-//  Screens call .sheetPage() once. Every component below then draws itself
-//  in ink on paper.
+//  Screens call .sheetPage() once. Every piece below then draws itself in
+//  the right colors. (The names, like "sheet" and "ink", come from the
+//  app's earlier paper look. They're kept so every screen still uses them.)
 //
 
 import SwiftUI
@@ -25,20 +26,20 @@ import SwiftUI
 // MARK: - Page
 
 extension View {
-    /// Ink-colored buttons and controls (without the paper background).
+    /// Ink-colored buttons and controls (without the page background).
     func sheetBrand() -> some View {
         environment(\.brand, .ink).tint(.ink)
     }
 
-    /// Paper background, ink-colored buttons and controls, for a whole screen.
+    /// Page background, ink-colored buttons and controls, for a whole screen.
     func sheetPage() -> some View {
         self
             .background(Color.paper.ignoresSafeArea())
             .environment(\.brand, .ink)
             .tint(.ink)
             .toolbarBackground(Color.paper, for: .navigationBar)
-            // When this page is shown as a sheet, give it solid paper instead
-            // of the system's see-through glass (ignored everywhere else).
+            // When this page is shown as a sheet, give it a solid background
+            // instead of the system's see-through glass (ignored elsewhere).
             .presentationBackground(Color.paper)
     }
 }
@@ -46,63 +47,56 @@ extension View {
 // MARK: - Tokens
 
 extension Radius {
-    /// Buttons and fields on the sheet.
-    static let paperControl: CGFloat = 8
-    /// Paper cards.
-    static let paperCard: CGFloat = 12
+    /// Small controls and tinted notes.
+    static let paperControl: CGFloat = 14
+    /// Cards.
+    static let paperCard: CGFloat = 22
 }
 
 // MARK: - Type
 
 extension Font {
-    /// Page titles, printed: "Roll Call", "Community".
-    static let sheetDisplay = Font.system(.title, weight: .semibold)
-    /// Card and section headings, printed: "Join the roll call?".
+    /// Page titles: "Roll Call", "Community".
+    static let sheetDisplay = Font.system(.largeTitle, weight: .bold)
+    /// Card and section headings: "Join the roll call?".
     static let sheetHeading = Font.system(.title3, weight: .semibold)
-    /// Small printed labels on the form ("Your household", "Members").
+    /// The small uppercase labels ("YOUR HOUSEHOLD"), still 15 pt so they're easy to read.
     static let sheetLabel = Font.system(.subheadline, weight: .semibold)
-    /// Something a person wrote in: a name, an address, a neighborhood.
-    /// Bradley Hand comes with every iPhone, and `relativeTo` makes it grow
-    /// with the user's text size.
-    static let sheetEntry = Font.custom("BradleyHandITCTT-Bold", size: 22, relativeTo: .title3)
-    /// A bigger written-in entry, for the name at the top of a page.
-    static let sheetEntryLarge = Font.custom("BradleyHandITCTT-Bold", size: 30, relativeTo: .title)
+    /// Someone's name or address in a list.
+    static let sheetEntry = Font.system(.body, weight: .semibold)
+    /// A name at the top of a page or card.
+    static let sheetEntryLarge = Font.system(.title2, weight: .bold)
 }
 
 extension View {
-    /// The small printed label over a part of the form: "YOUR HOUSEHOLD".
+    /// A small uppercase label with wide letter spacing, like WHOOP's.
     func sheetLabelStyle() -> some View {
-        self.font(.sheetLabel).textCase(.uppercase).tracking(0.6)
+        self.font(.sheetLabel).textCase(.uppercase).tracking(1.1)
     }
 
-    /// Text a person wrote in, drawn in handwriting and ink.
+    /// Someone's name or address.
     func sheetEntryStyle(large: Bool = false) -> some View {
-        self.font(large ? .sheetEntryLarge : .sheetEntry).foregroundStyle(Color.ink)
+        self.font(large ? .sheetEntryLarge : .sheetEntry).foregroundStyle(Color.primary)
     }
 }
 
 // MARK: - Headers and sections
 
-/// The top of a page: a small printed label and the page's title. Fixed
-/// wording ("Roll Call") is printed. A name someone typed ("Pecan Hollow")
-/// is handwritten, like a name filled in at the top of a form.
+/// The top of a page: a small uppercase label and a big bold title.
 struct SheetTitle: View {
     private let title: Text
     private let kicker: String?
-    private let isWrittenIn: Bool
 
     /// Fixed wording, translated from the String Catalog ("Roll Call").
     init(title: LocalizedStringKey, kicker: String? = nil) {
         self.title = Text(title)
         self.kicker = kicker
-        isWrittenIn = false
     }
 
     /// A name typed by someone, shown exactly as written ("Pecan Hollow").
     init(verbatim title: String, kicker: String? = nil) {
         self.title = Text(verbatim: title)
         self.kicker = kicker
-        isWrittenIn = true
     }
 
     var body: some View {
@@ -111,7 +105,7 @@ struct SheetTitle: View {
                 Text(kicker).sheetLabelStyle().foregroundStyle(.secondary)
             }
             title
-                .font(isWrittenIn ? .sheetEntryLarge : .sheetDisplay)
+                .font(.sheetDisplay)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -120,7 +114,7 @@ struct SheetTitle: View {
     }
 }
 
-/// The small printed label above a card: "NEEDS".
+/// The small uppercase label above a card: "NEEDS".
 struct SectionLabel: View {
     let text: LocalizedStringKey
 
@@ -132,20 +126,21 @@ struct SectionLabel: View {
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, Spacing.s)
+            .padding(.leading, Spacing.xs)
             .accessibilityAddTraits(.isHeader)
     }
 }
 
-/// A thin line between two entries inside a card (never across the page).
+/// A thin line between two rows inside a card.
 struct RuleLine: View {
     var body: some View {
-        Rectangle().fill(Color.ink.opacity(0.12)).frame(height: 1)
+        Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1)
             .accessibilityHidden(true)
     }
 }
 
-/// A paper card: related entries grouped together, like the lines of one
-/// box on a form. On iOS 18 and later, a thin line separates each entry.
+/// A rounded card holding a group of rows, split by thin lines (on iOS 18
+/// and later), like the grouped lists in Phantom.
 struct SheetCard<Content: View>: View {
     @ViewBuilder let content: Content
 
@@ -168,23 +163,25 @@ struct SheetCard<Content: View>: View {
 }
 
 extension View {
-    /// One entry on a card: roomy padding, full width.
+    /// One row in a card: roomy padding, full width.
     func sheetRow() -> some View {
-        self.padding(.vertical, Spacing.m)
+        self.padding(.vertical, Spacing.m + 2)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// The paper card's look: lighter paper, rounded corners, a thin border.
+    /// The card look: a raised surface with big rounded corners. `emphasis`
+    /// adds an outline, for something that needs an answer.
     func paperCard(emphasis: Bool = false) -> some View {
         let shape = RoundedRectangle(cornerRadius: Radius.paperCard, style: .continuous)
         return self
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.paperRaised, in: shape)
-            .overlay(shape.strokeBorder(Color.ink.opacity(emphasis ? 0.9 : 0.14), lineWidth: emphasis ? 1.5 : 1))
+            .overlay {
+                if emphasis { shape.strokeBorder(Color.ink.opacity(0.85), lineWidth: 1.5) }
+            }
     }
 
-    /// A card with padding all around, for one block of content (a request,
-    /// a message, a form section).
+    /// A card with padding all around, for one block of content.
     func sheetBox(padding: CGFloat = Spacing.l, emphasis: Bool = false) -> some View {
         self
             .padding(padding)
@@ -194,8 +191,8 @@ extension View {
 
 // MARK: - Tabs
 
-/// A row of choices on a paper strip, with the chosen one filled in ink
-/// ("Open (7) | Resolved (3) | All (10)").
+/// A row of capsule chips with the chosen one filled ("All | Tokens | Perps"
+/// in Phantom), used to switch between parts of a page.
 struct SheetTabs<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [(value: Value, title: String)]
@@ -206,7 +203,7 @@ struct SheetTabs<Value: Hashable>: View {
     @Namespace private var fill
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Spacing.s) {
             ForEach(Array(options.enumerated()), id: \.element.value) { index, option in
                 let isSelected = selection == option.value
                 Button { selection = option.value } label: {
@@ -215,15 +212,16 @@ struct SheetTabs<Value: Hashable>: View {
                         .foregroundStyle(isSelected ? Color.paper : Color.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
+                        .padding(.horizontal, Spacing.m)
                         .frame(maxWidth: .infinity, minHeight: minimumTapSize)
                         .background {
                             if isSelected {
-                                RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous)
-                                    .fill(Color.ink)
-                                    .matchedGeometryEffect(id: "fill", in: fill)
+                                Capsule().fill(Color.ink).matchedGeometryEffect(id: "fill", in: fill)
+                            } else {
+                                Capsule().fill(Color.paperRaised)
                             }
                         }
-                        .contentShape(Rectangle())
+                        .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
@@ -231,37 +229,37 @@ struct SheetTabs<Value: Hashable>: View {
                                          : identifierPrefix.isEmpty ? "" : "\(identifierPrefix)\(index)")
             }
         }
-        .padding(4)
-        .paperCard()
-        .animation(.snappy(duration: 0.2), value: selection)
+        .animation(.snappy(duration: 0.25), value: selection)
     }
 }
 
 // MARK: - Buttons
 
-/// Ink buttons with slightly rounded corners. `.prominent` is filled ink; otherwise
-/// it's an ink outline. Always at least 52 pt tall, so they're easy to hit.
+/// Full-width pill buttons. `prominent` is filled with the text color (black
+/// in light mode, white in dark mode); otherwise it sits on a card-colored
+/// pill. At least 56 pt tall, so they're easy to hit.
 struct InkButtonStyle: ButtonStyle {
     var prominent = true
     var destructive = false
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        let color: Color = destructive ? Color(.systemRed) : .ink
+        let red = Color(.systemRed)
         configuration.label
             .font(.headline)
             .multilineTextAlignment(.center)
             .padding(.horizontal, Spacing.l)
-            .frame(maxWidth: .infinity, minHeight: 52)
-            .foregroundStyle(prominent ? Color.paper : color)
-            .background(prominent ? color : Color.clear, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(color, lineWidth: 1.5))
-            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.35)
-            .contentShape(Rectangle())
+            .frame(maxWidth: .infinity, minHeight: 56)
+            .foregroundStyle(prominent ? (destructive ? .white : Color.paper) : (destructive ? red : Color.primary))
+            .background(prominent ? (destructive ? red : Color.ink) : Color.paperRaised, in: Capsule())
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.35)
+            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+            .contentShape(Capsule())
     }
 }
 
-/// A compact ink button for inside a row ("Approve", "Offer to help").
+/// A smaller pill for inside a row ("Approve", "Offer to help").
 struct SmallInkButtonStyle: ButtonStyle {
     var prominent = true
     @Environment(\.isEnabled) private var isEnabled
@@ -270,46 +268,46 @@ struct SmallInkButtonStyle: ButtonStyle {
         configuration.label
             .font(.callout.weight(.semibold))
             .lineLimit(1)
-            .padding(.horizontal, Spacing.m)
+            .padding(.horizontal, Spacing.l)
             .frame(minHeight: minimumTapSize)
-            .foregroundStyle(prominent ? Color.paper : Color.ink)
-            .background(prominent ? Color.ink : Color.clear, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(Color.ink, lineWidth: 1.5))
-            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.35)
-            .contentShape(Rectangle())
+            .foregroundStyle(prominent ? Color.paper : Color.primary)
+            .background(prominent ? Color.ink : Color.primary.opacity(0.08), in: Capsule())
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.35)
+            .contentShape(Capsule())
             .fixedSize()
     }
 }
 
-// MARK: - Stamps
+// MARK: - Badges
 
-/// A rubber-stamp status label, slightly tilted: "✓ SAFE", "NEEDS HELP".
-/// This is where color lives on the sheet, always next to a word.
+/// A small tinted status label: "✓ SAFE", "NEEDS HELP". This is where color
+/// lives, always next to a word so color isn't the only clue.
+/// (`tilt` is ignored now. It's kept so older calls still work.)
 struct Stamp: View {
     let text: String
     var systemImage: String? = nil
     var color: Color = .ink
-    var tilt: Double = -2
+    var tilt: Double = 0
 
     var body: some View {
         HStack(spacing: 5) {
-            if let systemImage { Image(systemName: systemImage).font(.subheadline.weight(.bold)) }
-            Text(text).font(.sheetLabel.weight(.bold)).textCase(.uppercase).tracking(0.8)
+            if let systemImage { Image(systemName: systemImage).font(.caption.weight(.bold)) }
+            Text(text).font(.caption.weight(.bold)).textCase(.uppercase).tracking(0.8)
                 .lineLimit(1)
-                .minimumScaleFactor(0.6)
+                .minimumScaleFactor(0.7)
         }
         .foregroundStyle(color)
         .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(color, lineWidth: 2))
-        .rotationEffect(.degrees(tilt))
+        .padding(.vertical, 6)
+        .background(color.opacity(0.14), in: Capsule())
         .accessibilityElement(children: .combine)
     }
 }
 
 // MARK: - Notes and messages
 
-/// A short note in its own small card, with an icon: "You can leave anytime."
+/// A short note on a tinted rounded background, with an icon.
 struct SheetNote: View {
     let text: LocalizedStringKey
     var systemImage: String? = nil
@@ -318,21 +316,22 @@ struct SheetNote: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
             Image(systemName: systemImage ?? "info.circle")
-                .foregroundStyle(color)
+                .foregroundStyle(color == .ink ? Color.secondary : color)
                 .accessibilityHidden(true)
             Text(text)
                 .font(.callout)
-                .foregroundStyle(.primary.opacity(0.85))
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(Spacing.m)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
+        .background((color == .ink ? Color.primary : color).opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 }
 
-/// Loading problems and empty lists, in the sheet style.
+/// Loading problems and empty lists.
 struct SheetMessage: View {
     let title: Text
     let message: Text
@@ -360,7 +359,10 @@ struct SheetMessage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            Label { title.font(.sheetHeading) } icon: { Image(systemName: systemImage) }
+            Image(systemName: systemImage)
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            title.font(.sheetHeading)
             message.font(.body).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if let actionTitle, let action {
                 Button(actionTitle, action: action).buttonStyle(InkButtonStyle(prominent: false))

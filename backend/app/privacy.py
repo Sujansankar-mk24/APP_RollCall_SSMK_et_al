@@ -17,9 +17,10 @@ written once, here, and every endpoint asks this file before sharing anything.
 And who may become someone's buddy:
 
     Volunteers in the same community can ask to check on each other.
-    Volunteers from outside can only ask if the resident isn't in a community,
-    or if their community's admin allows outside buddies. Either way, the
-    resident has to accept.
+    Someone in a community gets their buddy from that community (a neighbor
+    is the one who can get there fast). A volunteer can only ask by address
+    if the resident isn't in a community. Either way, the resident has to
+    accept.
 """
 
 from typing import Optional
@@ -82,9 +83,7 @@ def outside_buddies_allowed(session: Session, household: Household, volunteer_us
     if resident_community is None:
         return True   # not in a community: anyone may ask (the resident still decides)
     volunteer_community = community_of(session, volunteer_user.id)
-    if volunteer_community is not None and volunteer_community.id == resident_community.id:
-        return True   # neighbors in the same community
-    return resident_community.allow_outside_buddies
+    return volunteer_community is not None and volunteer_community.id == resident_community.id
 
 
 NOT_SHARED_MESSAGE = "This household's details aren't shared with you."

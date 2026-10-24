@@ -159,14 +159,48 @@ class Media(SQLModel, table=True):
 # Accounts
 # ---------------------------------------------------------------------------
 
+class ResponderStatus(str, Enum):
+    none = "none"          # a regular account
+    pending = "pending"    # applied as a first responder; waiting for review
+    approved = "approved"  # verified: can mark incidents responding or resolved
+    rejected = "rejected"  # the application was turned down
+
+
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     email: str = Field(index=True, unique=True)   # always stored in lowercase
     password_hash: str                            # never the password itself (see app/auth.py)
-    is_responder: bool = False                    # responder accounts are issued, not signed up for
+    is_responder: bool = False                    # a verified first responder (see responder_status)
     roll_call_opt_out: bool = False               # chose "Not now" for the roll call
     is_demo: bool = False                         # fictional demo account
+    created_at: datetime = Field(default_factory=utc_now)
+
+    # Profile (what others see when they open your profile)
+    bio: str = ""                                 # a short introduction, like an Instagram bio
+    photo_path: Optional[str] = None              # under media/, e.g. "profiles/ab12.jpg"
+    phone: str = ""                               # shown only to your buddy
+    away_from_home: bool = False                  # "Away from home" next to your name in your community
+
+    # First responder application. The ID photo is kept in private/ (never
+    # served to anyone) and deleted as soon as it's reviewed.
+    responder_status: ResponderStatus = ResponderStatus.none
+    responder_agency: str = ""                    # e.g. "Greenville Fire-Rescue"
+    responder_role: str = ""                      # e.g. "Firefighter"
+    responder_badge: str = ""                     # badge or employee number
+    responder_city: str = ""                      # the area they serve
+    responder_id_photo: Optional[str] = None      # path under private/, until reviewed
+
+
+class ResponderReport(SQLModel, table=True):
+    """A resident flags a first responder (fake, abusing the role, reckless)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    responder_id: int = Field(foreign_key="user.id", index=True)
+    reporter_id: int = Field(foreign_key="user.id")
+    reason: str                                   # see RESPONDER_REPORT_REASONS
+    details: str = ""
+    reviewed: bool = False
     created_at: datetime = Field(default_factory=utc_now)
 
 
@@ -284,8 +318,9 @@ class Community(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str                               # e.g. "Pecan Hollow"
     city: str
-    allow_outside_buddies: bool = False     # the admin can let volunteers from outside check on members
+    allow_outside_buddies: bool = False     # no longer used: buddies come from the same community
     created_by: int = Field(foreign_key="user.id")
+    photo_path: Optional[str] = None        # the community's picture, under media/
     is_demo: bool = False
     created_at: datetime = Field(default_factory=utc_now)
 
@@ -304,6 +339,29 @@ class CommunityMember(SQLModel, table=True):
     status: MemberStatus = MemberStatus.pending
     is_admin: bool = False
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class PhotoStatus(str, Enum):
+    pending = "pending"    # waiting for the admin
+    approved = "approved"  # in the Weekly Recap
+    rejected = "rejected"
+
+
+class CommunityPhoto(SQLModel, table=True):
+    """
+    A photo for the community's Weekly Recap. The admin approves it first.
+    Approved photos show for 7 days, unless the admin pins them so they stay.
+    """
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    community_id: int = Field(foreign_key="community.id", index=True)
+    uploader_id: int = Field(foreign_key="user.id")
+    path: str                               # under media/
+    caption: str = ""
+    status: PhotoStatus = PhotoStatus.pending
+    pinned: bool = False
+    created_at: datetime = Field(default_factory=utc_now)
+    approved_at: Optional[datetime] = None
 
 
 # ---------------------------------------------------------------------------
