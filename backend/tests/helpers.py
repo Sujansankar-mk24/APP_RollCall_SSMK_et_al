@@ -16,6 +16,15 @@ PROFILE = {
 }
 
 
+def photo(name: str = "photo.jpg") -> dict:
+    """A small JPEG to attach to a report (every report needs one)."""
+    import cv2
+    import numpy as np
+
+    ok, jpeg = cv2.imencode(".jpg", np.full((120, 160, 3), 90, dtype=np.uint8))
+    return {"file": (name, jpeg.tobytes(), "image/jpeg")}
+
+
 def sign_up(name: str = "Test Person") -> dict:
     """A new account. Returns the headers that act as it."""
     n = next(_numbers)

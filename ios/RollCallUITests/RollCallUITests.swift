@@ -19,6 +19,7 @@
 //
 
 import CoreLocation
+import UIKit
 import XCTest
 
 final class RollCallUITests: XCTestCase {
@@ -190,16 +191,17 @@ final class RollCallUITests: XCTestCase {
     // MARK: - Reporting
 
     @MainActor
-    func testReportingAFireBesideAnExistingFireMergesIntoIt() {
+    func testReportingAFireBesideAnExistingFireMergesIntoIt() throws {
         // Someone reported a fire here a moment ago (so it's recent enough to merge with).
         reportFire(at: besideGreenvilleFire)
-        let app = launchApp()
+        let app = launchApp(arguments: ["-RSAllowAnyPhoto", "YES"])
         app.buttons["reportIncidentButton"].tap()
 
         // The pin goes to the phone's location; wait for the street name.
         waitForPlaceName(in: app, containing: "Greenville")
 
         app.buttons["Fire"].firstMatch.tap()
+        try fillPhotoAndDescription(in: app)
         let send = app.buttons["sendReportButton"]
         XCTAssertTrue(send.isEnabled)
         send.tap()
@@ -250,26 +252,14 @@ final class RollCallUITests: XCTestCase {
 
     @MainActor
     func testReportWithALibraryPhotoGetsAnAIResult() throws {
-        let app = launchApp()
+        let app = launchApp(arguments: ["-RSAllowAnyPhoto", "YES"])
         app.buttons["reportIncidentButton"].tap()
         waitForPlaceName(in: app, containing: "Greenville")
         app.buttons["Fire"].firstMatch.tap()
-
-        app.swipeUp()
-        app.swipeUp()
-        app.buttons["Choose from library"].tap()
-        // The photo picker is part of iOS. Its pictures are "images" labeled
-        // "Photo, <date>" (videos say "Video, ..."); pick the first photo.
-        let photo = app.images.matching(NSPredicate(format: "identifier == 'PXGGridLayout-Info' AND label BEGINSWITH 'Photo,'")).firstMatch
-        guard photo.waitForExistence(timeout: 15) else {
-            throw XCTSkip("No photos found in the picker. Add one with: xcrun simctl addmedia booted <photo.jpg>")
-        }
-        photo.tap()
-        // The picker closes by itself once a photo is chosen.
-        XCTAssertTrue(app.buttons["Choose from library"].waitForNonExistence(timeout: 10) || !photo.exists,
-                      "The photo picker stayed open after tapping a photo")
-
-        XCTAssertTrue(app.buttons["Remove"].waitForExistence(timeout: 15), "The chosen photo didn't load")
+        XCTAssertTrue(app.descendants(matching: .any)["seriousOnlyReminder"].exists, "No reminder to report only real emergencies")
+        // Not ready yet: a photo and a description are both required.
+        XCTAssertFalse(app.buttons["sendReportButton"].isEnabled)
+        try fillPhotoAndDescription(in: app)
         app.buttons["sendReportButton"].tap()
 
         let toast = app.descendants(matching: .any)["reportSentToast"]
@@ -278,6 +268,46 @@ final class RollCallUITests: XCTestCase {
         let finished = NSPredicate(format: "label CONTAINS 'AI found' OR label CONTAINS 'AI didn' OR label CONTAINS 'shortly'")
         expectation(for: finished, evaluatedWith: toast)
         waitForExpectations(timeout: 30)
+    }
+
+    /// Without the test switch, a downloaded picture (the sample photos come
+    /// from Wikimedia, with no camera info or an old date) is turned away.
+    @MainActor
+    func testReportsRejectPhotosThatWerentJustTaken() throws {
+        let app = launchApp()
+        app.buttons["reportIncidentButton"].tap()
+        waitForPlaceName(in: app, containing: "Greenville")
+        app.buttons["Fire"].firstMatch.tap()
+        try pickLibraryPhoto(in: app)
+        XCTAssertTrue(app.staticTexts["attachmentError"].waitForExistence(timeout: 15), "The old photo was accepted")
+        XCTAssertFalse(app.buttons["sendReportButton"].isEnabled)
+    }
+
+    /// Pick the first photo in the library, then type a description.
+    @MainActor
+    private func fillPhotoAndDescription(in app: XCUIApplication) throws {
+        try pickLibraryPhoto(in: app)
+        XCTAssertTrue(app.buttons["Remove"].waitForExistence(timeout: 15), "The chosen photo didn't load")
+        let description = app.textViews["reportDescription"].exists ? app.textViews["reportDescription"] : app.textFields["reportDescription"]
+        // It's the last field, so scroll it clear of the Send bar first.
+        app.swipeUp()
+        app.swipeUp()
+        type("Grass fire spreading toward the road", into: description)
+        app.buttons["Done"].firstMatch.tap()
+    }
+
+    @MainActor
+    private func pickLibraryPhoto(in app: XCUIApplication) throws {
+        let choose = app.buttons["Choose a photo you took"]
+        scrollTo(choose, in: app)
+        choose.tap()
+        // The photo picker is part of iOS. Its pictures are "images" labeled
+        // "Photo, <date>". Pick the first one.
+        let photo = app.images.matching(NSPredicate(format: "identifier == 'PXGGridLayout-Info' AND label BEGINSWITH 'Photo,'")).firstMatch
+        guard photo.waitForExistence(timeout: 15) else {
+            throw XCTSkip("No photos found in the picker. Add one with: xcrun simctl addmedia booted <photo.jpg>")
+        }
+        photo.tap()
     }
 
     // MARK: - Accounts
@@ -735,12 +765,28 @@ final class RollCallUITests: XCTestCase {
         return answer.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [[String: Any]] } ?? []
     }
 
-    /// Send a fire report through the backend, like the app's report form does.
+    /// Send a fire report through the backend, like the app's report form
+    /// does (with a description and a small photo).
     private func reportFire(at location: CLLocation) {
         var request = URLRequest(url: URL(string: "http://localhost:8000/reports")!)
         request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = Data("type=fire&latitude=\(location.coordinate.latitude)&longitude=\(location.coordinate.longitude)&location_name=FM%201570".utf8)
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        var body = Data()
+        let fields = ["type": "fire", "latitude": "\(location.coordinate.latitude)",
+                      "longitude": "\(location.coordinate.longitude)", "location_name": "FM 1570",
+                      "description": "Grass fire next to the road"]
+        for (name, value) in fields {
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".utf8))
+        }
+        let jpeg = UIGraphicsImageRenderer(size: CGSize(width: 64, height: 48)).jpegData(withCompressionQuality: 0.8) { context in
+            UIColor.orange.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 64, height: 48))
+        }
+        body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"fire.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n".utf8))
+        body.append(jpeg)
+        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+        request.httpBody = body
         let done = XCTestExpectation(description: "report")
         URLSession.shared.dataTask(with: request) { _, _, _ in done.fulfill() }.resume()
         _ = XCTWaiter.wait(for: [done], timeout: 30)

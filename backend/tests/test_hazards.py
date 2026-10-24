@@ -7,7 +7,7 @@ from app.hazards import demo
 from app.hazards.service import HazardFeed
 from app.hazards.sources import drop_duplicate_fires, parse_eonet, parse_firms, parse_nws, parse_spc
 from app.hazards.zones import HazardKind, ZoneLevel, alert_kind, alert_level, ring_radii
-from tests.helpers import client, sign_up
+from tests.helpers import client, photo, sign_up
 
 NOW = datetime(2026, 10, 22, 20, 0, tzinfo=timezone.utc)
 BOX = {"type": "Polygon", "coordinates": [[[-96.2, 33.0], [-96.0, 33.2], [-95.9, 33.1], [-96.1, 32.9], [-96.2, 33.0]]]}
@@ -134,7 +134,7 @@ def test_demo_warning_endpoints_need_sign_in(monkeypatch):
 
 def test_community_reports_get_zones_until_resolved():
     report = {"type": "tornado", "latitude": 33.1, "longitude": -96.1, "description": "Funnel cloud"}
-    created = client.post("/reports", data=report).json()
+    created = client.post("/reports", data=report, files=photo()).json()
     incident = client.get(f"/incidents/{created['incident_id']}").json()
     assert [z["level"] for z in incident["zones"]] == ["immediate", "evacuate", "cautious"]
     assert incident["zones"][0]["radius_m"] == ring_radii(HazardKind.tornado)[ZoneLevel.immediate]

@@ -30,15 +30,17 @@ struct ReportFormView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
+                    seriousOnlyReminder
+
                     formSection("What's happening?") {
                         TypePickerGrid(selection: $viewModel.selectedType)
                     }
 
                     formSection("Where?") { locationSection }
 
-                    formSection("Details", note: "Optional") { descriptionField }
+                    formSection("Photo", note: "Required") { attachmentSection }
 
-                    formSection("Photo or video", note: "Optional") { attachmentSection }
+                    formSection("Details", note: "Required") { descriptionField }
 
                     if let error = viewModel.submitError {
                         submitErrorCard(error)
@@ -90,6 +92,29 @@ struct ReportFormView: View {
     }
 
     // MARK: - Sections
+
+    /// Reports send real responders, so only emergencies that need them.
+    private var seriousOnlyReminder: some View {
+        HStack(alignment: .top, spacing: Spacing.m) {
+            Image(systemName: "exclamationmark.shield.fill")
+                .font(.title2)
+                .foregroundStyle(Color(.systemOrange))
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Only report real emergencies")
+                    .font(.headline)
+                Text("Report things only firefighters, police or EMS can handle, like a spreading grass fire, a house fire, a flooded road or someone badly hurt. A campfire, a burn pile or a grill isn't an emergency.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(Spacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemOrange).opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("seriousOnlyReminder")
+    }
 
     private func formSection<Content: View>(_ title: String, note: String? = nil,
                                             @ViewBuilder content: () -> Content) -> some View {
@@ -245,7 +270,7 @@ struct ReportFormView: View {
 
     private var descriptionField: some View {
         VStack(alignment: .trailing, spacing: Spacing.xs) {
-            TextField("What do you see? Landmarks help, like \"by the water tower on FM 1570\".",
+            TextField("What do you see, and how bad is it? Landmarks help, like \"by the water tower on FM 1570\".",
                       text: $viewModel.description, axis: .vertical)
                 .lineLimit(3...6)
                 .focused($isEditingDescription)
@@ -253,6 +278,7 @@ struct ReportFormView: View {
                 .background(Color(.secondarySystemGroupedBackground),
                             in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                 .accessibilityLabel("Description")
+                .accessibilityIdentifier("reportDescription")
             Text("\(viewModel.description.count) / \(ReportViewModel.maxDescriptionLength)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -279,20 +305,20 @@ struct ReportFormView: View {
                     Button {
                         isShowingCamera = true
                     } label: {
-                        AttachmentChoiceLabel(systemImage: "camera.fill", title: "Take photo or video")
+                        AttachmentChoiceLabel(systemImage: "camera.fill", title: "Take a photo")
                     }
                     .buttonStyle(.plain)
                 }
-                PhotosPicker(selection: $pickedItem, matching: .any(of: [.images, .videos])) {
-                    AttachmentChoiceLabel(systemImage: "photo.on.rectangle", title: "Choose from library")
+                PhotosPicker(selection: $pickedItem, matching: Self.cameraPhotos) {
+                    AttachmentChoiceLabel(systemImage: "photo.on.rectangle", title: "Choose a photo you took")
                 }
                 .buttonStyle(.plain)
             }
             .foregroundStyle(Color.accentColor)
 
             Text(CameraCapture.isAvailable
-                 ? "The AI checks it for fire, smoke and people."
-                 : "The AI checks it for fire, smoke and people. (The simulator has no camera, so pick from the library.)")
+                 ? "A clear photo from the last 2 days. Screenshots and saved images can't be used. The AI checks it for fire, smoke and people."
+                 : "A clear photo from the last 2 days. The AI checks it for fire, smoke and people. (The simulator has no camera, so pick from the library.)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -300,6 +326,7 @@ struct ReportFormView: View {
                 Text(error)
                     .font(.footnote)
                     .foregroundStyle(Color(.systemRed))
+                    .accessibilityIdentifier("attachmentError")
             }
         }
     }
@@ -324,7 +351,7 @@ struct ReportFormView: View {
             .accessibilityLabel(attachment.isVideo ? "Selected video" : "Selected photo")
 
             HStack {
-                PhotosPicker(selection: $pickedItem, matching: .any(of: [.images, .videos])) {
+                PhotosPicker(selection: $pickedItem, matching: Self.cameraPhotos) {
                     Label("Replace", systemImage: "arrow.triangle.2.circlepath")
                 }
                 Spacer()
@@ -362,6 +389,9 @@ struct ReportFormView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// The photo library, without screenshots or screen recordings.
+    private static let cameraPhotos: PHPickerFilter = .all(of: [.images, .not(.screenshots), .not(.screenRecordings)])
+
     // MARK: - Send button
 
     private var sendBar: some View {
@@ -391,10 +421,11 @@ struct ReportFormView: View {
             .disabled(!viewModel.canSubmit)
             .accessibilityIdentifier("sendReportButton")
 
-            if viewModel.selectedType == nil {
-                Text("Choose what's happening to send your report.")
+            if let missing = viewModel.whatsMissing {
+                Text(missing)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("reportMissing")
             }
         }
         .padding(.horizontal, Spacing.l)

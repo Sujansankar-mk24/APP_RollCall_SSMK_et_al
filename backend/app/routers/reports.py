@@ -1,7 +1,8 @@
 """
 Report endpoint:
 
-  POST /reports   a resident submits a report, optionally with one photo or video
+  POST /reports   a resident submits a report: what kind of emergency, where,
+                  a description (at least 10 characters) and one photo
 
 The request is "multipart/form-data" (the standard way to upload a file
 together with text fields). The response comes back immediately; the AI
@@ -16,7 +17,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from sqlmodel import Session
 
 from app.ai.pipeline import analyze_media
-from app.config import MAX_DESCRIPTION_LENGTH, MAX_UPLOAD_BYTES, MEDIA_DIR, UPLOADS_DIR
+from app.config import MAX_DESCRIPTION_LENGTH, MAX_UPLOAD_BYTES, MEDIA_DIR, MIN_DESCRIPTION_LENGTH, UPLOADS_DIR
 from app.database import get_session
 from app.models import IncidentType, MediaKind
 from app.schemas import ReportCreatedOut
@@ -67,11 +68,18 @@ async def submit_report(
     file: Optional[UploadFile] = File(None),
     session: Session = Depends(get_session),
 ):
+    # Every report needs a description and a photo of what's happening.
+    if len(description.strip()) < MIN_DESCRIPTION_LENGTH:
+        raise HTTPException(status_code=422,
+                            detail=f"Describe what's happening in at least {MIN_DESCRIPTION_LENGTH} characters.")
+    if file is None or not file.filename:
+        raise HTTPException(status_code=422, detail="Add a photo of what's happening.")
+
     # Check and save the file first, so a bad upload doesn't leave a half-made report.
-    saved_path, kind = None, None
-    if file is not None and file.filename:
-        kind = media_kind(file)
-        saved_path = await save_upload(file, kind)
+    kind = media_kind(file)
+    if kind != MediaKind.photo:
+        raise HTTPException(status_code=415, detail="Reports need a photo (not a video).")
+    saved_path = await save_upload(file, kind)
 
     incident, report, merged = create_report(
         session, type, description.strip(), latitude, longitude, location_name.strip()

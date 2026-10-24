@@ -31,7 +31,7 @@ struct CameraCapture: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         picker.sourceType = .camera
-        picker.mediaTypes = [UTType.image.identifier, UTType.movie.identifier]
+        picker.mediaTypes = [UTType.image.identifier]   // reports need a photo
         picker.videoMaximumDuration = 30
         picker.videoQuality = .typeMedium  // smaller files upload faster
         picker.delegate = context.coordinator

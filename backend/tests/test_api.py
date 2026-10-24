@@ -5,6 +5,7 @@ import numpy as np
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.helpers import photo
 
 client = TestClient(app)
 GREENVILLE = {"latitude": 33.0705, "longitude": -96.1050}
@@ -12,7 +13,7 @@ GREENVILLE = {"latitude": 33.0705, "longitude": -96.1050}
 
 def report(**fields):
     data = {"type": "fire", "description": "Grass fire by the road", **GREENVILLE, **fields}
-    return client.post("/reports", data=data)
+    return client.post("/reports", data=data, files=photo())
 
 
 def test_health():
@@ -76,16 +77,28 @@ def test_missing_incident_returns_404():
 
 def test_rejects_unknown_type_and_non_media_files():
     assert report(type="volcano").status_code == 422
-    response = client.post("/reports", data={"type": "fire", **GREENVILLE},
+    response = client.post("/reports", data={"type": "fire", "description": "Grass fire by the road", **GREENVILLE},
                            files={"file": ("notes.txt", b"hello", "text/plain")})
     assert response.status_code == 415
+
+
+def test_reports_need_a_photo_and_a_description():
+    no_photo = client.post("/reports", data={"type": "fire", "description": "Grass fire by the road", **GREENVILLE})
+    assert no_photo.status_code == 422
+    assert "photo" in no_photo.json()["detail"]
+    too_short = report(description="fire")
+    assert too_short.status_code == 422
+    assert "Describe" in too_short.json()["detail"]
+    video = client.post("/reports", data={"type": "fire", "description": "Grass fire by the road", **GREENVILLE},
+                        files={"file": ("clip.mp4", b"not really a video", "video/mp4")})
+    assert video.status_code == 415
 
 
 def test_photo_upload_is_analyzed_in_background():
     # A dark, empty photo: the AI should brighten it and find nothing.
     dark = np.full((480, 640, 3), 20, dtype=np.uint8)
     ok, jpeg = cv2.imencode(".jpg", dark)
-    response = client.post("/reports", data={"type": "other", **GREENVILLE},
+    response = client.post("/reports", data={"type": "other", "description": "Something at night", **GREENVILLE},
                            files={"file": ("night.jpg", jpeg.tobytes(), "image/jpeg")})
     assert response.status_code == 201
 

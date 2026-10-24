@@ -225,10 +225,14 @@ class BasicFireDetector:
         area_share = stats[largest, cv2.CC_STAT_AREA] / (rows * cols)
         if area_share < self.SMOKE_MIN_AREA:
             return
+        # Without flames, a smooth gray area is usually a wall, a ceiling or a
+        # cloudy sky, and color alone can't tell them apart from smoke. So this
+        # simple detector only reports smoke next to flames it found. (The
+        # trained model in Option 2 recognizes smoke on its own.)
+        if not result.fire_detected:
+            return
 
-        confidence = 0.4 + min(0.35, area_share)
-        if result.fire_detected:
-            confidence += 0.1  # smoke next to confirmed flames is more believable
+        confidence = 0.55 + min(0.3, area_share)
         result.smoke_detected = True
         result.smoke_confidence = round(min(confidence, 0.9), 2)
 
@@ -249,7 +253,7 @@ class ModelFireDetector:
     and/or "smoke" (many free fire-detection models are trained this way).
     """
 
-    MIN_CONFIDENCE = 0.35
+    MIN_CONFIDENCE = 0.45   # below this, D-Fire-trained models make too many mistakes
 
     def __init__(self, model_path) -> None:
         from ultralytics import YOLO

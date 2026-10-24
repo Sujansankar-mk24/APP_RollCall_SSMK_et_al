@@ -70,6 +70,9 @@ MERGE_WINDOW_HOURS = 2
 
 MAX_UPLOAD_BYTES = 200 * 1024 * 1024  # 200 MB, enough for a short phone video
 MAX_DESCRIPTION_LENGTH = 500
+# Every new report needs a photo and a short description of what's happening,
+# so responders can trust it and the AI can check it.
+MIN_DESCRIPTION_LENGTH = 10
 
 # ---------------------------------------------------------------------------
 # AI photo/video check
