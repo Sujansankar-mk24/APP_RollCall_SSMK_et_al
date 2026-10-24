@@ -70,9 +70,19 @@ final class MapViewModel {
         await incidents
     }
 
-    func loadHazards() async {
+    /// The refresh button: new incidents, and live data straight from the sources.
+    private(set) var isRefreshingAll = false
+    func refreshEverything() async {
+        isRefreshingAll = true
+        defer { isRefreshingAll = false }
+        async let incidents: () = store.load()
+        async let hazards: () = loadHazards(fresh: true)
+        _ = await (incidents, hazards)
+    }
+
+    func loadHazards(fresh: Bool = false) async {
         do {
-            hazardFeed = try await api.fetchHazards()
+            hazardFeed = try await api.fetchHazards(fresh: fresh)
             hazardError = nil
         } catch {
             hazardError = error   // keep showing the last good data

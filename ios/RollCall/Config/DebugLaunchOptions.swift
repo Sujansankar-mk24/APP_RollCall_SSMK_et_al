@@ -33,6 +33,15 @@ enum DebugLaunchOptions {
         #endif
     }
 
+    /// Turn on "Use my location" as soon as the map loads: -RSTrackLocation YES
+    static var tracksLocation: Bool {
+        #if DEBUG
+        return UserDefaults.standard.bool(forKey: "RSTrackLocation")
+        #else
+        return false
+        #endif
+    }
+
     /// Open the incident log on the map at launch: -RSIncidents YES
     static var opensIncidents: Bool {
         #if DEBUG

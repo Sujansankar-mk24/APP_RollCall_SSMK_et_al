@@ -47,6 +47,8 @@ struct UpdateStatusPill: View {
             // style: .relative keeps counting up by itself ("12 sec", "1 min"...).
             Text("\(prefix) \(Text(lastUpdated, style: .relative)) ago")
                 .monospacedDigit()
+                .lineLimit(1)
+                .fixedSize()
         } else {
             Text("Not updated yet")
         }

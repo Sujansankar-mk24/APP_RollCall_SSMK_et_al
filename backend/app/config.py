@@ -111,6 +111,8 @@ DATA_USER_AGENT = "RollCall/1.0 (Congressional App Challenge student project)"
 
 # Ask the sources again at most this often; in between, the saved copy is used.
 HAZARD_REFRESH_SECONDS = 300
+# The refresh button can ask sooner, but no more than once this often.
+HAZARD_FORCE_MIN_SECONDS = 30
 
 # Texas, as (west, south, east, north). Live hazards outside it are left out.
 HAZARD_AREA = (-106.7, 25.8, -93.5, 36.6)

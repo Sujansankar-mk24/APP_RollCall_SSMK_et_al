@@ -176,7 +176,15 @@ final class RollCallUITests: XCTestCase {
         let allow = springboard.buttons["Allow While Using App"]
         XCTAssertTrue(allow.waitForExistence(timeout: 10), "The location permission popup didn't appear")
         allow.tap()
-        XCTAssertTrue(app.buttons["My location"].waitForExistence(timeout: 15), "The map didn't find the user")
+        XCTAssertTrue(app.buttons["Following you"].waitForExistence(timeout: 15), "The map didn't start following the user")
+        // The test phone is next to the demo grass fire, so the map warns about it.
+        XCTAssertTrue(app.descendants(matching: .any)["nearbyDanger"].waitForExistence(timeout: 15),
+                      "No warning about the fire nearby")
+        XCTAssertTrue(app.descendants(matching: .any)["userLocationDot"].waitForExistence(timeout: 10), "No blue dot")
+        snapshot(app, "map following you")
+        // The refresh button asks for new live data.
+        app.buttons["refreshMap"].tap()
+        XCTAssertTrue(app.buttons["refreshMap"].waitForExistence(timeout: 5))
     }
 
     // MARK: - Reporting

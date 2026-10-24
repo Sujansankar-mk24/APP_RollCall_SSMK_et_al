@@ -47,12 +47,18 @@ struct IncidentMapView: View {
     @State private var showsIncidents = DebugLaunchOptions.opensIncidents
     /// The map's size on screen (the incident log is sized from it).
     @State private var mapSize: CGSize = .zero
-    /// Finds the phone's location for "Use my location".
-    @State private var locator = LocationProvider()
-    @State private var isLocating = false
-    /// Set once the map has zoomed to the user, so the button says "My location".
-    @State private var hasFoundUser = false
+    /// Follows the phone for the blue dot ("Use my location").
+    @State private var live = LiveLocation()
+    @State private var tracking: Tracking = .off
     @State private var locationProblem: LocationProblem?
+    /// Which way the map is turned (0 = north up), so the dot's cone points the right way.
+    @State private var cameraHeading: Double = 0
+    /// How far up the map's camera is (meters), so following you keeps your zoom.
+    @State private var cameraDistance: Double = 0
+    /// A nearby-danger warning the user closed (it comes back for a different hazard).
+    @State private var dismissedDangerID: String?
+    /// Lets the compass sit with the other map buttons.
+    @Namespace private var mapScope
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(store: IncidentStore) {
@@ -65,7 +71,7 @@ struct IncidentMapView: View {
     }
 
     var body: some View {
-        Map(position: $cameraPosition, selection: $selectedIncidentID) {
+        Map(position: $cameraPosition, selection: $selectedIncidentID, scope: mapScope) {
             // Live hazards first (underneath), then community reports on top.
             ForEach(viewModel.visibleHazards) { hazard in
                 ZoneShapes(zones: hazard.zones, center: hazard.coordinate, color: hazard.kind.color)
@@ -78,8 +84,13 @@ struct IncidentMapView: View {
                 .annotationTitles(.hidden)
             }
 
-            // The blue dot. It only appears once the user allows location access.
-            UserAnnotation()
+            // You are here: the blue dot, with a cone showing which way you face.
+            if tracking != .off, let here = live.location {
+                Annotation("Your location", coordinate: here.coordinate, anchor: .center) {
+                    UserLocationDot(coneAngle: live.heading.map { $0 - cameraHeading })
+                }
+                .annotationTitles(.hidden)
+            }
 
             ForEach(viewModel.visibleIncidents) { incident in
 
@@ -94,11 +105,28 @@ struct IncidentMapView: View {
         // A calm map with no restaurants or shops, so the incidents stand out.
         .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
         .mapControls {
-            MapCompass()
             MapScaleView()
         }
+        .onMapCameraChange(frequency: .continuous) { context in
+            cameraHeading = context.camera.heading
+            cameraDistance = context.camera.distance
+        }
+        // While following, keep the map on you as you move (and turned the
+        // way you face, in compass mode).
+        .onChange(of: live.location) { if tracking.follows { moveCameraToUser(animated: true) } }
+        .onChange(of: live.heading) { if tracking == .compass { moveCameraToUser(animated: false) } }
         .onMapCameraChange(frequency: .onEnd) { context in
             visibleRegion = context.region
+        }
+        // Dragging the map yourself stops following you (the dot stays).
+        .simultaneousGesture(DragGesture(minimumDistance: 12).onChanged { _ in
+            if tracking.follows { tracking = .shown }
+        })
+        .onChange(of: live.authorization) {
+            if live.isDenied && tracking != .off {
+                tracking = .off
+                locationProblem = .denied
+            }
         }
         .onGeometryChange(for: CGSize.self) { $0.size } action: { mapSize = $0 }
         .safeAreaInset(edge: .top) {
@@ -113,6 +141,7 @@ struct IncidentMapView: View {
                         }
                         .zIndex(1)
                     infoRow
+                    nearbyWarning
                 }
             }
         }
@@ -120,6 +149,9 @@ struct IncidentMapView: View {
             // Step aside while the report confirmation is showing (they'd overlap).
             if viewModel.loadState == .loaded && lastReport == nil {
                 VStack(spacing: Spacing.m) {
+                    // Always on screen, like Google Maps. Tap it to turn north up.
+                    MapCompass(scope: mapScope)
+                        .mapControlVisibility(.visible)
                     zoomButtons
                     recenterButton
                 }
@@ -197,8 +229,10 @@ struct IncidentMapView: View {
             // Runs when the screen appears; SwiftUI cancels it when it goes away.
             await viewModel.load()
             openDebugSelectionIfRequested()
+            if DebugLaunchOptions.tracksLocation { tapLocationButton() }
             await viewModel.keepRefreshing()
         }
+        .mapScope(mapScope)
     }
 
     // MARK: - Selection
@@ -325,12 +359,15 @@ struct IncidentMapView: View {
     private var infoRow: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: Spacing.s) {
-                UpdateStatusPill(
-                    lastUpdated: viewModel.lastUpdated,
-                    refreshError: viewModel.refreshError,
-                    isRefreshing: viewModel.isRefreshing,
-                    onRetry: { Task { await viewModel.load() } }
-                )
+                HStack(spacing: Spacing.s) {
+                    UpdateStatusPill(
+                        lastUpdated: viewModel.lastUpdated,
+                        refreshError: viewModel.refreshError,
+                        isRefreshing: viewModel.isRefreshing,
+                        onRetry: { Task { await viewModel.load() } }
+                    )
+                    refreshButton
+                }
                 LiveDataPill(feed: viewModel.hazardFeed, hasError: viewModel.hazardError != nil) {
                     openLiveData()
                 }
@@ -439,49 +476,117 @@ struct IncidentMapView: View {
         }
     }
 
-    /// "Use my location": asks for permission the first time (the iPhone's
-    /// own popup), then zooms to the blue dot.
+    /// "Use my location", like the location button in Google Maps:
+    ///   first tap   asks for permission (the iPhone's own popup), then
+    ///               shows the blue dot and follows you
+    ///   next tap    compass mode: the map turns with you
+    ///   next tap    back to north up, still following you
     private var myLocationButton: some View {
-        Button {
-            Task { await showMyLocation() }
-        } label: {
+        Button(action: tapLocationButton) {
             HStack(spacing: 6) {
-                if isLocating {
-                    ProgressView().controlSize(.mini)
+                if tracking.follows && live.location == nil {
+                    ProgressView().controlSize(.mini)   // waiting for the first GPS fix
                 } else {
-                    Image(systemName: hasFoundUser ? "location.fill" : "location")
+                    Image(systemName: tracking.symbol)
                 }
-                Text(hasFoundUser ? "My location" : "Use my location")
+                Text(tracking.title)
             }
             .font(.footnote.weight(.semibold))
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(tracking == .off ? Color.accentColor : Color.white)
             .padding(.horizontal, 10)
             .frame(minHeight: 28)
+            .background {
+                if tracking != .off { Capsule().fill(Color.accentColor) }
+            }
             .floatingSurface(cornerRadius: 14)
             .padding(.vertical, 8)   // a 44 pt tap area without a bigger pill
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .padding(.vertical, -8)
-        .disabled(isLocating)
-        .accessibilityHint("Shows where you are on the map")
+        .accessibilityHint(tracking == .off ? "Shows where you are on the map" : "Changes how the map follows you")
         .accessibilityIdentifier("useMyLocationOnMap")
+        .animation(.snappy(duration: 0.2), value: tracking)
     }
 
-    private func showMyLocation() async {
-        isLocating = true
-        defer { isLocating = false }
-        guard let location = await locator.currentLocation() else {
-            locationProblem = locator.isDenied ? .denied : .notFound
+    private func tapLocationButton() {
+        if live.isDenied {
+            locationProblem = .denied
             return
         }
-        hasFoundUser = true
         if showsIncidents { setIncidents(open: false) }
-        withAnimation(.easeInOut(duration: 0.6)) {
-            // About 5 km top to bottom: your street and the area around it.
-            cameraPosition = .region(MKCoordinateRegion(
-                center: location.coordinate,
-                span: MKCoordinateSpan(latitudeDelta: 0.045, longitudeDelta: 0.045)))
+        if !live.isRunning { live.start() }
+        let next: Tracking = switch tracking {
+        case .off, .shown: .following
+        case .following: live.heading == nil ? .following : .compass   // no compass in the simulator
+        case .compass: .following
+        }
+        tracking = next
+        // The first time, zoom in to your neighborhood (about 4 km across).
+        if next == .following && tracking != .compass && cameraDistance > 12_000 { cameraDistance = 6_000 }
+        moveCameraToUser(animated: true)
+    }
+
+    /// Center the map on you. Compass mode also turns it the way you face.
+    private func moveCameraToUser(animated: Bool) {
+        guard let here = live.location else { return }   // it moves once the first GPS fix arrives
+        let camera = MapCamera(centerCoordinate: here.coordinate,
+                               distance: cameraDistance > 0 ? min(cameraDistance, 12_000) : 6_000,
+                               heading: tracking == .compass ? (live.heading ?? 0) : 0)
+        if animated {
+            withAnimation(.easeInOut(duration: 0.5)) { cameraPosition = .camera(camera) }
+        } else {
+            cameraPosition = .camera(camera)
+        }
+    }
+
+    /// Asks NASA, NOAA and the Weather Service again right now (new fires,
+    /// ended alerts), plus the latest community reports.
+    private var refreshButton: some View {
+        Button {
+            Task { await viewModel.refreshEverything() }
+        } label: {
+            Image(systemName: "arrow.clockwise")
+                .font(.caption.weight(.bold))
+                .rotationEffect(.degrees(viewModel.isRefreshingAll ? 360 : 0))
+                .animation(viewModel.isRefreshingAll ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default,
+                           value: viewModel.isRefreshingAll)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28, height: 28)
+                .floatingSurface(cornerRadius: 14)
+                .padding(8)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(-8)
+        .disabled(viewModel.isRefreshingAll)
+        .accessibilityLabel("Refresh the map")
+        .accessibilityHint("Checks for new fires, alerts and reports")
+        .accessibilityIdentifier("refreshMap")
+    }
+
+    /// The closest danger to you, if you're near one (fires, storms, floods;
+    /// never injuries). Tap it to see the hazard, or close it.
+    private var nearbyDanger: NearbyDanger? {
+        guard tracking != .off, let here = live.location else { return nil }
+        return NearbyDanger.closest(to: here, hazards: viewModel.hazardFeed?.hazards ?? [],
+                                    incidents: viewModel.incidents)
+    }
+
+    @ViewBuilder
+    private var nearbyWarning: some View {
+        if let danger = nearbyDanger, danger.id != dismissedDangerID {
+            NearbyDangerBanner(danger: danger) {
+                switch danger.source {
+                case .hazard(let hazard): select(hazard)
+                case .incident(let incident): show(incident)
+                }
+            } onClose: {
+                withAnimation(.snappy) { dismissedDangerID = danger.id }
+            }
+            .padding(.horizontal, Spacing.l)
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .sensoryFeedback(.warning, trigger: danger.id)
         }
     }
 
@@ -543,6 +648,31 @@ struct IncidentMapView: View {
                 )
                 .padding(Spacing.l)
             }
+        }
+    }
+}
+
+/// How the map follows the user (see myLocationButton).
+private enum Tracking {
+    case off, shown, following, compass
+
+    var follows: Bool { self == .following || self == .compass }
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .off: "Use my location"
+        case .shown: "My location"
+        case .following: "Following you"
+        case .compass: "Compass mode"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .off: "location"
+        case .shown: "location"
+        case .following: "location.fill"
+        case .compass: "location.north.line.fill"
         }
     }
 }

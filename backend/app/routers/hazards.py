@@ -2,6 +2,7 @@
 Live hazard endpoints (Map tab):
 
   GET    /hazards                    real alerts, fires and storm reports, with danger zones
+                                     (?refresh=true asks the sources again right away)
   POST   /demo/tornado-warning       start the demo Tornado Warning over Greenville (45 min)
   DELETE /demo/tornado-warning       end it early
 """
@@ -18,8 +19,8 @@ router = APIRouter(tags=["hazards"])
 
 
 @router.get("/hazards", response_model=HazardsOut)
-async def hazards():
-    return await feed.current()
+async def hazards(refresh: bool = False):
+    return await feed.current(force=refresh)
 
 
 @router.post("/demo/tornado-warning", response_model=HazardsOut)

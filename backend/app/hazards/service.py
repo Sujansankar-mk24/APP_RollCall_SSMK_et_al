@@ -12,7 +12,7 @@ from typing import Optional
 
 import httpx
 
-from app.config import DATA_USER_AGENT, HAZARD_REFRESH_SECONDS
+from app.config import DATA_USER_AGENT, HAZARD_FORCE_MIN_SECONDS, HAZARD_REFRESH_SECONDS
 from app.hazards import demo
 from app.hazards.models import HazardOut, HazardsOut, SourceStatusOut
 from app.hazards.sources import SOURCES, drop_duplicate_fires
@@ -29,8 +29,13 @@ class HazardFeed:
         self.fetched_at: Optional[datetime] = None
         self.lock = asyncio.Lock()
 
-    def is_fresh(self, now: datetime) -> bool:
-        return self.fetched_at is not None and (now - self.fetched_at).total_seconds() < HAZARD_REFRESH_SECONDS
+    def is_fresh(self, now: datetime, force: bool = False) -> bool:
+        if self.fetched_at is None:
+            return False
+        age = (now - self.fetched_at).total_seconds()
+        # A forced refresh (the app's refresh button) still waits a little
+        # between downloads, so tapping it over and over can't flood the sources.
+        return age < (HAZARD_FORCE_MIN_SECONDS if force else HAZARD_REFRESH_SECONDS)
 
     async def refresh(self) -> None:
         async with httpx.AsyncClient(timeout=20, headers={"User-Agent": DATA_USER_AGENT},
@@ -45,10 +50,10 @@ class HazardFeed:
                 self.status[name] = SourceStatusOut(name=name, ok=True, count=len(result))
         self.fetched_at = datetime.now(timezone.utc).replace(microsecond=0)
 
-    async def current(self) -> HazardsOut:
+    async def current(self, force: bool = False) -> HazardsOut:
         now = datetime.now(timezone.utc).replace(microsecond=0)
         async with self.lock:   # if several requests arrive at once, download only once
-            if not self.is_fresh(now):
+            if not self.is_fresh(now, force):
                 await self.refresh()
         live = [h for items in self.last.values() for h in items
                 if h.ends_at is None or h.ends_at > now]           # skip expired alerts

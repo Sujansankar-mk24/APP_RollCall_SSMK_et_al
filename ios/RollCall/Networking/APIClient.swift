@@ -99,8 +99,14 @@ struct APIClient {
     // MARK: - Live hazards (Map tab)
 
     /// Real alerts, fires and storm reports, with their danger zones.
-    func fetchHazards() async throws(APIError) -> HazardFeed {
-        try await send(request("hazards"))
+    /// `fresh` asks the server to check NASA, NOAA and the Weather Service
+    /// again right away instead of using its copy from the last few minutes.
+    func fetchHazards(fresh: Bool = false) async throws(APIError) -> HazardFeed {
+        var request = request("hazards")
+        if fresh, let url = request.url {
+            request.url = url.appending(queryItems: [URLQueryItem(name: "refresh", value: "true")])
+        }
+        return try await send(request)
     }
 
     /// Start (or end) the demo Tornado Warning over Greenville.
