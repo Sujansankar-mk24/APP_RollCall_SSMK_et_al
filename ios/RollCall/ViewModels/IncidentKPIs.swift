@@ -40,9 +40,9 @@ struct IncidentKPIs: Equatable {
         averageResponse = times.isEmpty ? nil : times.reduce(0, +) / Double(times.count)
     }
 
-    /// "31 min", "1 hr 5 min", or "—" when nobody has responded yet.
+    /// "31 min", "1 hr 5 min", or "None yet" when nobody has responded yet.
     var averageResponseText: String {
-        guard let averageResponse else { return "—" }
+        guard let averageResponse else { return String(localized: "None yet") }
         return Duration.seconds(averageResponse)
             .formatted(.units(allowed: [.hours, .minutes], width: .abbreviated, maximumUnitCount: 2))
     }

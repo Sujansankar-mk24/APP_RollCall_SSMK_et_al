@@ -54,7 +54,7 @@ def polite_get(url: str, **kwargs) -> requests.Response:
             response.raise_for_status()
             return response
         time.sleep(5 * (attempt + 1))
-    raise RuntimeError(f"Wikimedia Commons is rate-limiting us; wait a minute and run again ({url})")
+    raise RuntimeError(f"Wikimedia Commons is rate-limiting us. Wait a minute and run again ({url})")
 
 
 def commons_info(titles: list[str], video: bool) -> dict[str, dict]:
@@ -136,7 +136,7 @@ def main() -> None:
         "# Sample media credits",
         "",
         "Downloaded from Wikimedia Commons by `scripts/download_samples.py` for RollCall's demo data.",
-        "Photos are resized copies; the video is trimmed and converted to MP4. No other changes were made.",
+        "Photos are resized copies, and the video is trimmed and converted to MP4. No other changes were made.",
         "",
         "| File | Author | License | Source |",
         "|---|---|---|---|",

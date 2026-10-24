@@ -10,7 +10,8 @@
 //               (the Incidents button, top left), and reporting
 //    Roll Call  your household and the neighbors you check on
 //    Community  your neighborhood (not shown to responders)
-//    About      what RollCall is, how privacy works, your account
+//  Your profile, sign out, About RollCall and light/dark mode are behind the
+//  gear button at the top of every tab (SettingsButton.swift).
 //  The map and its incident log share one IncidentStore, so they always agree.
 //  Every tab except the Map uses the roll-call sheet look (Design/Sheet.swift).
 //
@@ -55,7 +56,18 @@ struct MainTabView: View {
     @State private var selection: RootTab = DebugLaunchOptions.startTab
 
     enum RootTab: String, Hashable {
-        case map, rollCall, community, about
+        case map, rollCall, community
+
+        /// The pill's color on each tab: Map green, Roll Call red, Community
+        /// orange. They're a bit deeper than the system colors so the white
+        /// label on top is easy to read.
+        var color: Color {
+            switch self {
+            case .map: Color(red: 0.12, green: 0.55, blue: 0.27)
+            case .rollCall: Color(red: 0.82, green: 0.17, blue: 0.16)
+            case .community: Color(red: 0.84, green: 0.40, blue: 0.0)
+            }
+        }
     }
 
     var body: some View {
@@ -75,10 +87,6 @@ struct MainTabView: View {
                     .roomForTabBar()
                     .tag(RootTab.community)
             }
-
-            AboutView()
-                .roomForTabBar()
-                .tag(RootTab.about)
         }
         // Our own bar instead of the system's glass one (see SlidingTabBar.swift).
         // TabView still keeps every tab's screen alive, so switching back is
@@ -91,14 +99,13 @@ struct MainTabView: View {
 
     private var tabs: [SlidingTabBar<RootTab>.Item] {
         var items: [SlidingTabBar<RootTab>.Item] = [
-            .init(tab: .map, title: "Map", identifier: "tab_map"),
-            .init(tab: .rollCall, title: "Roll Call", identifier: "tab_rollCall"),
+            .init(tab: .map, title: "Map", color: RootTab.map.color, identifier: "tab_map"),
+            .init(tab: .rollCall, title: "Roll Call", color: RootTab.rollCall.color, identifier: "tab_rollCall"),
         ]
         if !me.isResponder {
-            items.append(.init(tab: .community, title: "Community",
+            items.append(.init(tab: .community, title: "Community", color: RootTab.community.color,
                                badge: me.community?.status == .pending ? 1 : 0, identifier: "tab_community"))
         }
-        items.append(.init(tab: .about, title: "About", identifier: "tab_about"))
         return items
     }
 }

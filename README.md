@@ -13,21 +13,22 @@ Make sure no one gets left behind. RollCall is a community emergency app for Nor
 
 | Tab | What it's for |
 |---|---|
-| **Map** | Live hazards (diamonds) and community reports (circles) with their danger zones; tap one for details. **Incidents** (top left) unrolls the incident log: key numbers and every incident sorted by priority, with "Why this priority?". **Report incident** with a pin, address search, and a photo or video. Filters, legend, zoom, night mode. |
+| **Map** | Live hazards (diamonds) and community reports (circles) with their danger zones. Tap one for details. **Incidents** (top left) unrolls the incident log: key numbers and every incident sorted by priority, with "Why this priority?". **Report incident** with a pin, address search, and a photo or video. Filters, legend, zoom, and **Use my location**, which asks permission once and then shows you as a blue dot. |
 | **Roll Call** | **My household**: join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, privacy and Delete my data. **I check on**: be a volunteer buddy. Responders see their own view. |
 | **Community** | Find your neighborhood and ask to join, or start one and be its admin: approve members, and decide whether buddies from outside are allowed. |
-| **About** | What RollCall does, who can see your information, credits, and your account (Sign out). |
 
-**The look:** the Map keeps its blue map style. Every other screen looks like a paper roll-call sheet: warm paper, ink-black type and square buttons, ruled rows instead of floating cards, and color only on the "stamped" status labels (green safe, red needs help, amber waiting). Text never goes below 15 pt. The pieces live in `ios/RollCall/Design/Sheet.swift`.
+The **gear** at the top of every tab opens **Your profile** (who's signed in, with **Sign out**), **About RollCall** (what the app does, who can see your information, credits) and **Display** (light or dark). The pill in the tab bar turns green on the Map, red on Roll Call and orange on Community.
 
-You sign in once; the app remembers you until you sign out. There are no placeholder people or communities: everything in Roll Call and Community comes from real accounts made in the app.
+**The look:** the Map keeps its blue map style. Nothing uses see-through glass. Every other screen looks like a paper roll-call sheet: warm paper, handwritten titles over plain, easy-to-read text, ink-black type and square buttons, ruled rows instead of floating cards, and color only on the "stamped" status labels (green safe, red needs help, amber waiting). Text never goes below 15 pt. The pieces live in `ios/RollCall/Design/Sheet.swift`.
+
+You sign in once, and the app remembers you until you sign out. There are no placeholder people or communities: everything in Roll Call and Community comes from real accounts made in the app.
 
 ## What works so far
 
 - **Map and incident log:** live hazard data with danger zones, reporting with photo/video, merging, AI photo/video checks, priority scoring, responder status updates, timeline.
-- **Accounts:** sign up, sign in, stay signed in, sign out. Passwords are hashed with scrypt; the sign-in token lives in the iPhone Keychain.
-- **Roll Call, step 1 — household profile:** a five-step sign-up (home, who lives here, needs, contact, review) with a typed address checked on the map and by GPS, **Not now** for people who'd rather not, a clear "who can see this" privacy screen, and **Delete my data**, which really deletes everything.
-- **Communities and buddies:** neighborhoods with admin approval; buddy offers from community neighbors or by exact address, always accepted or declined by the resident.
+- **Accounts:** sign up, sign in, stay signed in, sign out. Passwords are hashed with scrypt, and the sign-in token lives in the iPhone Keychain.
+- **Roll Call, step 1, household profile:** a five-step sign-up (home, who lives here, needs, contact, review) with a typed address checked on the map and by GPS, **Not now** for people who'd rather not, a clear "who can see this" privacy screen, and **Delete my data**, which really deletes everything.
+- **Communities and buddies:** neighborhoods with admin approval, and buddy offers from community neighbors or by exact address, always accepted or declined by the resident.
 - *(Coming next)* Emergency events from National Weather Service alerts, responder-drawn zones, and demo events.
 - *(Coming)* The roll call check-in in English and Spanish, escalation to buddies and responders, the responder roll-call dashboard with risk scores and routes, and buddy matching.
 
@@ -74,13 +75,13 @@ In a new terminal, run `source .venv/bin/activate` again before using `python` o
 2. Open `ios/RollCall.xcodeproj` in Xcode.
 3. Pick an iPhone simulator at the top of the window (for example, iPhone 18 Pro) and press **Run** (⌘R).
 
-The first time, the app shows the sign-in screen: create an account (or sign in). After that it opens straight to the Map. To switch accounts, tap your name at the top left of the Roll Call or Community tab (or go to About) and choose **Sign out**.
+The first time, the app shows the sign-in screen: create an account (or sign in). After that it opens straight to the Map. To switch accounts, tap the gear at the top of any tab, choose **Your profile**, then **Sign out**.
 
 The app reads the server address from `ios/RollCall/Config/AppConfig.swift` (`http://localhost:8000`). If the backend isn't running, the app shows "Can't reach RollCall" with a **Try again** button. New Swift files added anywhere inside `ios/RollCall/` are included in the project automatically.
 
 **Testing in the simulator:**
 - **Location:** the simulator starts out in California. Set a North Texas location in the simulator's menu (Features → Location → Custom Location), or run `xcrun simctl location booted set 33.0712,-96.1043` (next to the demo grass fire, so a fire report there merges into it).
-- **Photos and videos:** add some to the simulator's Photos app by dragging files onto the simulator window, or run `xcrun simctl addmedia booted backend/sample_media/grass_fire_crew.jpg backend/sample_media/grass_fire_clip.mp4`. **Take photo or video** only appears on a real iPhone; the simulator has no camera.
+- **Photos and videos:** add some to the simulator's Photos app by dragging files onto the simulator window, or run `xcrun simctl addmedia booted backend/sample_media/grass_fire_crew.jpg backend/sample_media/grass_fire_clip.mp4`. **Take photo or video** only appears on a real iPhone, because the simulator has no camera.
 
 ## Live hazard data
 
@@ -123,7 +124,7 @@ Things to know:
 
 ### Incident log
 
-The **Incidents** button at the top left of the Map unrolls the incident log over the top left of the screen (the map stays usable around it; the X closes it). It's for responders. At the top are four numbers, each a simple count you can check:
+The **Incidents** button at the top left of the Map unrolls the incident log over the top left of the screen (the map stays usable around it, and the X closes it). It's for responders. At the top are four numbers, each a simple count you can check:
 
 | Card | What it counts |
 |---|---|
@@ -176,13 +177,13 @@ python -m scripts.make_responder chief@example.com "a long password" "Alex River
 | `GET` `PUT` `DELETE` | `/households/{id}` | See, edit or delete a household, if the privacy rules allow it |
 | `GET` | `/volunteers/{id}/households` | A buddy's assigned households (only for that buddy) |
 | `POST` | `/auth/signup`, `/auth/signin`, `/auth/signout` | Accounts |
-| `GET` `PATCH` | `/me` | The signed-in account (household, volunteer, community); "Not now" |
+| `GET` `PATCH` | `/me` | The signed-in account (household, volunteer, community), and "Not now" |
 | `PUT` `DELETE` | `/me/volunteer` | Become (or stop being) a volunteer buddy |
-| `GET` | `/me/buddy-requests` | Volunteers offering to check on you; `POST .../{id}/accept` or `/decline` |
+| `GET` | `/me/buddy-requests` | Volunteers offering to check on you. `POST .../{id}/accept` or `/decline` |
 | `GET` | `/buddy/residents`, `/buddy/neighbors`, `/buddy/requests` | A volunteer's lists |
 | `POST` | `/buddy/requests/community`, `/buddy/requests/address` | Offer to check on a neighbor, or someone by exact address |
 | `GET` `POST` | `/communities` | Search or create a community |
-| `GET` `PATCH` | `/communities/{id}` | Details; the admin allows or blocks outside buddies |
+| `GET` `PATCH` | `/communities/{id}` | Details. The admin allows or blocks outside buddies |
 | `POST` | `/communities/{id}/join`, `/leave`, `/requests/{user}/approve`, `/decline` | Joining and admin approval |
 
 Every Roll Call and Community request must be signed in (`Authorization: Bearer <token>`).
@@ -199,7 +200,7 @@ Every photo or video is analyzed in the background right after upload, so the ap
 2. **People.** YOLOv8n, a small pretrained neural network, finds people. It runs on a normal laptop CPU.
 3. **Fire and smoke.** If a trained model exists at `backend/models/fire.pt`, it is used. Otherwise a hand-written OpenCV rule (the **basic detector**) looks for deeply saturated, red-dominant, unevenly lit flame patches and, in video, flicker. Flame-colored patches that sit on a detected person are ignored, because firefighters' yellow jackets and helmets are flame colored. Smoke is a large, smooth, grayish area in the upper part of the picture.
 4. **Who might need help.** People lying down ("may be down") and people close to the flames are flagged from YOLO's boxes (`backend/app/ai/scene.py`).
-5. **Video.** About one frame per second is checked (up to 30 seconds). Fire or smoke must appear in at least 2 frames, and the most informative frame is saved with its boxes drawn on.
+5. **Video.** About one frame per second is checked (up to 30 seconds). Fire or smoke must appear in at least 2 frames, and the clearest frame is saved with its boxes drawn on.
 
 ## How incident priority works
 
@@ -219,12 +220,12 @@ Simple rules that anyone can check, not a black box. The app shows each one unde
 
 The total is kept between 0 and 100: 60+ is high, 30–59 medium, below 30 low. See `backend/app/services/priority.py`.
 
-The −20 only applies to types the AI can check. It looks for flames, smoke and people, so for a fire report "no evidence yet" means something. It can't recognize a tornado or a flooded road, so weather reports aren't marked down for that; the number of independent reports counts instead.
+The −20 only applies to types the AI can check. It looks for flames, smoke and people, so for a fire report "no evidence yet" means something. It can't recognize a tornado or a flooded road, so weather reports aren't marked down for that. The number of independent reports counts instead.
 
 ## Automated tests
 
 - **Backend:** `cd backend && python -m pytest`. Covers report merging, priority scoring, the AI's scene rules, the incident API, accounts and password safety, household sign-up checks, the privacy rules, buddy offers (including that a typed address reveals nothing), communities and admin approval, Delete my data, and the demo data.
-- **iPhone app (UI tests):** start the backend with fresh demo data and the test responder (`python -m scripts.reset_demo`, then `python -m scripts.make_responder test-responder@example.com "responder password"`, then `uvicorn app.main:app`), and press **⌘U** in Xcode. Each test makes the accounts it needs and taps through the real app: the map, the incident log, live data and the demo Tornado Warning, reporting (including Use my location and attaching a photo the AI checks), signing up, in and out, joining the roll call and deleting it, buddy offers, a responder's view, communities and admin approval, and a light/dark screenshot tour of every screen.
+- **iPhone app (UI tests):** start the backend with fresh demo data and the test responder (`python -m scripts.clear_test_data`, which keeps real accounts, then `python -m scripts.make_responder test-responder@example.com "responder password"`, then `uvicorn app.main:app`), and press **⌘U** in Xcode. Each test makes the accounts it needs and taps through the real app: the map, the incident log, live data and the demo Tornado Warning, reporting (including Use my location and attaching a photo the AI checks), signing up, in and out, joining the roll call and deleting it, buddy offers, a responder's view, communities and admin approval, and a light/dark screenshot tour of every screen. Run `python -m scripts.clear_test_data` again afterwards to remove the accounts the tests made.
 
 ## Known limitations
 

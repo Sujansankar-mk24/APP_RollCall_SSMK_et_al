@@ -58,7 +58,7 @@ struct LiveDataSheet: View {
                 } header: {
                     Text("Demo")
                 } footer: {
-                    Text("Shows a realistic Tornado Warning near Greenville for 40 minutes, clearly labeled Demo. It's for practice and presentations; it's not a real alert.")
+                    Text("Shows a realistic Tornado Warning near Greenville for 40 minutes, clearly labeled Demo. It's for practice and presentations. It isn't a real alert.")
                 }
 
                 if let note = viewModel.hazardFeed?.note {
@@ -68,7 +68,7 @@ struct LiveDataSheet: View {
             .navigationTitle("Live data")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }.flat()
             }
         }
     }

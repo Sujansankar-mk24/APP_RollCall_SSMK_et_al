@@ -2,14 +2,14 @@
 //  AboutView.swift
 //  RollCall
 //
-//  The About tab, on the roll-call sheet: what RollCall does, what each tab is for, who can see your
-//  information, where the demo data comes from, and your account.
+//  About RollCall (from the gear): what the app does, what each tab is for,
+//  who can see your information, and where the demo data comes from.
 //
 
 import SwiftUI
 
 struct AboutView: View {
-    @Environment(AuthStore.self) private var auth
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -19,13 +19,16 @@ struct AboutView: View {
                     tabsSection
                     privacySection
                     projectSection
-                    accountSection
                 }
                 .padding(Spacing.l)
             }
             .sheetPage()
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) { AppearanceToolbarMenu() }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .accessibilityIdentifier("closeAbout")
+                }
+                .flat()
             }
         }
     }
@@ -54,6 +57,8 @@ struct AboutView: View {
                         "Households sign up ahead of time (or choose \"Not now\"). When an emergency hits, everyone in the area is asked if they're safe, a volunteer buddy checks on anyone who doesn't answer, and responders see who still needs help.")
                 infoRow("house.and.flag.fill", "Community",
                         "Join your neighborhood. The admin approves who joins, and neighbors in the same community can be buddies for each other.")
+                infoRow("gearshape.fill", "Settings",
+                        "The gear at the top of every tab has your profile, this page, and light or dark mode. You sign out from your profile.")
             }
         }
     }
@@ -73,7 +78,7 @@ struct AboutView: View {
                 infoRow("eye.slash.fill", "Everyone else",
                         "Never. Neighbors in your community see only your first name and street, and only if you asked for a buddy. Incident reports on the map don't show who sent them.")
             }
-            SheetNote(text: "These rules are checked by the server, not just hidden in the app.", systemImage: "lock.fill")
+            SheetNote(text: "The server enforces these rules, so a changed copy of the app can't get around them.", systemImage: "lock.fill")
         }
     }
 
@@ -89,48 +94,6 @@ struct AboutView: View {
                         "The community reports already on the map are made-up examples. Their photos and videos are public domain or Creative Commons, from Wikimedia Commons. Live data (diamonds) is real.")
                 infoRow("cross.case.fill", "Not a 911 service",
                         "RollCall helps neighbors and responders, but it doesn't contact 911 for you.")
-            }
-        }
-    }
-
-    // MARK: - Account
-
-    @ViewBuilder
-    private var accountSection: some View {
-        if let me = auth.me {
-            VStack(alignment: .leading, spacing: Spacing.m) {
-                sectionTitle("Your account")
-                VStack(alignment: .leading, spacing: Spacing.m) {
-                    HStack(spacing: Spacing.m) {
-                        Text(initials(me.name))
-                            .font(.headline.weight(.heavy))
-                            .foregroundStyle(Color.paper)
-                            .frame(width: 48, height: 48)
-                            .background(Color.ink)
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(verbatim: me.name).font(.title3.weight(.semibold))
-                            Text(verbatim: me.email).font(.callout).foregroundStyle(.secondary)
-                        }
-                    }
-                    .accessibilityElement(children: .combine)
-                    Button {
-                        Task { await auth.signOut() }
-                    } label: {
-                        Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
-                    }
-                    .buttonStyle(InkButtonStyle(prominent: false, destructive: true))
-                    .accessibilityIdentifier("signOut")
-                }
-                    SheetNote(text: "You stay signed in on this phone until you sign out.")
-                Label {
-                    Text("Server: \(ServerSettings.displayName(for: auth.serverURL))")
-                } icon: {
-                    Image(systemName: auth.serverURL == ServerSettings.thisMac ? "desktopcomputer" : "network")
-                }
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("serverInfo")
             }
         }
     }

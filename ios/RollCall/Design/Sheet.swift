@@ -33,16 +33,22 @@ extension View {
             .environment(\.brand, .ink)
             .tint(.ink)
             .toolbarBackground(Color.paper, for: .navigationBar)
+            // When this page is shown as a sheet, give it solid paper instead
+            // of the system's see-through glass (ignored everywhere else).
+            .presentationBackground(Color.paper)
     }
 }
 
 // MARK: - Type
 
 extension Font {
-    /// Big page titles, like the header printed on a form: "ROLL CALL".
-    static let sheetDisplay = Font.system(.largeTitle, weight: .black).width(.condensed)
-    /// Section and card headings.
-    static let sheetHeading = Font.system(.title2, weight: .heavy).width(.condensed)
+    /// Big page titles, handwritten like a name signed at the top of a
+    /// form: "Roll Call". Bradley Hand comes with every iPhone. Only titles
+    /// and headings use it, so everything else stays easy to read, and
+    /// `relativeTo` makes it grow with the user's text size.
+    static let sheetDisplay = Font.custom("BradleyHandITCTT-Bold", size: 38, relativeTo: .largeTitle)
+    /// Section and card headings, in the same handwriting.
+    static let sheetHeading = Font.custom("BradleyHandITCTT-Bold", size: 27, relativeTo: .title2)
     /// Small labels ("NO. 014 · PECAN HOLLOW"), still 15 pt so they're easy to read.
     static let sheetLabel = Font.system(.subheadline, design: .monospaced, weight: .semibold)
 }
@@ -80,7 +86,6 @@ struct SheetTitle: View {
             }
             title
                 .font(.sheetDisplay)
-                .textCase(.uppercase)
                 .fixedSize(horizontal: false, vertical: true)
             Rectangle().fill(Color.ink).frame(height: 3)
         }

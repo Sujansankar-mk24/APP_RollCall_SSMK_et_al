@@ -12,11 +12,11 @@
 //  Colors show the kind of hazard; official alerts also shade their area.
 //
 //  Layout (top to bottom):
-//    [Incidents ⌄]  filter chips
+//    [Incidents ⌄]  filter chips        settings (gear)
 //    "Updated ... ago", "Live"          legend
+//    "Use my location"
 //    (the Incidents button unrolls the incident log over the top left)
-//    (map with zones and markers)
-//                                       display (light/night) button
+//    (map with zones and markers, and a blue dot for you)
 //                                       zoom in / zoom out
 //             [Report incident]         recenter button
 //
@@ -47,6 +47,12 @@ struct IncidentMapView: View {
     @State private var showsIncidents = DebugLaunchOptions.opensIncidents
     /// The map's size on screen (the incident log is sized from it).
     @State private var mapSize: CGSize = .zero
+    /// Finds the phone's location for "Use my location".
+    @State private var locator = LocationProvider()
+    @State private var isLocating = false
+    /// Set once the map has zoomed to the user, so the button says "My location".
+    @State private var hasFoundUser = false
+    @State private var locationProblem: LocationProblem?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(store: IncidentStore) {
@@ -71,6 +77,9 @@ struct IncidentMapView: View {
                 }
                 .annotationTitles(.hidden)
             }
+
+            // The blue dot. It only appears once the user allows location access.
+            UserAnnotation()
 
             ForEach(viewModel.visibleIncidents) { incident in
 
@@ -111,7 +120,6 @@ struct IncidentMapView: View {
             // Step aside while the report confirmation is showing (they'd overlap).
             if viewModel.loadState == .loaded && lastReport == nil {
                 VStack(spacing: Spacing.m) {
-                    AppearanceButton()
                     zoomButtons
                     recenterButton
                 }
@@ -140,10 +148,14 @@ struct IncidentMapView: View {
         .task(id: lastReport) {
             await followLastReport()
         }
+        .alert(item: $locationProblem) { problem in
+            problem.alert
+        }
         .sheet(isPresented: $isReporting) {
             ReportFormView { result in
                 Task { await reportWasSent(result) }
             }
+            .presentationBackground(Color(.systemGroupedBackground))
         }
         .animation(.easeOut(duration: 0.2), value: viewModel.loadState)
         .onChange(of: selectedIncidentID) { _, newValue in
@@ -158,11 +170,13 @@ struct IncidentMapView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(Radius.panel)
+                .presentationBackground(Color(.systemBackground))
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .sheet(isPresented: $showsLiveData) {
             LiveDataSheet(viewModel: viewModel)
                 .presentationDetents([.medium, .large])
+                .presentationBackground(Color(.systemGroupedBackground))
         }
         .sheet(isPresented: isShowingDetail) {
             if let incident = selectedIncident {
@@ -173,6 +187,7 @@ struct IncidentMapView: View {
                 .presentationDetents([.medium, .large], selection: $sheetDetent)
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(Radius.panel)
+                .presentationBackground(Color(.systemBackground))
                 // Keep the map usable behind a half-height sheet (tap another incident).
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
                 .presentationContentInteraction(.scrolls)
@@ -300,6 +315,8 @@ struct IncidentMapView: View {
             }
             .padding(.leading, Spacing.l)
             MapFilterBar(filters: $viewModel.filters)
+            SettingsButton()
+                .padding(.trailing, Spacing.l)
         }
         .padding(.top, Spacing.xs)
     }
@@ -317,6 +334,7 @@ struct IncidentMapView: View {
                 LiveDataPill(feed: viewModel.hazardFeed, hasError: viewModel.hazardError != nil) {
                     openLiveData()
                 }
+                myLocationButton
             }
             Spacer()
             MapLegend()
@@ -421,6 +439,52 @@ struct IncidentMapView: View {
         }
     }
 
+    /// "Use my location": asks for permission the first time (the iPhone's
+    /// own popup), then zooms to the blue dot.
+    private var myLocationButton: some View {
+        Button {
+            Task { await showMyLocation() }
+        } label: {
+            HStack(spacing: 6) {
+                if isLocating {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Image(systemName: hasFoundUser ? "location.fill" : "location")
+                }
+                Text(hasFoundUser ? "My location" : "Use my location")
+            }
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(Color.accentColor)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 28)
+            .floatingSurface(cornerRadius: 14)
+            .padding(.vertical, 8)   // a 44 pt tap area without a bigger pill
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.vertical, -8)
+        .disabled(isLocating)
+        .accessibilityHint("Shows where you are on the map")
+        .accessibilityIdentifier("useMyLocationOnMap")
+    }
+
+    private func showMyLocation() async {
+        isLocating = true
+        defer { isLocating = false }
+        guard let location = await locator.currentLocation() else {
+            locationProblem = locator.isDenied ? .denied : .notFound
+            return
+        }
+        hasFoundUser = true
+        if showsIncidents { setIncidents(open: false) }
+        withAnimation(.easeInOut(duration: 0.6)) {
+            // About 5 km top to bottom: your street and the area around it.
+            cameraPosition = .region(MKCoordinateRegion(
+                center: location.coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.045, longitudeDelta: 0.045)))
+        }
+    }
+
     private var recenterButton: some View {
         Button {
             withAnimation(.easeInOut(duration: 0.6)) {
@@ -479,6 +543,31 @@ struct IncidentMapView: View {
                 )
                 .padding(Spacing.l)
             }
+        }
+    }
+}
+
+/// Why "Use my location" didn't work, and what to tell the user.
+private enum LocationProblem: Identifiable {
+    case denied, notFound
+
+    var id: Self { self }
+
+    var alert: Alert {
+        switch self {
+        case .denied:
+            Alert(title: Text("Location is turned off for RollCall"),
+                  message: Text("To see where you are on the map, open Settings and allow location access for RollCall."),
+                  primaryButton: .default(Text("Open Settings")) {
+                      if let url = URL(string: UIApplication.openSettingsURLString) {
+                          UIApplication.shared.open(url)
+                      }
+                  },
+                  secondaryButton: .cancel(Text("Not now")))
+        case .notFound:
+            Alert(title: Text("Couldn't find your location"),
+                  message: Text("Check that Location Services is on, then try again."),
+                  dismissButton: .default(Text("OK")))
         }
     }
 }

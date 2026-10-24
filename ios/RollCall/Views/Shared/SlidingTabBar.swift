@@ -2,15 +2,16 @@
 //  SlidingTabBar.swift
 //  RollCall
 //
-//  The bar along the bottom of the app: a flat rounded bar with a white
-//  pill that slides to the tab you pick. It replaces the system's glass
-//  tab bar.
+//  The bar along the bottom of the app: a flat rounded bar with a colored
+//  pill that slides to the tab you pick. Each tab has its own pill color
+//  (Map green, Roll Call red, Community orange), and the color changes as
+//  the pill slides. It replaces the system's glass tab bar.
 //
 //  The look and motion follow the "Tabs sliding" transition from
 //  transitions.dev, rebuilt in SwiftUI:
 //    bar  #f1f1f1, 3 pt padding, 3 pt between tabs, fully rounded
-//    pill #ffffff, slides in 250 ms with the curve cubic-bezier(0.22, 1, 0.36, 1)
-//    text #0f0f0f when chosen, the same at 80% when not
+//    pill slides in 250 ms with the curve cubic-bezier(0.22, 1, 0.36, 1)
+//    text white on the pill, #0f0f0f at 80% on the others
 //  Tabs are 44 pt tall (the recipe's 30 pt, raised to Apple's minimum tap
 //  size), and there's a matching dark-mode version. If Reduce Motion is on,
 //  the pill jumps instead of sliding.
@@ -22,6 +23,7 @@ struct SlidingTabBar<Tab: Hashable>: View {
     struct Item {
         let tab: Tab
         let title: LocalizedStringKey
+        let color: Color
         var badge: Int = 0
         let identifier: String
     }
@@ -68,7 +70,7 @@ struct SlidingTabBar<Tab: Hashable>: View {
             Text(item.title)
                 .lineLimit(1)
                 .font(compact ? .footnote.weight(.semibold) : .subheadline.weight(.semibold))
-                .foregroundStyle(isSelected ? TabColors.textActive : TabColors.textMuted)
+                .foregroundStyle(isSelected ? Color.white : TabColors.textMuted)
                 .padding(.horizontal, padding)
                 .frame(minHeight: minimumTapSize)
                 .overlay(alignment: .topTrailing) {
@@ -81,6 +83,7 @@ struct SlidingTabBar<Tab: Hashable>: View {
                             .padding(.horizontal, 4)
                             .frame(minWidth: 16, minHeight: 16)
                             .background(Color(.systemRed), in: Capsule())
+                            .overlay(Capsule().strokeBorder(TabColors.bar, lineWidth: 1.5))
                             .offset(x: 2, y: 2)
                     }
                 }
@@ -89,7 +92,7 @@ struct SlidingTabBar<Tab: Hashable>: View {
                 // SwiftUI slide that one pill from the old tab to the new one.
                 if isSelected {
                     Capsule()
-                        .fill(TabColors.pill)
+                        .fill(item.color)
                         .matchedGeometryEffect(id: "pill", in: pill)
                 }
             }
@@ -102,11 +105,9 @@ struct SlidingTabBar<Tab: Hashable>: View {
     }
 }
 
-/// The recipe's colors (#f1f1f1 bar, #ffffff pill, #0f0f0f text), each with a
-/// dark-mode shade, kept in Assets > TabBar, TabPill and TabText.
+/// The recipe's bar and text colors (#f1f1f1 and #0f0f0f), each with a
+/// dark-mode shade, kept in Assets > TabBar and TabText.
 private enum TabColors {
     static let bar = Color.tabBar
-    static let pill = Color.tabPill
-    static let textActive = Color.tabText
     static let textMuted = Color.tabText.opacity(0.8)
 }

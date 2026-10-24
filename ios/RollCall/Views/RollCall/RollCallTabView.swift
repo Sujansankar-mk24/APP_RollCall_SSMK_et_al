@@ -38,6 +38,7 @@ private struct MemberRollCallView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     SheetTitle(title: "Roll Call", kicker: kicker)
+                        .overlay(alignment: .topTrailing) { SettingsButton() }
                     SectionSwitcher(selection: $section)
 
                     switch section {
@@ -48,10 +49,7 @@ private struct MemberRollCallView: View {
                 .padding(Spacing.l)
             }
             .sheetPage()
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { AccountButton() }
-                ToolbarItem(placement: .topBarTrailing) { AppearanceToolbarMenu() }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .refreshable { await auth.refresh() }
         }
         .fullScreenCover(isPresented: $isJoining) {
@@ -113,7 +111,7 @@ private struct MemberRollCallView: View {
                 .buttonStyle(InkButtonStyle(prominent: false))
                 .disabled(isWorking)
                 .accessibilityIdentifier("notNow")
-            SheetNote(text: "You can still use the Map and Incidents tabs without joining.")
+            SheetNote(text: "You can still use the Map and report incidents without joining.")
         }
     }
 

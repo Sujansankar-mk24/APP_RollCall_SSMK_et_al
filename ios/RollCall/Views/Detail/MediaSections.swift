@@ -51,13 +51,13 @@ struct MediaThumbnail: View {
                         ProgressView()
                             .controlSize(.small)
                             .padding(6)
-                            .background(.ultraThinMaterial, in: Circle())
+                            .background(Color(.systemBackground).opacity(0.9), in: Circle())
                             .padding(6)
                     } else if item.analysis.foundSomething {
                         Image(systemName: "viewfinder")
                             .font(.caption.weight(.bold))
                             .padding(6)
-                            .background(.ultraThinMaterial, in: Circle())
+                            .background(Color(.systemBackground).opacity(0.9), in: Circle())
                             .padding(6)
                     }
                 }

@@ -6,7 +6,8 @@
 //  dark ("night") mode. Dark mode is easier on the eyes at night and also
 //  switches the map to its night style.
 //
-//  The choice is saved with @AppStorage, so it's remembered after the app closes.
+//  The choice is saved with @AppStorage, so it's remembered after the app
+//  closes. It's picked from the gear's menu (SettingsButton.swift).
 //
 
 import SwiftUI
@@ -54,48 +55,5 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
                 window.overrideUserInterfaceStyle = interfaceStyle
             }
         }
-    }
-}
-
-/// The same display choices as a plain toolbar menu (used on the Incidents tab).
-struct AppearanceToolbarMenu: View {
-    @AppStorage(AppearanceMode.storageKey) private var mode: AppearanceMode = .system
-
-    var body: some View {
-        Menu {
-            Picker("Display", selection: $mode) {
-                ForEach(AppearanceMode.allCases) { option in
-                    Label(option.title, systemImage: option.symbol).tag(option)
-                }
-            }
-        } label: {
-            Image(systemName: mode.symbol)
-        }
-        .accessibilityLabel("Display")
-        .accessibilityValue(mode.title)
-    }
-}
-
-/// The round button on the map that opens the display menu.
-struct AppearanceButton: View {
-    @AppStorage(AppearanceMode.storageKey) private var mode: AppearanceMode = .system
-
-    var body: some View {
-        Menu {
-            Picker("Display", selection: $mode) {
-                ForEach(AppearanceMode.allCases) { option in
-                    Label(option.title, systemImage: option.symbol).tag(option)
-                }
-            }
-        } label: {
-            Image(systemName: mode.symbol)
-                .font(.title3.weight(.medium))
-                .frame(width: 48, height: 48)
-                .contentShape(Rectangle())
-        }
-        .foregroundStyle(Color.accentColor)
-        .floatingSurface(cornerRadius: 24)
-        .accessibilityLabel("Display")
-        .accessibilityValue(mode.title)
     }
 }

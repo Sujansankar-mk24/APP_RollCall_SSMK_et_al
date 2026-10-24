@@ -4,16 +4,17 @@
 //
 //  End-to-end tests that tap through the real app, exactly like a person
 //  would, against the real backend: the Map and its incident log, sign-in,
-//  Roll Call, Community and About.
+//  Roll Call, Community, and the gear (profile, About, sign out).
 //
 //  Each test makes the accounts it needs (through the backend, like the app
 //  does) and opens the app signed in as one of them. Before running them,
 //  start the backend with fresh demo data, and make the test responder:
 //      cd backend
 //      source .venv/bin/activate
-//      python -m scripts.reset_demo
+//      python -m scripts.clear_test_data    (keeps real accounts)
 //      python -m scripts.make_responder test-responder@example.com "responder password"
 //      uvicorn app.main:app
+//  Run clear_test_data again afterwards to remove the tests' accounts.
 //  Then in Xcode: Product > Test (⌘U).
 //
 
@@ -92,11 +93,15 @@ final class RollCallUITests: XCTestCase {
         // The Incidents button (top left of the Map) unrolls the incident log.
         app.buttons["incidentsButton"].tap()
 
-        // Four key numbers. In the demo data, 4 incidents are active and 3 are responding.
+        // Four key numbers. "Active" matches what the server has right now
+        // (other tests may have added reports since the demo data was reset).
         let active = app.descendants(matching: .any)["kpi_active"]
         XCTAssertTrue(active.waitForExistence(timeout: 15), "The KPI cards never appeared")
-        XCTAssertTrue(active.label.hasPrefix("Active incidents, 4"), "Unexpected: \(active.label)")
-        XCTAssertTrue(active.label.contains("3 responding"))
+        let incidents = serverList("incidents")
+        let open = incidents.filter { $0["status"] as? String == "active" }.count
+        let responding = incidents.filter { $0["status"] as? String == "responding" }.count
+        XCTAssertTrue(active.label.hasPrefix("Active incidents, \(open)"), "Unexpected: \(active.label)")
+        XCTAssertTrue(active.label.contains("\(responding) responding"), "Unexpected: \(active.label)")
         for id in ["kpi_people", "kpi_unverified", "kpi_response"] {
             XCTAssertTrue(app.descendants(matching: .any)[id].exists, "Missing \(id)")
         }
@@ -127,21 +132,59 @@ final class RollCallUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["AI analysis"].waitForExistence(timeout: 10), "The incident's details didn't open")
     }
 
-    // MARK: - About tab
+    // MARK: - Settings (the gear)
 
     @MainActor
-    func testAboutTabExplainsEachTabAndPrivacy() {
+    func testAboutOpensFromTheGearAndExplainsPrivacy() {
         let app = launchApp()
-        app.buttons["tab_about"].tap()
+        XCTAssertFalse(app.buttons["tab_about"].exists, "About should live behind the gear, not in the tab bar")
+        openSettings("About RollCall", in: app)
         XCTAssertTrue(app.staticTexts["What's in the app"].waitForExistence(timeout: 5))
         app.swipeUp()
         XCTAssertTrue(app.staticTexts["Who can see your information"].exists)
+        app.buttons["closeAbout"].tap()
+        XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testProfileShowsWhoIsSignedInOnEveryTab() throws {
+        let account = try newAccount("Paula Profile")
+        let app = launchSignedIn(account)
+        for tab in ["Map", "Roll Call", "Community"] {
+            open(tab: tab, in: app)
+            openSettings("Your profile", in: app)
+            XCTAssertTrue(app.staticTexts["Paula Profile"].waitForExistence(timeout: 5), "No profile from the \(tab) tab")
+            XCTAssertTrue(app.buttons["signOut"].exists)
+            app.buttons["closeProfile"].tap()
+            XCTAssertFalse(app.buttons["signOut"].waitForExistence(timeout: 2))
+        }
+    }
+
+    // MARK: - Map location
+
+    /// The first time, the iPhone asks for permission; after Allow, the map
+    /// shows where you are.
+    @MainActor
+    func testUseMyLocationOnTheMapAsksPermissionThenShowsYou() {
+        // Forget any earlier answer, so the permission popup really appears.
+        XCUIApplication().resetAuthorizationStatus(for: .location)
+        let app = launchApp()
+        let button = app.buttons["useMyLocationOnMap"]
+        XCTAssertTrue(button.waitForExistence(timeout: 15))
+        button.tap()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allow = springboard.buttons["Allow While Using App"]
+        XCTAssertTrue(allow.waitForExistence(timeout: 10), "The location permission popup didn't appear")
+        allow.tap()
+        XCTAssertTrue(app.buttons["My location"].waitForExistence(timeout: 15), "The map didn't find the user")
     }
 
     // MARK: - Reporting
 
     @MainActor
     func testReportingAFireBesideAnExistingFireMergesIntoIt() {
+        // Someone reported a fire here a moment ago (so it's recent enough to merge with).
+        reportFire(at: besideGreenvilleFire)
         let app = launchApp()
         app.buttons["reportIncidentButton"].tap()
 
@@ -238,10 +281,7 @@ final class RollCallUITests: XCTestCase {
         signUp(app, name: "Test Person", email: email)
         XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 20), "Didn't open the app after signing up")
 
-        open(tab: "About", in: app)
-        let signOut = app.buttons["signOut"]
-        scrollTo(signOut, in: app)
-        signOut.tap()
+        signOut(app)
         XCTAssertTrue(app.textFields["emailField"].waitForExistence(timeout: 10), "Didn't return to sign-in")
 
         // A wrong password is refused with a clear message...
@@ -308,10 +348,7 @@ final class RollCallUITests: XCTestCase {
         let email = uniqueEmail()
         signUp(app, name: "First Person", email: email)
         XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 20))
-        open(tab: "About", in: app)
-        let signOut = app.buttons["signOut"]
-        scrollTo(signOut, in: app)
-        signOut.tap()
+        signOut(app)
 
         signUp(app, name: "Second Person", email: email)
         XCTAssertTrue(app.descendants(matching: .any)["signInError"].waitForExistence(timeout: 10))
@@ -362,14 +399,15 @@ final class RollCallUITests: XCTestCase {
         app.descendants(matching: .any)["counter_adults"].firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.70, dy: 0.5)).tap()  // -
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'You live alone'")).firstMatch.waitForExistence(timeout: 5))
         snapshot(app, "wizard 2 people")
-        app.buttons["wizardNext"].tap()
+        tap(app.buttons["wizardNext"], until: app.buttons["need_mobility"], in: app)
 
         // 3. Needs
         app.buttons["need_mobility"].tap()
         app.buttons["need_vehicle"].tap()
         app.buttons["equipment_oxygen"].tap()
         snapshot(app, "wizard 3 needs")
-        app.buttons["wizardNext"].tap()
+        // The page may still be scrolling from the taps above, which can swallow a tap.
+        tap(app.buttons["wizardNext"], until: app.buttons["language_es"], in: app)
 
         // 4. Contact: Spanish, and ask for a buddy
         let spanish = app.buttons["language_es"]
@@ -548,14 +586,19 @@ final class RollCallUITests: XCTestCase {
             snapshot(app, "\(mode) 06 report form")
             app.buttons["Cancel"].firstMatch.tap()
 
-            // Roll Call, Community, About.
+            // Roll Call, Community, and the gear's pages.
             open(tab: "Roll Call", in: app)
             XCTAssertTrue(app.buttons["acceptBuddy"].waitForExistence(timeout: 10))
             snapshot(app, "\(mode) 07 roll call")
             open(tab: "Community", in: app)
             XCTAssertTrue(app.descendants(matching: .any)["communityHeader"].waitForExistence(timeout: 10))
             snapshot(app, "\(mode) 08 community")
-            open(tab: "About", in: app)
+            openSettings("Your profile", in: app)
+            XCTAssertTrue(app.buttons["signOut"].waitForExistence(timeout: 5))
+            snapshot(app, "\(mode) 09 profile")
+            app.buttons["closeProfile"].tap()
+            openSettings("About RollCall", in: app)
+            XCTAssertTrue(app.buttons["closeAbout"].waitForExistence(timeout: 5))
             snapshot(app, "\(mode) 09 about")
             app.terminate()
 
@@ -576,6 +619,31 @@ final class RollCallUITests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// Tap the gear on the current tab, then one of its menu items.
+    @MainActor
+    private func openSettings(_ item: String, in app: XCUIApplication) {
+        XCTAssertTrue(app.buttons["settingsButton"].firstMatch.waitForExistence(timeout: 10), "No gear button")
+        let entry = app.buttons[item]
+        // Up to three tries: iOS's late "Save Password?" popup can swallow a tap.
+        for attempt in 0..<3 {
+            if attempt > 0 { dismissSavePasswordPrompt(app) }
+            let gear = app.buttons.matching(identifier: "settingsButton").allElementsBoundByIndex.first { $0.isHittable }
+                ?? app.buttons["settingsButton"].firstMatch
+            gear.tap()
+            if entry.waitForExistence(timeout: 4) { entry.tap(); return }
+        }
+        XCTFail("No \(item) in the gear's menu")
+    }
+
+    /// Gear > Your profile > Sign out.
+    @MainActor
+    private func signOut(_ app: XCUIApplication) {
+        openSettings("Your profile", in: app)
+        let button = app.buttons["signOut"]
+        XCTAssertTrue(button.waitForExistence(timeout: 5))
+        button.tap()
+    }
 
     private let password = "correct horse battery"
 
@@ -646,6 +714,28 @@ final class RollCallUITests: XCTestCase {
         URLSession.shared.dataTask(with: request) { data, _, _ in answer = data; done.fulfill() }.resume()
         _ = XCTWaiter.wait(for: [done], timeout: 30)
         return answer.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+    }
+
+    /// A backend list, like GET /incidents.
+    private func serverList(_ path: String) -> [[String: Any]] {
+        let done = XCTestExpectation(description: path)
+        var answer: Data?
+        URLSession.shared.dataTask(with: URL(string: "http://localhost:8000")!.appending(path: path)) { data, _, _ in
+            answer = data; done.fulfill()
+        }.resume()
+        _ = XCTWaiter.wait(for: [done], timeout: 30)
+        return answer.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [[String: Any]] } ?? []
+    }
+
+    /// Send a fire report through the backend, like the app's report form does.
+    private func reportFire(at location: CLLocation) {
+        var request = URLRequest(url: URL(string: "http://localhost:8000/reports")!)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data("type=fire&latitude=\(location.coordinate.latitude)&longitude=\(location.coordinate.longitude)&location_name=FM%201570".utf8)
+        let done = XCTestExpectation(description: "report")
+        URLSession.shared.dataTask(with: request) { _, _, _ in done.fulfill() }.resume()
+        _ = XCTWaiter.wait(for: [done], timeout: 30)
     }
 
     private func newAccount(_ name: String) throws -> Account {

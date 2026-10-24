@@ -34,11 +34,10 @@ struct ResponderHomeView: View {
                     .padding(.bottom, SlidingTabBar<MainTabView.RootTab>.height)
                     .accessibilityElement(children: .combine)
                 }
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { AccountButton() }
-                    ToolbarItem(placement: .topBarTrailing) { AppearanceToolbarMenu() }
+                .overlay(alignment: .topTrailing) {
+                    SettingsButton().padding(Spacing.l)
                 }
-                .toolbarBackground(.visible, for: .navigationBar)
+                .toolbar(.hidden, for: .navigationBar)
         }
     }
 }

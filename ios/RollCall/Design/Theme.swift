@@ -72,15 +72,20 @@ extension PriorityLevel {
 // MARK: - Surfaces
 
 extension View {
-    /// The look shared by every panel floating over a map: frosted glass
-    /// (.ultraThinMaterial), a hairline border and a soft shadow, so it stays
-    /// readable over any part of the map in light or dark mode.
+    /// The look shared by every panel floating over a map. It used to be
+    /// frosted glass, and now it's flat like the tab bar.
     func floatingSurface(cornerRadius: CGFloat = Radius.card) -> some View {
+        flatSurface(cornerRadius: cornerRadius)
+    }
+
+    /// A flat, solid panel (no glass or blur), the same gray as the tab bar,
+    /// with a soft shadow so it stands out over the map.
+    func flatSurface(cornerRadius: CGFloat = Radius.card) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         return self
-            .background(.ultraThinMaterial, in: shape)
-            .overlay(shape.strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+            .background(Color.tabBar, in: shape)
+            .overlay(shape.strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
     }
 
     /// A solid card on a grouped background (used for most content).
@@ -90,5 +95,21 @@ extension View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(.secondarySystemGroupedBackground),
                         in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+}
+
+
+// MARK: - Flat toolbars
+
+extension ToolbarContent {
+    /// iOS 26 puts a glass bubble behind toolbar buttons. RollCall keeps
+    /// them flat, like the rest of the app.
+    @ToolbarContentBuilder
+    func flat() -> some ToolbarContent {
+        if #available(iOS 26.0, *) {
+            sharedBackgroundVisibility(.hidden)
+        } else {
+            self
+        }
     }
 }

@@ -56,6 +56,7 @@ struct ReportFormView: View {
                         if viewModel.hasChanges { confirmingDiscard = true } else { dismiss() }
                     }
                 }
+                .flat()
                 // The "Done" button above the keyboard.
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -399,7 +400,8 @@ struct ReportFormView: View {
         .padding(.horizontal, Spacing.l)
         .padding(.top, Spacing.m)
         .padding(.bottom, Spacing.s)
-        .background(.bar)
+        .background(Color(.systemGroupedBackground))
+        .overlay(alignment: .top) { Divider() }
     }
 }
 

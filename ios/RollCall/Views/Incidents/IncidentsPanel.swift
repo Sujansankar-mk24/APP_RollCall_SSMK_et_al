@@ -58,6 +58,8 @@ struct IncidentsButton: View {
             HStack(spacing: 6) {
                 Image(systemName: "list.bullet.rectangle.fill")
                 Text("Incidents")
+                    .lineLimit(1)
+                    .fixedSize()   // never squeezed onto two lines by the chips beside it
                 if urgentCount > 0 {
                     Text("\(urgentCount)")
                         .font(.caption.weight(.bold))
@@ -114,7 +116,7 @@ struct IncidentsPanel: View {
         HStack(spacing: Spacing.s) {
             VStack(alignment: .leading, spacing: 0) {
                 Text("By priority").sheetLabelStyle().foregroundStyle(.secondary)
-                Text("Incidents").font(.sheetDisplay).textCase(.uppercase)
+                Text("Incidents").font(.sheetDisplay)
             }
             Spacer()
             Button(action: onClose) {

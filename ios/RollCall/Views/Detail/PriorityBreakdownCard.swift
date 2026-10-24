@@ -51,7 +51,7 @@ struct PriorityBreakdownCard: View {
     }
 
     private var note: String {
-        var text = "Simple rules, not a black box: confirmed evidence counts most, and reports the AI hasn't verified rank lower."
+        var text = "Every point comes from a simple rule you can check. Confirmed evidence counts most, and reports the AI hasn't verified rank lower."
         if rawTotal != priority.score {
             text += " The points add up to \(rawTotal), and scores are kept between 0 and 100."
         }

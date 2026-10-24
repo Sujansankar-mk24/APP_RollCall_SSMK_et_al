@@ -37,9 +37,9 @@ struct CommunityTabView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .sheetPage()
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { AccountButton() }
-                ToolbarItem(placement: .topBarTrailing) { AppearanceToolbarMenu() }
+            .toolbar(.hidden, for: .navigationBar)
+            .overlay(alignment: .topTrailing) {
+                SettingsButton().padding(.horizontal, Spacing.l).padding(.top, Spacing.l)
             }
             .refreshable { await auth.refresh() }
             .alert("Couldn't do that", isPresented: Binding(
@@ -154,7 +154,7 @@ private struct CreateCommunitySheet: View {
             .navigationTitle("Start a community")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }.flat()
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Create") {
                         Task {
@@ -164,6 +164,7 @@ private struct CreateCommunitySheet: View {
                     .disabled(name.trimmed.count < 2 || city.trimmed.isEmpty || viewModel.isWorking)
                     .accessibilityIdentifier("confirmCreateCommunity")
                 }
+                .flat()
             }
         }
     }

@@ -273,7 +273,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "RollCall-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = RollCall;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RollCall uses your location to place your home on the map, so responders know where to check on you during an emergency.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RollCall uses your location to show where you are on the map and to fill in addresses for you. Responders only see your home during an emergency in your area.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "RollCall uses the camera so you can attach a photo when you check in during an emergency.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "RollCall records sound with videos you attach to a check-in.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -307,7 +307,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "RollCall-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = RollCall;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RollCall uses your location to place your home on the map, so responders know where to check on you during an emergency.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "RollCall uses your location to show where you are on the map and to fill in addresses for you. Responders only see your home during an emergency in your area.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "RollCall uses the camera so you can attach a photo when you check in during an emergency.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "RollCall records sound with videos you attach to a check-in.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

@@ -55,7 +55,8 @@ struct ResponderActionBar: View {
         .padding(.horizontal, Spacing.l)
         .padding(.top, Spacing.m)
         .padding(.bottom, Spacing.s)
-        .background(.bar)
+        .background(Color(.systemBackground))
+        .overlay(alignment: .top) { Divider() }
         .confirmationDialog("Mark this incident as resolved?", isPresented: $confirmingResolve,
                             titleVisibility: .visible) {
             Button("Mark resolved") { onChange(.resolved) }

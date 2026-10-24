@@ -168,7 +168,7 @@ struct AIAnalysisCard: View {
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
-            .background(.ultraThinMaterial, in: Capsule())
+            .background(Color(.systemBackground).opacity(0.9), in: Capsule())
             .padding(6)
     }
 }

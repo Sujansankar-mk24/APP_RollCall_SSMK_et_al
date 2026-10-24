@@ -227,6 +227,7 @@ struct AddressBuddySheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(sent ? "Done" : "Cancel") { dismiss() }
                 }
+                .flat()
                 if !sent {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Send") {
@@ -239,6 +240,7 @@ struct AddressBuddySheet: View {
                         .disabled(!isComplete || isSending)
                         .accessibilityIdentifier("sendBuddyRequest")
                     }
+                    .flat()
                 }
             }
         }

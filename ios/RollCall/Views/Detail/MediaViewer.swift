@@ -42,6 +42,7 @@ struct MediaViewer: View {
                     Button("Done") { dismiss() }
                         .fontWeight(.semibold)
                 }
+                .flat()
                 if hasAIView {
                     ToolbarItem(placement: .principal) {
                         Picker("View", selection: $mode) {
@@ -51,6 +52,7 @@ struct MediaViewer: View {
                         .pickerStyle(.segmented)
                         .frame(width: 230)
                     }
+                    .flat()
                 }
             }
             .toolbarBackground(.visible, for: .navigationBar)
@@ -88,7 +90,7 @@ struct MediaViewer: View {
                     Text("This picture was dark, so it was brightened before the AI looked for people.")
                 }
                 if item.kind == .video, item.analysis.framesAnalyzed > 0 {
-                    Text("The AI checked \(item.analysis.framesAnalyzed) frames (about one per second) and shows the most informative one.")
+                    Text("The AI checked \(item.analysis.framesAnalyzed) frames (about one per second) and shows the clearest one.")
                 }
                 Text("Added \(item.createdAt.formatted(.relative(presentation: .named)))")
             }
@@ -97,7 +99,7 @@ struct MediaViewer: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Spacing.l)
-        .background(.ultraThinMaterial)
+        .background(Color.black.opacity(0.75))
         .environment(\.colorScheme, .dark)
     }
 }

@@ -55,7 +55,7 @@ struct IncidentMarker: View {
                 ProgressView()
                     .controlSize(.mini)
                     .padding(3)
-                    .background(.regularMaterial, in: Circle())
+                    .background(Color(.systemBackground), in: Circle())
                     .offset(x: 6, y: -6)
                     .transition(.scale.combined(with: .opacity))
             }

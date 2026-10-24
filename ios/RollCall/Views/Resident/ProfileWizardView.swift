@@ -58,6 +58,7 @@ struct ProfileWizardView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+                .flat()
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("Done") { hideKeyboard() }
@@ -285,7 +286,7 @@ struct ProfileWizardView: View {
             stepHeader("Check and finish", "Make sure this is right. You can change it anytime.")
 
             VStack(alignment: .leading, spacing: Spacing.s) {
-                Text(viewModel.input.contactName.isEmpty ? "—" : viewModel.input.contactName)
+                Text(viewModel.input.contactName.isEmpty ? "Not added" : viewModel.input.contactName)
                     .font(.sheetHeading)
                 Label("\(viewModel.input.address), \(viewModel.input.city) \(viewModel.input.zipCode)", systemImage: "mappin")
                     .font(.body).foregroundStyle(.secondary)

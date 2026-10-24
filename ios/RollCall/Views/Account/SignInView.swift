@@ -294,7 +294,7 @@ struct ServerSheet: View {
             .navigationTitle("Server")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }.flat()
             }
         }
     }
