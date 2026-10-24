@@ -2,9 +2,9 @@
 //  KPICard.swift
 //  RollCall
 //
-//  A number on the sheet: a big condensed figure, its label, and one line of
-//  context, under a rule. The rule turns red or amber when the number means
-//  "someone needs help" (and the caption says why, so color isn't the only clue).
+//  A number on its own paper card: a big figure, its label, and one line of
+//  context. The label turns red or amber when the number means "someone
+//  needs help" (and the caption says why, so color isn't the only clue).
 //
 
 import SwiftUI
@@ -19,15 +19,13 @@ struct KPICard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            Rectangle().fill(emphasis ?? Color.ink).frame(height: 3)
             Label { Text(title) } icon: { Image(systemName: systemImage) }
                 .sheetLabelStyle()
                 .foregroundStyle(emphasis ?? .secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.55)   // shrink to fit instead of wrapping
-                .padding(.top, Spacing.xs)
+                .lineLimit(2, reservesSpace: true)   // every card's label takes two lines, so the numbers line up
+                .fixedSize(horizontal: false, vertical: true)
             Text(value)
-                .font(.system(size: 44, weight: .black).width(.condensed))
+                .font(.system(size: 40, weight: .semibold))
                 .monospacedDigit()
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
@@ -38,7 +36,7 @@ struct KPICard: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .sheetBox(padding: Spacing.m)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
     }

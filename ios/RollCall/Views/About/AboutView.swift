@@ -48,7 +48,7 @@ struct AboutView: View {
     private var tabsSection: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             sectionTitle("What's in the app")
-            VStack(alignment: .leading, spacing: 0) {
+            SheetCard {
                 infoRow("map.fill", "Map",
                         "See emergencies near you and report one with a photo or video. Reports close together merge into one incident, and AI checks the photos for fire, smoke and people.")
                 infoRow("list.bullet.rectangle.fill", "Incidents",
@@ -68,7 +68,7 @@ struct AboutView: View {
     private var privacySection: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             sectionTitle("Who can see your information")
-            VStack(alignment: .leading, spacing: 0) {
+            SheetCard {
                 infoRow("person.fill", "You",
                         "Always. You can edit your household or delete it completely at any time.")
                 infoRow("person.2.wave.2.fill", "Your volunteer buddy",
@@ -87,7 +87,7 @@ struct AboutView: View {
     private var projectSection: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             sectionTitle("About this project")
-            VStack(alignment: .leading, spacing: 0) {
+            SheetCard {
                 infoRow("building.columns.fill", "Congressional App Challenge 2026",
                         "Built for Texas' 4th District by a high school student.")
                 infoRow("theatermasks.fill", "Demo incidents",
@@ -101,12 +101,9 @@ struct AboutView: View {
     // MARK: - Pieces
 
     private func sectionTitle(_ text: LocalizedStringKey) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text(text)
-                .font(.sheetHeading)
-                .accessibilityAddTraits(.isHeader)
-            Rectangle().fill(Color.ink).frame(height: 2)
-        }
+        Text(text)
+            .font(.sheetHeading)
+            .accessibilityAddTraits(.isHeader)
     }
 
     private func infoRow(_ symbol: String, _ title: LocalizedStringKey, _ detail: LocalizedStringKey) -> some View {
@@ -116,7 +113,7 @@ struct AboutView: View {
                 .frame(width: 32)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.title3.weight(.semibold))
+                Text(title).font(.headline)
                 Text(detail)
                     .font(.callout)
                     .foregroundStyle(.secondary)

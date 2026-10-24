@@ -19,8 +19,9 @@ struct ProfileView: View {
                 if let me = auth.me {
                     VStack(alignment: .leading, spacing: Spacing.xl) {
                         header(me)
-                        VStack(alignment: .leading, spacing: 0) {
+                        VStack(alignment: .leading, spacing: Spacing.s) {
                             SectionLabel("Your RollCall")
+                            SheetCard {
                             row("house.fill", "Roll call", rollCallStatus(me))
                             if !me.isResponder {
                                 row("person.2.wave.2.fill", "Volunteer buddy",
@@ -29,6 +30,7 @@ struct ProfileView: View {
                             }
                             row(auth.serverURL == ServerSettings.thisMac ? "desktopcomputer" : "network",
                                 "Server", ServerSettings.displayName(for: auth.serverURL))
+                            }
                         }
                         VStack(alignment: .leading, spacing: Spacing.m) {
                             Button {
@@ -62,13 +64,13 @@ struct ProfileView: View {
     private func header(_ me: Me) -> some View {
         HStack(spacing: Spacing.m) {
             Text(initials(me.name))
-                .font(.title2.weight(.heavy))
+                .font(.title2.weight(.semibold))
                 .foregroundStyle(Color.paper)
                 .frame(width: 64, height: 64)
-                .background(Color.ink)
+                .background(Color.ink, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: me.name).font(.sheetHeading)
+                Text(verbatim: me.name).sheetEntryStyle(large: true)
                 Text(verbatim: me.email).font(.body).foregroundStyle(.secondary)
                 if me.isResponder {
                     Stamp(text: String(localized: "Responder"), systemImage: "cross.case.fill", tilt: 0)
@@ -76,6 +78,7 @@ struct ProfileView: View {
                 }
             }
         }
+        .sheetBox()
         .accessibilityElement(children: .combine)
     }
 

@@ -3,8 +3,9 @@
 //  RollCall
 //
 //  The controls used to fill in the household form, drawn like a paper form:
-//  check boxes, a counter with big square buttons, tags, and fields with a
-//  line to write on. Easy to hit, easy to read, and clear to VoiceOver.
+//  check boxes, a counter with big buttons, tags, and boxes to write in
+//  (what you type shows up in handwriting, like filling in a form by hand).
+//  Easy to hit, easy to read, and clear to VoiceOver.
 //
 
 import SwiftUI
@@ -29,7 +30,7 @@ struct CounterRow: View {
             Spacer(minLength: Spacing.s)
             stepButton("minus", enabled: value > range.lowerBound) { value -= 1 }
             Text("\(value)")
-                .font(.system(.title, weight: .heavy).width(.condensed)).monospacedDigit()
+                .font(.system(.title, weight: .semibold)).monospacedDigit()
                 .frame(minWidth: 32)
                 .contentTransition(.numericText())
             stepButton("plus", enabled: value < range.upperBound) { value += 1 }
@@ -56,7 +57,7 @@ struct CounterRow: View {
             Image(systemName: symbol)
                 .font(.headline.weight(.bold))
                 .frame(width: minimumTapSize, height: minimumTapSize)
-                .overlay(Rectangle().strokeBorder(enabled ? brand : Color.secondary.opacity(0.4), lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(enabled ? brand : Color.secondary.opacity(0.4), lineWidth: 1.5))
         }
         .buttonStyle(.plain)
         .foregroundStyle(enabled ? brand : Color.secondary.opacity(0.5))
@@ -78,20 +79,20 @@ struct ToggleTile: View {
         Button { isOn.toggle() } label: {
             HStack(alignment: .center, spacing: Spacing.m) {
                 ZStack {
-                    Rectangle()
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(isOn ? brand : Color.clear)
-                    Rectangle()
-                        .strokeBorder(brand, lineWidth: 2)
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(brand, lineWidth: 1.5)
                     if isOn {
                         Image(systemName: "checkmark")
-                            .font(.headline.weight(.heavy))
+                            .font(.headline.weight(.bold))
                             .foregroundStyle(Color.paper)
                     }
                 }
                 .frame(width: 30, height: 30)
                 VStack(alignment: .leading, spacing: 2) {
                     Label { Text(title) } icon: { Image(systemName: systemImage) }
-                        .font(.title3.weight(.semibold))
+                        .font(.sheetHeading)
                     Text(subtitle)
                         .font(.callout).foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
@@ -113,7 +114,7 @@ struct ToggleTile: View {
     }
 }
 
-/// A square tag that can be selected (for picking several things).
+/// A tag that can be selected (for picking several things).
 struct SelectChip: View {
     @Environment(\.brand) private var brand
     let title: LocalizedStringResource
@@ -128,8 +129,8 @@ struct SelectChip: View {
                 .padding(.horizontal, Spacing.m)
                 .frame(minHeight: minimumTapSize)
                 .foregroundStyle(isSelected ? Color.paper : Color.primary)
-                .background(isSelected ? brand : Color.clear)
-                .overlay(Rectangle().strokeBorder(isSelected ? brand : Color.primary.opacity(0.35), lineWidth: 1.5))
+                .background(isSelected ? brand : Color.clear, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(isSelected ? brand : Color.primary.opacity(0.35), lineWidth: 1.5))
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
@@ -150,8 +151,8 @@ struct StepProgress: View {
                     .font(.sheetLabel.weight(.bold))
                     .frame(width: 30, height: 30)
                     .foregroundStyle(index <= current ? Color.paper : Color.secondary)
-                    .background(index <= current ? brand : Color.clear)
-                    .overlay(Rectangle().strokeBorder(index <= current ? brand : Color.secondary.opacity(0.4), lineWidth: 1.5))
+                    .background(index <= current ? brand : Color.clear, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(index <= current ? brand : Color.secondary.opacity(0.4), lineWidth: 1.5))
             }
             Spacer()
             Text("Step \(current + 1) of \(total)").sheetLabelStyle().foregroundStyle(.secondary)
@@ -162,27 +163,30 @@ struct StepProgress: View {
     }
 }
 
-/// A form field: a label above, and a line to write on (never a
-/// placeholder-only field).
+/// A form field: a printed label above, and a box to write in (never a
+/// placeholder-only field). What you type is shown in handwriting.
 struct LabeledField: View {
     let label: LocalizedStringKey
     let prompt: LocalizedStringKey
     @Binding var text: String
     var contentType: UITextContentType?
     var keyboard: UIKeyboardType = .default
+    /// Off for things like web addresses, which are easier to check in print.
+    var handwritten = true
     var identifier: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(label).sheetLabelStyle().foregroundStyle(.secondary)
-            TextField(prompt, text: $text)
-                .font(.title3)
+            TextField(text: $text, prompt: Text(prompt).font(.body)) { Text(label) }
+                .font(handwritten ? .sheetEntry : .title3)
+                .foregroundStyle(Color.ink)
                 .textContentType(contentType)
                 .keyboardType(keyboard)
-                .padding(.horizontal, Spacing.s)
+                .padding(.horizontal, Spacing.m)
                 .frame(minHeight: 50)
-                .background(Color.paperRaised)
-                .overlay(alignment: .bottom) { Rectangle().fill(Color.ink).frame(height: 2) }
+                .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(Color.ink.opacity(0.25), lineWidth: 1))
                 .accessibilityLabel(label)
                 .accessibilityIdentifier(identifier)
         }

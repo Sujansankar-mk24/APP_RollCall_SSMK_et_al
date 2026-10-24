@@ -103,11 +103,11 @@ struct IncidentsPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            Rectangle().fill(Color.ink).frame(height: 3)
             content
         }
-        .background(Color.paper)
-        .overlay(Rectangle().strokeBorder(Color.ink, lineWidth: 1.5))
+        .background(Color.paper, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Color.ink.opacity(0.2), lineWidth: 1))
         .sheetBrand()
         .accessibilityAddTraits(.isModal)
     }
@@ -123,7 +123,7 @@ struct IncidentsPanel: View {
                 Image(systemName: "xmark")
                     .font(.headline.weight(.bold))
                     .frame(width: minimumTapSize, height: minimumTapSize)
-                    .overlay(Rectangle().strokeBorder(Color.ink, lineWidth: 1.5))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(Color.ink.opacity(0.3), lineWidth: 1))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -167,12 +167,15 @@ struct IncidentsPanel: View {
                 } else {
                     LazyVStack(spacing: 0) {
                         ForEach(viewModel.visibleIncidents) { incident in
+                            if incident.id != viewModel.visibleIncidents.first?.id { RuleLine() }
                             Button { onSelect(incident) } label: {
                                 IncidentRow(incident: incident)
                             }
                             .buttonStyle(.plain)
                         }
                     }
+                    .padding(.horizontal, Spacing.m)
+                    .paperCard()
                     .animation(.easeOut(duration: 0.25), value: viewModel.visibleIncidents.map(\.id))
                 }
             }

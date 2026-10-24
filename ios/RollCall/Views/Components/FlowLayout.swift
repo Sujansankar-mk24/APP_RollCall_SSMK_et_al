@@ -70,7 +70,8 @@ struct TagChips: View {
                 .font(.callout.weight(.medium))
                 .padding(.horizontal, 9)
                 .padding(.vertical, 6)
-                .overlay(Rectangle().strokeBorder(Color.primary.opacity(0.3), lineWidth: 1))
+                .background(Color.primary.opacity(0.05), in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.primary.opacity(0.2), lineWidth: 1))
             }
         }
         .accessibilityElement(children: .combine)

@@ -11,10 +11,10 @@ import SwiftUI
 struct KPICards: View {
     let kpis: IncidentKPIs
 
-    private let columns = [GridItem(.flexible(), spacing: Spacing.l), GridItem(.flexible(), spacing: Spacing.l)]
+    private let columns = [GridItem(.flexible(), spacing: Spacing.m), GridItem(.flexible(), spacing: Spacing.m)]
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: Spacing.l) {
+        LazyVGrid(columns: columns, spacing: Spacing.m) {
             KPICard(
                 title: "Active incidents",
                 value: "\(kpis.active)",

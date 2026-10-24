@@ -3,7 +3,7 @@
 //  RollCall
 //
 //  The Roll Call tab. Responders see their view. Everyone else switches
-//  between two parts of their sheet:
+//  between two parts of their sheet with the tabs under the title:
 //    My household  join the roll call (or choose "Not now"), then your home,
 //                  your buddy, and your privacy
 //    I check on    be a volunteer buddy for neighbors
@@ -39,7 +39,10 @@ private struct MemberRollCallView: View {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     SheetTitle(title: "Roll Call", kicker: kicker)
                         .overlay(alignment: .topTrailing) { SettingsButton() }
-                    SectionSwitcher(selection: $section)
+                    SheetTabs(selection: $section,
+                              options: [(value: .household, title: String(localized: "My household")),
+                                        (value: .buddy, title: String(localized: "I check on"))],
+                              identifiers: ["section_household", "section_buddy"])
 
                     switch section {
                     case .household: householdSection
@@ -99,7 +102,7 @@ private struct MemberRollCallView: View {
             Text("When an emergency hits your area, RollCall asks if you're safe. If you don't answer, a neighbor checks on you, and responders know who still needs help.")
                 .font(.body)
                 .fixedSize(horizontal: false, vertical: true)
-            VStack(alignment: .leading, spacing: 0) {
+            SheetCard {
                 point("lock.fill", "Your details stay private until there's an emergency in your area.")
                 point("hand.raised.fill", "It's your choice. You can leave anytime, and your data is deleted.")
                 point("clock.fill", "Takes about 2 minutes.")
@@ -168,37 +171,5 @@ private struct MemberRollCallView: View {
         isWorking = true
         defer { isWorking = false }
         do { try await auth.setRollCallOptOut(optOut) } catch { actionError = error }
-    }
-}
-
-/// "MY HOUSEHOLD | I CHECK ON": two labels, the chosen one underlined in ink,
-/// like the tabs on a set of printed forms.
-private struct SectionSwitcher: View {
-    @Binding var selection: MemberRollCallView.Section
-
-    var body: some View {
-        HStack(spacing: 0) {
-            option("My household", .household, id: "section_household")
-            option("I check on", .buddy, id: "section_buddy")
-        }
-        .overlay(alignment: .bottom) { RuleLine() }
-    }
-
-    private func option(_ title: LocalizedStringKey, _ value: MemberRollCallView.Section, id: String) -> some View {
-        let isSelected = selection == value
-        return Button { selection = value } label: {
-            Text(title)
-                .sheetLabelStyle()
-                .foregroundStyle(isSelected ? Color.primary : Color.secondary)
-                .frame(maxWidth: .infinity, minHeight: minimumTapSize)
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(isSelected ? Color.ink : Color.clear).frame(height: 3)
-                }
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .animation(.snappy(duration: 0.2), value: isSelected)
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-        .accessibilityIdentifier(id)
     }
 }

@@ -24,8 +24,9 @@ struct PrivacyView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 header
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
                     SectionLabel("Who can see it, and when")
+                    SheetCard {
                     audienceCard(symbol: "person.fill", tint: .ink, who: "You", when: "Always",
                                  what: "Everything in your profile. You can change it or delete it anytime.")
                     audienceCard(symbol: "person.2.wave.2.fill", tint: Color(.systemTeal), who: "Your volunteer buddy",
@@ -36,6 +37,7 @@ struct PrivacyView: View {
                                  what: "What they need to reach and help you: your address, who lives there, medical equipment, mobility, and your check-in.")
                     audienceCard(symbol: "eye.slash.fill", tint: .secondary, who: "Everyone else", when: "Never",
                                  what: "Other residents, other volunteers and the public never see your information. If you asked for a buddy, people in your community see only your first name and street. It is never sold or shared.")
+                    }
                 }
                 collected
                 deleteButton
@@ -77,7 +79,7 @@ struct PrivacyView: View {
                 .frame(width: 32)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(who).font(.title3.weight(.semibold))
+                Text(who).font(.sheetHeading)
                 Text(when).sheetLabelStyle()
                 Text(what).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -88,20 +90,21 @@ struct PrivacyView: View {
     }
 
     private var collected: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             SectionLabel("What RollCall keeps, and why")
-            reason("Your address", "so responders can find you")
-            reason("Who lives with you", "so they know how many people to look for")
-            reason("Your needs", "so the right help comes first")
-            reason("Your check-ins", "so nobody is missed")
-            SheetNote(text: "Nothing else: no contacts, no location tracking, no ads.")
-                .padding(.top, Spacing.m)
+            SheetCard {
+                reason("Your address", "so responders can find you")
+                reason("Who lives with you", "so they know how many people to look for")
+                reason("Your needs", "so the right help comes first")
+                reason("Your check-ins", "so nobody is missed")
+            }
+            SheetNote(text: "Nothing else: no contacts, no location tracking, no ads.", systemImage: "hand.raised")
         }
     }
 
     private func reason(_ what: LocalizedStringKey, _ why: LocalizedStringKey) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
-            Image(systemName: "checkmark").font(.body.weight(.heavy))
+            Image(systemName: "checkmark").font(.body.weight(.semibold))
             Text("\(Text(what).bold()) \(Text(why))").font(.body)
         }
         .sheetRow()

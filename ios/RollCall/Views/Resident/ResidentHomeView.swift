@@ -5,7 +5,8 @@
 //  The "My household" part of the Roll Call tab, laid out like the resident's
 //  entry on a roll-call sheet: their number and name, any buddy offers to
 //  answer, a calm "no emergencies" note, then their home, needs, buddy and
-//  privacy as ruled sections.
+//  privacy, each on its own paper card. What the resident wrote in (their
+//  name, address, buddy's name) is shown in handwriting.
 //  (During an emergency this is where the roll call appears; that's step 3.)
 //
 
@@ -69,8 +70,9 @@ struct ResidentHomeView: View {
                 homeSection(household)
                 needsSection(household)
                 buddySection(household)
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
                     SectionLabel("Privacy")
+                    SheetCard {
                     NavigationLink {
                         PrivacyView(household: household, isDeleting: viewModel.isDeleting,
                                     onDelete: { await viewModel.deleteMyData() },
@@ -81,23 +83,27 @@ struct ResidentHomeView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("privacyLink")
+                    }
                 }
             }
         }
     }
 
-    /// "No. 014" and the resident's name, like their line on the roll call,
-    /// with a green stamp showing they're on it.
+    /// "No. 014" and the resident's name written on the line, like their
+    /// entry on a roll call, with a green stamp showing they're on it.
     private func entryHeader(_ household: Household) -> some View {
-        HStack(alignment: .center) {
+        HStack(alignment: .center, spacing: Spacing.m) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: "No. \(String(format: "%03d", household.id))").sheetLabelStyle().foregroundStyle(.secondary)
-                Text("Hi, \(household.firstName)")
-                    .font(.sheetHeading)
+                Text(verbatim: household.contactName)
+                    .sheetEntryStyle(large: true)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
             }
-            Spacer()
+            Spacer(minLength: 0)
             Stamp(text: String(localized: "On the roll call"), systemImage: "checkmark", color: Color(.systemGreen))
         }
+        .sheetBox()
         .accessibilityElement(children: .combine)
     }
 
@@ -105,9 +111,11 @@ struct ResidentHomeView: View {
     private func buddyRequestBox(_ request: BuddyRequestToMe) -> some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             Text("Buddy offer").sheetLabelStyle().foregroundStyle(.secondary)
-            Text("\(request.volunteerName) offered to check on you")
-                .font(.title3.weight(.bold))
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(verbatim: request.volunteerName).sheetEntryStyle(large: true)
+                Text("offered to check on you").font(.sheetHeading)
+            }
+            .fixedSize(horizontal: false, vertical: true)
             Text(request.sameCommunity
                  ? String(localized: "A volunteer from your community.")
                  : String(localized: "A volunteer from \(request.volunteerCity). They're not in your community."))
@@ -131,8 +139,9 @@ struct ResidentHomeView: View {
     }
 
     private func homeSection(_ household: Household) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             SectionLabel("Home")
+            VStack(alignment: .leading, spacing: Spacing.m) {
             Map(initialPosition: .region(MKCoordinateRegion(center: household.coordinate,
                                                             span: MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008))),
                 interactionModes: []) {
@@ -141,13 +150,13 @@ struct ResidentHomeView: View {
             }
             .mapStyle(.standard(pointsOfInterest: .excludingAll))
             .frame(height: 150)
-            .overlay(Rectangle().strokeBorder(Color.ink, lineWidth: 1.5))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
             .allowsHitTesting(false)
             .accessibilityHidden(true)
             HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(household.address).font(.title3.weight(.semibold))
-                    Text("\(household.city), TX \(household.zipCode)").font(.body).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(verbatim: household.address).sheetEntryStyle()
+                    Text(verbatim: "\(household.city), TX \(household.zipCode)").sheetEntryStyle()
                 }
                 Spacer()
                 Button("Edit") { isEditing = true }
@@ -155,31 +164,34 @@ struct ResidentHomeView: View {
                     .accessibilityLabel("Edit household")
                     .accessibilityIdentifier("editHousehold")
             }
+            }
+            .sheetBox()
         }
     }
 
     private func needsSection(_ household: Household) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             SectionLabel("Who lives here, and needs")
-            TagChips(tags: household.tags)
+            TagChips(tags: household.tags).sheetBox()
         }
     }
 
     @ViewBuilder
     private func buddySection(_ household: Household) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             SectionLabel("Buddy")
+            SheetCard {
             if let buddy = household.buddy {
                 HStack(spacing: Spacing.m) {
                     Text(initials(buddy.name))
-                        .font(.headline.weight(.heavy))
+                        .font(.headline.weight(.semibold))
                         .foregroundStyle(Color.paper)
                         .frame(width: 48, height: 48)
-                        .background(Color.ink)
+                        .background(Color.ink, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Your buddy").sheetLabelStyle().foregroundStyle(.secondary)
-                        Text(buddy.name).font(.title3.weight(.semibold))
+                        Text(verbatim: buddy.name).sheetEntryStyle()
                         Text("Checks on you if you don't answer during an emergency.")
                             .font(.callout).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -207,12 +219,13 @@ struct ResidentHomeView: View {
                 }
                 .buttonStyle(.plain)
             }
+            }
         }
     }
 
     private func textRow(title: LocalizedStringKey, subtitle: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.title3.weight(.semibold))
+            Text(title).font(.sheetHeading)
             Text(subtitle).font(.callout).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -223,7 +236,7 @@ struct ResidentHomeView: View {
     private func linkRow(title: LocalizedStringKey, subtitle: LocalizedStringKey) -> some View {
         HStack(spacing: Spacing.m) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.title3.weight(.semibold))
+                Text(title).font(.sheetHeading)
                 Text(subtitle).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

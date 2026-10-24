@@ -5,7 +5,7 @@
 //  The Community tab: your neighborhood, on the roll-call sheet.
 //    Not in one yet   search for yours and ask to join, or create it
 //    Asked to join    waiting for the admin
-//    Member           who's in it (like a roster); the admin approves new
+//    Member           who's in it (a numbered roster, names written in); the admin approves new
 //                     members and decides whether volunteers from outside
 //                     may be buddies here
 //  Only people in the same community can be buddies to each other, unless
@@ -82,12 +82,13 @@ private struct FindCommunityView: View {
             }
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: 54)
-            .background(Color.paperRaised)
-            .overlay(alignment: .bottom) { Rectangle().fill(Color.ink).frame(height: 2) }
+            .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(Color.ink.opacity(0.25), lineWidth: 1))
             .onChange(of: viewModel.query) { viewModel.queryChanged() }
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: Spacing.s) {
                 SectionLabel("Neighborhoods")
+                SheetCard {
                 if viewModel.results.isEmpty && !viewModel.isSearching {
                     Text(viewModel.query.trimmed.isEmpty ? "No communities yet." : "No community called \"\(viewModel.query.trimmed)\" yet.")
                         .font(.callout).foregroundStyle(.secondary)
@@ -96,7 +97,7 @@ private struct FindCommunityView: View {
                 ForEach(viewModel.results) { community in
                     HStack(spacing: Spacing.m) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(community.name).font(.title3.weight(.semibold))
+                            Text(verbatim: community.name).sheetEntryStyle()
                             Text("\(community.city) · \(memberCount(community.memberCount))")
                                 .font(.callout).foregroundStyle(.secondary)
                         }
@@ -109,16 +110,17 @@ private struct FindCommunityView: View {
                     .sheetRow()
                     .accessibilityElement(children: .contain)   // keeps "Ask to join" its own button
                 }
+                }
             }
 
-            VStack(alignment: .leading, spacing: Spacing.m) {
+            VStack(alignment: .leading, spacing: Spacing.s) {
                 SectionLabel("Not here yet?")
                 Button { isCreating = true } label: {
                     Label("Start a community", systemImage: "plus")
                 }
                 .buttonStyle(InkButtonStyle(prominent: false))
                 .accessibilityIdentifier("createCommunity")
-                SheetNote(text: "You'll be its admin: you approve who joins.")
+                SheetNote(text: "You'll be its admin, so you approve who joins.", systemImage: "star")
             }
         }
         .task { await viewModel.search() }
@@ -183,7 +185,7 @@ private struct PendingCommunityView: View {
             Stamp(text: String(localized: "Waiting for approval"), systemImage: "hourglass", color: Color(.systemOrange))
                 .padding(.vertical, Spacing.s)
             Text("Waiting to join \(community.name)")
-                .font(.title3.weight(.semibold))
+                .font(.sheetHeading)
                 .accessibilityIdentifier("pendingCommunity")
             Text("The community's admin will approve your request. Pull down to check again.")
                 .font(.body)
@@ -251,11 +253,12 @@ private struct MyCommunityView: View {
     }
 
     private func joinRequests(_ community: CommunityDetail) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             SectionLabel("Asking to join")
+            SheetCard {
             ForEach(community.joinRequests) { person in
                 HStack(spacing: Spacing.m) {
-                    Text(person.name).font(.title3.weight(.semibold)).lineLimit(2)
+                    Text(verbatim: person.name).sheetEntryStyle().lineLimit(2)
                     Spacer(minLength: Spacing.s)
                     Button("Decline") { Task { await viewModel.answer(person, approve: false, in: community) } }
                         .buttonStyle(SmallInkButtonStyle(prominent: false))
@@ -266,39 +269,41 @@ private struct MyCommunityView: View {
                 .disabled(viewModel.isWorking)
                 .sheetRow()
             }
+            }
         }
     }
 
     private func adminSettings(_ community: CommunityDetail) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             SectionLabel("Admin settings")
             Toggle(isOn: Binding(
                 get: { community.allowOutsideBuddies },
                 set: { allowed in Task { await viewModel.setOutsideBuddies(allowed, in: community) } }
             )) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Allow buddies from outside").font(.title3.weight(.semibold))
+                    Text("Allow buddies from outside").font(.sheetHeading)
                     Text("Let volunteers who aren't in \(community.name) offer to check on members by address. Members still decide whether to accept.")
                         .font(.callout).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .sheetRow()
+            .sheetBox()
             .accessibilityIdentifier("outsideBuddiesToggle")
         }
     }
 
     /// The members, numbered like names on a roster.
     private func roster(_ community: CommunityDetail) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             SectionLabel("Members")
+            SheetCard {
             ForEach(Array(community.members.enumerated()), id: \.element.id) { index, person in
                 HStack(spacing: Spacing.m) {
                     Text(verbatim: String(format: "%02d", index + 1))
                         .font(.sheetLabel)
                         .foregroundStyle(.secondary)
                         .frame(width: 32, alignment: .leading)
-                    Text(person.name).font(.body.weight(.medium))
+                    Text(verbatim: person.name).sheetEntryStyle()
                     Spacer()
                     if person.isAdmin {
                         Text("Admin").sheetLabelStyle().foregroundStyle(.secondary)
@@ -306,6 +311,7 @@ private struct MyCommunityView: View {
                 }
                 .sheetRow()
                 .accessibilityElement(children: .combine)
+            }
             }
         }
     }

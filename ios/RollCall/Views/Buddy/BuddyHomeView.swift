@@ -57,16 +57,19 @@ struct BuddyHomeView: View {
                     }
                 }
                 communitySection
-                VStack(alignment: .leading, spacing: Spacing.m) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
                     SectionLabel("Someone outside your community")
-                    Text("You'll need their exact address, and they decide whether to accept.")
-                        .font(.callout).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Button { asksByAddress = true } label: {
-                        Label("Check on someone by address", systemImage: "magnifyingglass")
+                    VStack(alignment: .leading, spacing: Spacing.m) {
+                        Text("You'll need their exact address, and they decide whether to accept.")
+                            .font(.callout).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button { asksByAddress = true } label: {
+                            Label("Check on someone by address", systemImage: "magnifyingglass")
+                        }
+                        .buttonStyle(InkButtonStyle(prominent: false))
+                        .accessibilityIdentifier("askByAddress")
                     }
-                    .buttonStyle(InkButtonStyle(prominent: false))
-                    .accessibilityIdentifier("askByAddress")
+                    .sheetBox()
                 }
                 if !viewModel.sent.isEmpty {
                     section("Requests you sent", nil) {
@@ -103,8 +106,8 @@ struct BuddyHomeView: View {
     private func neighborRow(_ neighbor: NeighborWantingBuddy) -> some View {
         HStack(spacing: Spacing.m) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(neighbor.firstName).font(.title3.weight(.semibold))
-                Text("\(neighbor.street), \(neighbor.city)").font(.callout).foregroundStyle(.secondary)
+                Text(verbatim: neighbor.firstName).sheetEntryStyle()
+                Text(verbatim: "\(neighbor.street), \(neighbor.city)").font(.callout).foregroundStyle(.secondary)
             }
             Spacer()
             if neighbor.alreadyAsked {
@@ -125,7 +128,7 @@ struct BuddyHomeView: View {
     private func residentCard(_ resident: Household) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             HStack(alignment: .firstTextBaseline) {
-                Text(resident.contactName).font(.title3.weight(.semibold))
+                Text(verbatim: resident.contactName).sheetEntryStyle()
                 Spacer()
                 if resident.language == .es { Stamp(text: "Español", tilt: 0) }
             }
@@ -140,7 +143,7 @@ struct BuddyHomeView: View {
     private func sentRow(_ request: BuddyRequestSent) -> some View {
         HStack(spacing: Spacing.m) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(request.label).font(.headline)
+                Text(verbatim: request.label).sheetEntryStyle()
                 Text(request.status == .declined ? "They said no thanks" : "Waiting for them to accept")
                     .font(.callout).foregroundStyle(.secondary)
             }
@@ -156,15 +159,13 @@ struct BuddyHomeView: View {
 
     private func section<Content: View>(_ title: LocalizedStringKey, _ subtitle: LocalizedStringKey?,
                                         @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             SectionLabel(title)
             if let subtitle {
                 Text(subtitle).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.vertical, Spacing.s)
             }
-            RuleLine()
-            content()
+            SheetCard { content() }
         }
     }
 

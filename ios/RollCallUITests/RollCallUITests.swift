@@ -431,7 +431,7 @@ final class RollCallUITests: XCTestCase {
         XCTAssertTrue(finish.isEnabled)
         finish.tap()
 
-        XCTAssertTrue(app.staticTexts["Hi, Test"].waitForExistence(timeout: 15), "The new household's home didn't open")
+        XCTAssertTrue(app.staticTexts["Test Resident"].waitForExistence(timeout: 15), "The new household's home didn't open")
         snapshot(app, "resident home after joining")
 
         // Delete my data really deletes it, and offers to join again.

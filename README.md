@@ -19,7 +19,7 @@ Make sure no one gets left behind. RollCall is a community emergency app for Nor
 
 The **gear** at the top of every tab opens **Your profile** (who's signed in, with **Sign out**), **About RollCall** (what the app does, who can see your information, credits) and **Display** (light or dark). The pill in the tab bar turns green on the Map, red on Roll Call and orange on Community.
 
-**The look:** the Map keeps its blue map style. Nothing uses see-through glass. Every other screen looks like a paper roll-call sheet: warm paper, handwritten titles over plain, easy-to-read text, ink-black type and square buttons, ruled rows instead of floating cards, and color only on the "stamped" status labels (green safe, red needs help, amber waiting). Text never goes below 15 pt. The pieces live in `ios/RollCall/Design/Sheet.swift`.
+**The look:** the Map keeps its blue map style. Nothing uses see-through glass. Every other screen looks like a paper roll-call sheet: warm paper with related things grouped on paper cards. Everything the app says is printed, and what people wrote in (names, addresses, neighborhood names) is in handwriting, the way names are filled in on a real roll call. Color only appears on the "stamped" status labels (green safe, red needs help, amber waiting). Text never goes below 15 pt. The pieces live in `ios/RollCall/Design/Sheet.swift`.
 
 You sign in once, and the app remembers you until you sign out. There are no placeholder people or communities: everything in Roll Call and Community comes from real accounts made in the app.
 

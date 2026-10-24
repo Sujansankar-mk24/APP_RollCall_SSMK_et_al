@@ -149,7 +149,7 @@ struct SignInView: View {
 
     /// Which server this app talks to, and a way to change it.
     private var serverRow: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             SectionLabel("Server")
             Button { choosesServer = true } label: {
                 let isThisMac = auth.serverURL == ServerSettings.thisMac
@@ -165,7 +165,7 @@ struct SignInView: View {
                     Text("Change").font(.callout.weight(.semibold)).underline()
                 }
                 .contentShape(Rectangle())
-                .sheetRow()
+                .sheetBox(padding: Spacing.m)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("serverRow")
@@ -221,14 +221,14 @@ struct SignInView: View {
 }
 
 private extension View {
-    /// A roomy text field with a line to write on, like a paper form.
+    /// A roomy text field in a box, like a paper form.
     func authField() -> some View {
         self
             .font(.title3)
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: 54)
-            .background(Color.paperRaised)
-            .overlay(alignment: .bottom) { Rectangle().fill(Color.ink).frame(height: 2) }
+            .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(Color.ink.opacity(0.25), lineWidth: 1))
     }
 }
 
@@ -256,7 +256,8 @@ struct ServerSheet: View {
                     VStack(alignment: .leading, spacing: Spacing.m) {
                         SectionLabel("Shared server")
                         LabeledField(label: "Server address", prompt: "e.g. something.trycloudflare.com",
-                                     text: $address, contentType: .URL, keyboard: .URL, identifier: "serverAddressField")
+                                     text: $address, contentType: .URL, keyboard: .URL, handwritten: false,
+                                     identifier: "serverAddressField")
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                         if let problem {

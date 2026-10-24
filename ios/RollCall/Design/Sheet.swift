@@ -3,16 +3,20 @@
 //  RollCall
 //
 //  The "roll-call sheet" look used everywhere except the Map: like the
-//  paper attendance sheet a teacher or a fire captain fills in.
+//  printed sign-in sheet a teacher or a fire captain fills in.
 //
-//    Paper and ink   a warm paper background, ink-black text and buttons
-//                    (Assets > Paper, PaperRaised, Ink, each with a dark-mode shade)
-//    Ruled rows      thin lines between rows instead of floating cards
-//    Stamps          the only color: status labels stamped like a rubber stamp
-//                    (green SAFE, red NEEDS HELP, amber NO ANSWER, ...)
-//    Big type        heavy condensed headings, and nothing smaller than 15 pt
+//    Printed and written  everything the app says is printed in the system
+//                         font. What a person wrote in (a name, an address,
+//                         a neighborhood) is in handwriting, like a name
+//                         written on the line of a real roll call.
+//    Paper cards          related things sit together on a card of lighter
+//                         paper with a thin border. No lines across the page.
+//    Stamps               the only color: status labels stamped like a rubber
+//                         stamp (green SAFE, red NEEDS HELP, amber NO ANSWER)
+//    Easy to read         nothing smaller than 15 pt, and every size follows
+//                         the user's text size setting
 //
-//  Screens call .sheetPage() once; every component below then draws itself
+//  Screens call .sheetPage() once. Every component below then draws itself
 //  in ink on paper.
 //
 
@@ -39,44 +43,66 @@ extension View {
     }
 }
 
+// MARK: - Tokens
+
+extension Radius {
+    /// Buttons and fields on the sheet.
+    static let paperControl: CGFloat = 8
+    /// Paper cards.
+    static let paperCard: CGFloat = 12
+}
+
 // MARK: - Type
 
 extension Font {
-    /// Big page titles, handwritten like a name signed at the top of a
-    /// form: "Roll Call". Bradley Hand comes with every iPhone. Only titles
-    /// and headings use it, so everything else stays easy to read, and
-    /// `relativeTo` makes it grow with the user's text size.
-    static let sheetDisplay = Font.custom("BradleyHandITCTT-Bold", size: 38, relativeTo: .largeTitle)
-    /// Section and card headings, in the same handwriting.
-    static let sheetHeading = Font.custom("BradleyHandITCTT-Bold", size: 27, relativeTo: .title2)
-    /// Small labels ("NO. 014 · PECAN HOLLOW"), still 15 pt so they're easy to read.
-    static let sheetLabel = Font.system(.subheadline, design: .monospaced, weight: .semibold)
+    /// Page titles, printed: "Roll Call", "Community".
+    static let sheetDisplay = Font.system(.title, weight: .semibold)
+    /// Card and section headings, printed: "Join the roll call?".
+    static let sheetHeading = Font.system(.title3, weight: .semibold)
+    /// Small printed labels on the form ("Your household", "Members").
+    static let sheetLabel = Font.system(.subheadline, weight: .semibold)
+    /// Something a person wrote in: a name, an address, a neighborhood.
+    /// Bradley Hand comes with every iPhone, and `relativeTo` makes it grow
+    /// with the user's text size.
+    static let sheetEntry = Font.custom("BradleyHandITCTT-Bold", size: 22, relativeTo: .title3)
+    /// A bigger written-in entry, for the name at the top of a page.
+    static let sheetEntryLarge = Font.custom("BradleyHandITCTT-Bold", size: 30, relativeTo: .title)
 }
 
 extension View {
-    /// Uppercase, spaced-out label text, like a printed form.
+    /// The small printed label over a part of the form: "YOUR HOUSEHOLD".
     func sheetLabelStyle() -> some View {
-        self.font(.sheetLabel).textCase(.uppercase).tracking(0.8)
+        self.font(.sheetLabel).textCase(.uppercase).tracking(0.6)
+    }
+
+    /// Text a person wrote in, drawn in handwriting and ink.
+    func sheetEntryStyle(large: Bool = false) -> some View {
+        self.font(large ? .sheetEntryLarge : .sheetEntry).foregroundStyle(Color.ink)
     }
 }
 
 // MARK: - Headers and sections
 
-/// The top of a page: a small label line, a big title, and a thick ink rule.
+/// The top of a page: a small printed label and the page's title. Fixed
+/// wording ("Roll Call") is printed. A name someone typed ("Pecan Hollow")
+/// is handwritten, like a name filled in at the top of a form.
 struct SheetTitle: View {
     private let title: Text
     private let kicker: String?
+    private let isWrittenIn: Bool
 
     /// Fixed wording, translated from the String Catalog ("Roll Call").
     init(title: LocalizedStringKey, kicker: String? = nil) {
         self.title = Text(title)
         self.kicker = kicker
+        isWrittenIn = false
     }
 
     /// A name typed by someone, shown exactly as written ("Pecan Hollow").
     init(verbatim title: String, kicker: String? = nil) {
         self.title = Text(verbatim: title)
         self.kicker = kicker
+        isWrittenIn = true
     }
 
     var body: some View {
@@ -85,99 +111,135 @@ struct SheetTitle: View {
                 Text(kicker).sheetLabelStyle().foregroundStyle(.secondary)
             }
             title
-                .font(.sheetDisplay)
+                .font(isWrittenIn ? .sheetEntryLarge : .sheetDisplay)
                 .fixedSize(horizontal: false, vertical: true)
-            Rectangle().fill(Color.ink).frame(height: 3)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
     }
 }
 
-/// A section label with a rule running to the edge: "NEEDS ─────────".
+/// The small printed label above a card: "NEEDS".
 struct SectionLabel: View {
     let text: LocalizedStringKey
 
     init(_ text: LocalizedStringKey) { self.text = text }
 
     var body: some View {
-        HStack(spacing: Spacing.s) {
-            Text(text).sheetLabelStyle()
-            Rectangle().fill(Color.ink.opacity(0.25)).frame(height: 1)
-        }
-        .padding(.top, Spacing.s)
-        .accessibilityAddTraits(.isHeader)
+        Text(text)
+            .sheetLabelStyle()
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, Spacing.s)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
-/// One ruled line between rows.
+/// A thin line between two entries inside a card (never across the page).
 struct RuleLine: View {
     var body: some View {
-        Rectangle().fill(Color.ink.opacity(0.15)).frame(height: 1)
+        Rectangle().fill(Color.ink.opacity(0.12)).frame(height: 1)
             .accessibilityHidden(true)
     }
 }
 
-extension View {
-    /// A row on the sheet: roomy padding with a ruled line underneath.
-    func sheetRow() -> some View {
+/// A paper card: related entries grouped together, like the lines of one
+/// box on a form. On iOS 18 and later, a thin line separates each entry.
+struct SheetCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            self.padding(.vertical, Spacing.m)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            RuleLine()
+            if #available(iOS 18.0, *) {
+                Group(subviews: content) { entries in
+                    ForEach(entries) { entry in
+                        if entry.id != entries.first?.id { RuleLine() }
+                        entry
+                    }
+                }
+            } else {
+                content
+            }
         }
+        .padding(.horizontal, Spacing.l)
+        .paperCard()
+    }
+}
+
+extension View {
+    /// One entry on a card: roomy padding, full width.
+    func sheetRow() -> some View {
+        self.padding(.vertical, Spacing.m)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// A boxed area (for something that needs to stand out, like a request):
-    /// slightly lighter paper with a thin ink border and square corners.
+    /// The paper card's look: lighter paper, rounded corners, a thin border.
+    func paperCard(emphasis: Bool = false) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.paperCard, style: .continuous)
+        return self
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.paperRaised, in: shape)
+            .overlay(shape.strokeBorder(Color.ink.opacity(emphasis ? 0.9 : 0.14), lineWidth: emphasis ? 1.5 : 1))
+    }
+
+    /// A card with padding all around, for one block of content (a request,
+    /// a message, a form section).
     func sheetBox(padding: CGFloat = Spacing.l, emphasis: Bool = false) -> some View {
         self
             .padding(padding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.paperRaised)
-            .overlay(Rectangle().strokeBorder(Color.ink.opacity(emphasis ? 1 : 0.2), lineWidth: emphasis ? 2 : 1))
+            .paperCard(emphasis: emphasis)
     }
 }
 
 // MARK: - Tabs
 
-/// A row of choices with the chosen one underlined in ink, like the tabs on
-/// a set of printed forms ("Open (7) | Resolved (3) | All (10)").
+/// A row of choices on a paper strip, with the chosen one filled in ink
+/// ("Open (7) | Resolved (3) | All (10)").
 struct SheetTabs<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [(value: Value, title: String)]
-    /// For UI tests: each choice gets the identifier "<prefix><position>".
+    /// For UI tests: each choice gets the identifier "<prefix><position>",
+    /// or the matching entry of `identifiers` if those are given.
     var identifierPrefix = ""
+    var identifiers: [String] = []
+    @Namespace private var fill
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
             ForEach(Array(options.enumerated()), id: \.element.value) { index, option in
                 let isSelected = selection == option.value
                 Button { selection = option.value } label: {
                     Text(option.title)
                         .font(.headline)
-                        .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                        .foregroundStyle(isSelected ? Color.paper : Color.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                         .frame(maxWidth: .infinity, minHeight: minimumTapSize)
-                        .overlay(alignment: .bottom) {
-                            Rectangle().fill(isSelected ? Color.ink : Color.clear).frame(height: 3)
+                        .background {
+                            if isSelected {
+                                RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous)
+                                    .fill(Color.ink)
+                                    .matchedGeometryEffect(id: "fill", in: fill)
+                            }
                         }
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-                .accessibilityIdentifier(identifierPrefix.isEmpty ? "" : "\(identifierPrefix)\(index)")
+                .accessibilityIdentifier(index < identifiers.count ? identifiers[index]
+                                         : identifierPrefix.isEmpty ? "" : "\(identifierPrefix)\(index)")
             }
         }
-        .overlay(alignment: .bottom) { RuleLine() }
+        .padding(4)
+        .paperCard()
         .animation(.snappy(duration: 0.2), value: selection)
     }
 }
 
 // MARK: - Buttons
 
-/// Ink buttons with square corners. `.prominent` is filled ink; otherwise
+/// Ink buttons with slightly rounded corners. `.prominent` is filled ink; otherwise
 /// it's an ink outline. Always at least 52 pt tall, so they're easy to hit.
 struct InkButtonStyle: ButtonStyle {
     var prominent = true
@@ -192,8 +254,8 @@ struct InkButtonStyle: ButtonStyle {
             .padding(.horizontal, Spacing.l)
             .frame(maxWidth: .infinity, minHeight: 52)
             .foregroundStyle(prominent ? Color.paper : color)
-            .background(prominent ? color : Color.clear)
-            .overlay(Rectangle().strokeBorder(color, lineWidth: 2))
+            .background(prominent ? color : Color.clear, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(color, lineWidth: 1.5))
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.35)
             .contentShape(Rectangle())
     }
@@ -211,8 +273,8 @@ struct SmallInkButtonStyle: ButtonStyle {
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: minimumTapSize)
             .foregroundStyle(prominent ? Color.paper : Color.ink)
-            .background(prominent ? Color.ink : Color.clear)
-            .overlay(Rectangle().strokeBorder(Color.ink, lineWidth: 1.5))
+            .background(prominent ? Color.ink : Color.clear, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(Color.ink, lineWidth: 1.5))
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.35)
             .contentShape(Rectangle())
             .fixedSize()
@@ -232,7 +294,7 @@ struct Stamp: View {
     var body: some View {
         HStack(spacing: 5) {
             if let systemImage { Image(systemName: systemImage).font(.subheadline.weight(.bold)) }
-            Text(text).font(.sheetLabel.weight(.bold)).textCase(.uppercase).tracking(1)
+            Text(text).font(.sheetLabel.weight(.bold)).textCase(.uppercase).tracking(0.8)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
         }
@@ -247,25 +309,25 @@ struct Stamp: View {
 
 // MARK: - Notes and messages
 
-/// A side note with an ink bar on its left, like a margin note.
+/// A short note in its own small card, with an icon: "You can leave anytime."
 struct SheetNote: View {
     let text: LocalizedStringKey
     var systemImage: String? = nil
     var color: Color = .ink
 
     var body: some View {
-        HStack(alignment: .top, spacing: Spacing.m) {
-            Rectangle().fill(color).frame(width: 3)
-            if let systemImage {
-                Image(systemName: systemImage).foregroundStyle(color).accessibilityHidden(true)
-            }
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+            Image(systemName: systemImage ?? "info.circle")
+                .foregroundStyle(color)
+                .accessibilityHidden(true)
             Text(text)
                 .font(.callout)
                 .foregroundStyle(.primary.opacity(0.85))
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .fixedSize(horizontal: false, vertical: true)
+        .padding(Spacing.m)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(0.07), in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 }

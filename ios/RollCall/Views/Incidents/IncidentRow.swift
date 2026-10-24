@@ -98,20 +98,23 @@ struct IncidentRow: View {
     }
 }
 
-/// The big priority number at the start of a row, with its level under a
-/// rule colored by priority (red high, amber medium, gray low).
+/// The big priority number at the start of a row, with its level next to a
+/// dot colored by priority (red high, amber medium, gray low).
 struct PriorityScore: View {
     let priority: Priority
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(priority.score)")
-                .font(.system(size: 34, weight: .black).width(.condensed))
+                .font(.system(.title, weight: .semibold))
                 .monospacedDigit()
-            Rectangle().fill(priority.level.color).frame(height: 3)
-            Text(priority.level.title)
-                .font(.sheetLabel)
-                .textCase(.uppercase)
+            HStack(spacing: 4) {
+                Circle().fill(priority.level.color).frame(width: 8, height: 8)
+                Text(priority.level.title)
+                    .font(.sheetLabel)
+                    .textCase(.uppercase)
+                    .foregroundStyle(priority.level.color)
+            }
         }
         .frame(width: 58, alignment: .leading)
         .accessibilityHidden(true)  // the row's label already says it
