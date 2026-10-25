@@ -39,6 +39,7 @@ struct RecapCarousel: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(height: 380)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.paperCard, style: .continuous))
                 pageDots
             }
             .accessibilityElement(children: .contain)
@@ -55,6 +56,12 @@ struct RecapCarousel: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: Radius.paperCard, style: .continuous))
+        .overlay {
+            // A soft shade at the bottom so the caption is readable on any photo.
+            LinearGradient(colors: [.clear, .black.opacity(0.45)], startPoint: .center, endPoint: .bottom)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.paperCard, style: .continuous))
+                .allowsHitTesting(false)
+        }
         .overlay(alignment: .bottomLeading) {
             VStack(alignment: .leading, spacing: 2) {
                 if !photo.caption.isEmpty {

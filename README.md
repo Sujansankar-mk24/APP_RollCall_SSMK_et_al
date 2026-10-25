@@ -15,11 +15,13 @@ Make sure no one gets left behind. RollCall is a community emergency app for Nor
 |---|---|
 | **Map** | Live hazards (diamonds) and community reports (circles) with their danger zones. Tap one for details. **Incidents** (top left) unrolls the incident log: key numbers and every incident sorted by priority, with "Why this priority?". **Report incident** needs a recent photo you took and a short description. **Use my location** works like Google Maps: a blue dot with a cone for the way you face, follow and compass modes, and an always-on compass. A warning appears when you're near an active fire, storm or flood, and **↻** asks NASA, NOAA and the Weather Service for new data right away. |
 | **Roll Call** | **My household**: join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, call or text your buddy, privacy and Delete my data. **I check on**: the neighbors you check on, with Call, Text, Directions and **They need help**, which calls 911 and shows everything the dispatcher will ask for. Responders see their own view. |
-| **Community** | The **Weekly Recap** (neighborhood photos you swipe through, approved by the admin, gone after a week unless pinned), members split by who has a buddy, **Away from home**, first responders in your town, and other communities to browse. Start one and be its admin. Tap anyone to see their profile. |
+| **Community** | The **Weekly Recap** (neighborhood photos you swipe through, approved by the admin, gone after a week unless pinned, pinned ones first), **See connections** (everyone as floating Liquid Glass bubbles with lines for who checks on whom: drag them, tap one for the name, tap the name for the profile), members split by who has a buddy, **Away from home**, first responders in your town, and other communities to browse. Start one and be its admin. |
 
-The **gear** at the top of every tab opens **Your profile** (your picture, bio, phone, badges, the first responder application, and **Sign out**), **About RollCall** (what the app does, who can see your information, credits) and **Display** (light or dark). The pill in the tab bar turns green on the Map, red on Roll Call and orange on Community.
+The **gear** at the top of every tab opens **Your profile** (your picture, bio, phone, badges, the first responder application, and **Sign out**), **About RollCall** (what the app does, who can see your information, credits) and **Display** (light, dark or match the iPhone, each with a preview, plus six color themes shown with their colors). The pill in the tab bar turns green on the Map, red on Roll Call and orange on Community.
 
-**The look**, inspired by Phantom and WHOOP: dark first (a near-black page in dark mode, soft gray in light mode), big bold titles, small uppercase labels with wide letter spacing, full-width pill buttons, related rows grouped on rounded cards, capsule chips, a big "Saved ✓" confirmation, a splash screen, and three intro pages on first launch. Nothing uses see-through glass. Color only appears on status badges (green safe, red needs help, amber waiting), always next to a word. Text never goes below 15 pt. The pieces live in `ios/RollCall/Design/Sheet.swift` and `Design/Kit.swift`, and the logo is a placeholder in `Views/Components/BrandMark.swift`.
+**The logo** is in `Assets.xcassets/Logo` (background removed, so it works in light and dark mode). The app icon has light, dark and tinted versions, so it matches the iPhone's home screen style. The splash screen follows the phone's theme, and the logo's check mark draws itself in. All text uses the iPhone's system font, SF Pro (SF Pro Text at small sizes and SF Pro Display at large sizes, chosen automatically). It isn't bundled into the app, because iOS already has it and Apple's license doesn't allow copying it.
+
+**The look**, inspired by Phantom and WHOOP: dark first (a near-black page in dark mode, soft gray in light mode), big bold titles, small uppercase labels with wide letter spacing, full-width pill buttons, related rows grouped on rounded cards, capsule chips, a big "Saved ✓" confirmation, a splash screen, and three intro pages on first launch. Nothing uses see-through glass except the connections bubbles, where Liquid Glass makes them feel like real bubbles. Color only appears on status badges (green safe, red needs help, amber waiting), always next to a word. Text never goes below 15 pt. The pieces live in `ios/RollCall/Design/Sheet.swift` and `Design/Kit.swift`, and the logo is a placeholder in `Views/Components/BrandMark.swift`.
 
 You sign in once, and the app remembers you until you sign out. There are no placeholder people or communities: everything in Roll Call and Community comes from real accounts made in the app.
 
@@ -95,8 +97,9 @@ The Map shows real, current hazards next to community reports, refreshed every f
 | Source | What it adds | Key |
 |---|---|---|
 | National Weather Service (api.weather.gov) | Official warnings, watches and advisories, with the exact area each covers | none |
+| National Hurricane Center (nhc.noaa.gov) | Active hurricanes and tropical storms within 1,500 km of Texas | none |
 | NASA FIRMS | Fires seen by the VIIRS satellites in the last 2 days (nearby hot spots joined into one fire) | free key in `backend/.env` |
-| NASA EONET | Named wildfires NASA is tracking (updated in the last week) | none |
+| NASA EONET | Every kind of natural event NASA tracks in Texas (updated in the last week): wildfires, severe storms and hurricanes, floods, dust, snow and ice, heat and cold, drought, earthquakes, landslides, volcanoes | none |
 | NOAA Storm Prediction Center | Today's confirmed tornado, wind and hail reports in Texas | none |
 
 Live data is a **diamond** on the map, a community report a **circle**. The color is the kind of hazard: fire red-orange, tornado purple, severe storm amber, flood blue, hurricane magenta, winter storm icy cyan, smoke and air quality gray or brown, injury pink. Tap one for details, its zones and a link to the official source.
@@ -183,7 +186,8 @@ For test and demo accounts, `python -m scripts.make_responder chief@example.com 
 | `GET` | `/incidents` | List incidents. Filters: `type`, `status`, `since_hours`. Sort: `priority` (default) or `recent` |
 | `GET` | `/incidents/{id}` | One incident with reports, media, AI results, timeline and priority breakdown |
 | `PATCH` | `/incidents/{id}/status` | A verified first responder sets `active`, `responding` or `resolved` (not for weather nobody can stop) |
-| `POST` | `/reports` | New report (form fields, a description of 10+ characters and a photo). Merges into a nearby incident when it can |
+| `POST` | `/reports` | New report (form fields, a description of 10+ characters and a photo). Merges into a nearby incident when it can. A new fire, smoke or injury report is **under review** (not on the map, nobody alerted) until the AI finds what was reported |
+| `POST` | `/incidents/{id}/review` | A verified first responder confirms a report under review (`real: true`) or dismisses it |
 | `GET` | `/hazards?refresh=true` | Live hazards. `refresh` asks the sources again right away (at most every 30 seconds) |
 | `GET` | `/media/...` | Uploaded files, thumbnails and AI-annotated images |
 | `POST` | `/households` | Register a household (Roll Call) |
@@ -208,6 +212,10 @@ For test and demo accounts, `python -m scripts.make_responder chief@example.com 
 | `POST` | `/communities/{id}/join`, `/leave`, `/requests/{user}/approve`, `/decline` | Joining and admin approval |
 
 Every Roll Call and Community request must be signed in (`Authorization: Bearer <token>`).
+
+## Reports under review
+
+A new fire, smoke or injury report doesn't go on the map right away. The AI checks the photo first (a few seconds). If it finds what was reported (flames or smoke for a fire, a person for an injury), the incident appears on the map and nearby people are warned. If it doesn't, the report stays **under review**: it's hidden from the map and nobody is alerted, and verified first responders see it in the incident log marked **Needs review**, with **It's real, show it** and **Not real**. Weather reports (tornado, flood, storm) go straight on the map, because the AI can't recognize weather.
 
 ## How report merging works
 

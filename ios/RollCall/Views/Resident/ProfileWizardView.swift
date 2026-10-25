@@ -20,8 +20,6 @@ import UIKit
 struct ProfileWizardView: View {
     @State private var viewModel: ProfileWizardViewModel
     @Environment(\.brand) private var brand
-    /// While typing, the Back/Next bar steps aside so it doesn't cover the form.
-    @State private var isKeyboardUp = false
     @Environment(\.dismiss) private var dismiss
     let onSaved: (Household) -> Void
 
@@ -64,15 +62,8 @@ struct ProfileWizardView: View {
                     Button("Done") { hideKeyboard() }
                 }
             }
-            .safeAreaInset(edge: .bottom) {
-                if !isKeyboardUp { bottomBar }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-                isKeyboardUp = true
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                isKeyboardUp = false
-            }
+            // Back and Next stay reachable, right above the keyboard while typing.
+            .safeAreaInset(edge: .bottom) { bottomBar }
             .animation(.snappy(duration: 0.3), value: viewModel.step)
             .alert("Couldn't save", isPresented: Binding(
                 get: { viewModel.saveError != nil }, set: { if !$0 { viewModel.saveError = nil } }
@@ -227,6 +218,7 @@ struct ProfileWizardView: View {
                 TextField(text: $viewModel.input.notes,
                           prompt: Text("For example: \"I'm deaf, please knock loudly\"").font(.body),
                           axis: .vertical) { Text("Anything else responders should know?") }
+                    .returnClosesKeyboard($viewModel.input.notes)
                     .sheetEntryStyle()
                     .lineLimit(2...5)
                     .padding(Spacing.m)
@@ -401,10 +393,6 @@ struct ProfileWizardView: View {
         .padding(.bottom, Spacing.s)
         .background(Color.paper)
         .shadow(color: .black.opacity(0.06), radius: 8, y: -2)
-    }
-
-    private func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
 

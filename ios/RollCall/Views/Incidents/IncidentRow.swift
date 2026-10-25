@@ -23,8 +23,14 @@ struct IncidentRow: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                     Spacer(minLength: Spacing.xs)
-                    Stamp(text: incident.status.title, color: incident.status.color)
-                        .fixedSize()
+                    Group {
+                        if incident.underReview {
+                            Stamp(text: String(localized: "Needs review"), systemImage: "eye", color: Color(.systemOrange))
+                        } else {
+                            Stamp(text: incident.status.title, color: incident.status.color)
+                        }
+                    }
+                    .fixedSize()
                 }
                 Text(incident.locationName)
                     .font(.body)

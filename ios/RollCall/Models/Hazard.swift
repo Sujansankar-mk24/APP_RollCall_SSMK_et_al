@@ -76,7 +76,15 @@ enum HazardKind: String, Codable, CaseIterable {
     case winterStorm = "winter_storm"
     case heat
     case airQuality = "air_quality"
+    case earthquake, landslide, volcano, drought
     case injury, other
+
+    /// A kind the app doesn't know yet (the server added one) shows as "other"
+    /// instead of breaking the whole map.
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = HazardKind(rawValue: raw) ?? .other
+    }
 
     /// A color that fits the hazard: fire is red-orange, a tornado purple,
     /// water blue, ice cyan. (Red alone isn't used for everything.)
@@ -92,6 +100,10 @@ enum HazardKind: String, Codable, CaseIterable {
         case .winterStorm: Color(red: 0.28, green: 0.78, blue: 0.95)
         case .heat: Color(red: 0.98, green: 0.45, blue: 0.40)
         case .airQuality: Color(red: 0.60, green: 0.46, blue: 0.31)
+        case .earthquake: Color(red: 0.55, green: 0.36, blue: 0.24)
+        case .landslide: Color(red: 0.47, green: 0.40, blue: 0.30)
+        case .volcano: Color(red: 0.80, green: 0.22, blue: 0.10)
+        case .drought: Color(red: 0.80, green: 0.62, blue: 0.25)
         case .injury: Color(red: 0.94, green: 0.33, blue: 0.53)
         case .other: Color(red: 0.42, green: 0.50, blue: 0.60)
         }
@@ -109,6 +121,10 @@ enum HazardKind: String, Codable, CaseIterable {
         case .winterStorm: "snowflake"
         case .heat: "thermometer.sun.fill"
         case .airQuality: "aqi.medium"
+        case .earthquake: "waveform.path.ecg"
+        case .landslide: "mountain.2.fill"
+        case .volcano: "flame.circle.fill"
+        case .drought: "sun.dust.fill"
         case .injury: "cross.case.fill"
         case .other: "exclamationmark.triangle.fill"
         }
@@ -126,7 +142,7 @@ enum HazardKind: String, Codable, CaseIterable {
         case .hurricane: .hurricane
         case .winterStorm: .winterStorm
         case .injury: .injury
-        case .heat, .other: .other
+        case .heat, .other, .earthquake, .landslide, .volcano, .drought: .other
         }
     }
 }

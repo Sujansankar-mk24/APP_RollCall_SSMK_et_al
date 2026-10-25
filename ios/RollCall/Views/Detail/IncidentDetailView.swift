@@ -26,6 +26,41 @@ struct IncidentDetailView: View {
         self.onStatusChanged = onStatusChanged
     }
 
+    /// A report the AI couldn't confirm: nobody sees it on the map until a
+    /// verified first responder says it's real.
+    @ViewBuilder
+    private var reviewBar: some View {
+        if auth.me?.isResponder == true && viewModel.summary.status != .resolved {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                Label("Under review: the AI couldn't confirm this, so it isn't on the map.", systemImage: "eye.trianglebadge.exclamationmark")
+                    .font(.footnote).foregroundStyle(.secondary)
+                HStack(spacing: Spacing.m) {
+                    Button {
+                        Task { if await viewModel.review(real: false) { onStatusChanged() } }
+                    } label: { Text("Not real").frame(maxWidth: .infinity) }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("dismissReport")
+                    Button {
+                        Task { if await viewModel.review(real: true) { onStatusChanged() } }
+                    } label: { Text("It's real, show it").frame(maxWidth: .infinity) }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("confirmReport")
+                }
+                .controlSize(.large)
+                .disabled(viewModel.isUpdatingStatus)
+            }
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
+            .background(Color(.systemBackground))
+            .overlay(alignment: .top) { Divider() }
+        } else {
+            statusNote(viewModel.summary.status == .resolved
+                       ? "A responder looked at this and found it isn't an emergency."
+                       : "Under review. The AI couldn't find this in the photo, so nobody has been alerted yet. A first responder will check it.",
+                       systemImage: "eye.trianglebadge.exclamationmark")
+        }
+    }
+
     /// Shown at the bottom instead of the responder buttons.
     private func statusNote(_ text: LocalizedStringKey, systemImage: String) -> some View {
         Label(text, systemImage: systemImage)
@@ -52,7 +87,9 @@ struct IncidentDetailView: View {
         .background(Color(.systemGroupedBackground))
         .safeAreaInset(edge: .bottom) {
             if viewModel.detail != nil {
-                if viewModel.summary.type.isNatural {
+                if viewModel.summary.underReview {
+                    reviewBar
+                } else if viewModel.summary.type.isNatural {
                     statusNote("Nobody can stop a \(viewModel.summary.type.title.lowercased()). It ends when the weather passes, so there's nothing to resolve.",
                                systemImage: "cloud.bolt.fill")
                 } else if auth.me?.isResponder == true {

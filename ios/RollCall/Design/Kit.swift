@@ -9,6 +9,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// A round icon button on a card-colored circle (Phantom's back and close buttons).
 struct CircleIconButton: View {
@@ -110,4 +111,26 @@ private struct SuccessBadge: View {
         .accessibilityAddTraits(.isStaticText)
         .accessibilityIdentifier("successOverlay")
     }
+}
+
+// MARK: - Keyboard
+
+extension View {
+    /// For text boxes with more than one line: the Return key closes the
+    /// keyboard (instead of starting a new line), so nobody gets stuck with
+    /// the keyboard covering the screen.
+    func returnClosesKeyboard(_ text: Binding<String>) -> some View {
+        self
+            .submitLabel(.done)
+            .onChange(of: text.wrappedValue) { _, newValue in
+                guard newValue.contains("\n") else { return }
+                text.wrappedValue = newValue.replacingOccurrences(of: "\n", with: "")
+                hideKeyboard()
+            }
+    }
+}
+
+/// Put the keyboard away, wherever it is.
+func hideKeyboard() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 }

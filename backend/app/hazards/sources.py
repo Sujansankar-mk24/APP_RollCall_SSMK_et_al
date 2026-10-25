@@ -5,9 +5,14 @@ Where the live hazards come from. All of these are free public data:
   (api.weather.gov)          the area each one covers
   NASA FIRMS                 fires seen by the VIIRS satellites in the last
                              couple of days (needs a free key, see config.py)
-  NASA EONET                 named wildfires and big events NASA is tracking
+  NASA EONET                 every kind of natural event NASA is tracking:
+                             wildfires, severe storms, floods, dust, snow and
+                             ice, heat and cold, drought, earthquakes,
+                             landslides and volcanoes
   NOAA Storm Prediction      today's confirmed tornado, wind and hail reports
   Center (spc.noaa.gov)
+  National Hurricane Center  hurricanes and tropical storms heading toward Texas
+  (nhc.noaa.gov)
 
 Each source has a parse_... function that turns the source's raw data into
 hazards (easy to test with saved sample data), and a fetch_... function that
@@ -230,7 +235,7 @@ async def fetch_firms(client: httpx.AsyncClient) -> list[HazardOut]:
 
 
 # ---------------------------------------------------------------------------
-# NASA EONET: named wildfires and big storms
+# NASA EONET: wildfires, storms, floods and every other natural event NASA tracks
 # ---------------------------------------------------------------------------
 def eonet_url() -> str:
     west, south, east, north = HAZARD_AREA
@@ -238,7 +243,44 @@ def eonet_url() -> str:
             f"&bbox={west},{north},{east},{south}")
 
 
-EONET_KINDS = {"wildfires": HazardKind.fire, "severeStorms": HazardKind.severe_storm, "floods": HazardKind.flood}
+EONET_KINDS = {
+    "wildfires": HazardKind.fire,
+    "severeStorms": HazardKind.severe_storm,   # hurricanes are picked out by name below
+    "floods": HazardKind.flood,
+    "dustHaze": HazardKind.air_quality,
+    "snow": HazardKind.winter_storm,
+    "seaLakeIce": HazardKind.winter_storm,
+    "tempExtremes": HazardKind.heat,           # extreme cold is picked out by name below
+    "drought": HazardKind.drought,
+    "earthquakes": HazardKind.earthquake,
+    "landslides": HazardKind.landslide,
+    "volcanoes": HazardKind.volcano,
+    "manmade": HazardKind.other,
+    "waterColor": HazardKind.other,
+}
+EONET_DETAILS = {
+    HazardKind.fire: "An active wildfire tracked by NASA's Earth Observatory.",
+    HazardKind.severe_storm: "A severe storm tracked by NASA's Earth Observatory.",
+    HazardKind.hurricane: "A tropical storm or hurricane tracked by NASA's Earth Observatory.",
+    HazardKind.flood: "Flooding tracked by NASA's Earth Observatory.",
+    HazardKind.air_quality: "Dust or haze tracked by NASA. Limit time outside if the air looks thick.",
+    HazardKind.winter_storm: "Snow or ice tracked by NASA. Roads may be dangerous.",
+    HazardKind.heat: "Extreme temperatures tracked by NASA. Check on people without air conditioning or heat.",
+    HazardKind.drought: "A drought tracked by NASA. Grass fires start and spread more easily.",
+    HazardKind.earthquake: "An earthquake tracked by NASA. Watch for aftershocks and damaged buildings.",
+    HazardKind.landslide: "A landslide tracked by NASA. Stay off the roads nearby.",
+    HazardKind.volcano: "Volcanic activity tracked by NASA.",
+}
+
+
+def eonet_kind(categories: list[str], title: str) -> Optional[HazardKind]:
+    kind = next((EONET_KINDS[c] for c in categories if c in EONET_KINDS), None)
+    name = title.lower()
+    if kind == HazardKind.severe_storm and any(w in name for w in ("hurricane", "tropical", "cyclone", "typhoon")):
+        return HazardKind.hurricane
+    if kind == HazardKind.heat and any(w in name for w in ("cold", "freeze", "frost")):
+        return HazardKind.winter_storm
+    return kind
 
 
 EONET_MAX_AGE = timedelta(days=7)
@@ -253,7 +295,7 @@ def parse_eonet(data: dict, now: Optional[datetime] = None) -> list[HazardOut]:
     hazards = []
     for event in data.get("events", []):
         categories = [c.get("id") for c in event.get("categories", [])]
-        kind = next((EONET_KINDS[c] for c in categories if c in EONET_KINDS), None)
+        kind = eonet_kind(categories, event.get("title", ""))
         points = [g for g in event.get("geometry", []) if g.get("type") == "Point"]
         if kind is None or not points:
             continue
@@ -272,8 +314,10 @@ def parse_eonet(data: dict, now: Optional[datetime] = None) -> list[HazardOut]:
             kind=kind,
             title=event.get("title", "Wildfire"),
             detail=("A planned, controlled burn tracked by NASA." if is_planned
-                    else "An active event tracked by NASA's Earth Observatory.") + size,
-            level=ZoneLevel.cautious if is_planned else ZoneLevel.immediate,
+                    else EONET_DETAILS.get(kind, "An event tracked by NASA's Earth Observatory.")) + size,
+            level=(ZoneLevel.cautious if is_planned or kind in (HazardKind.drought, HazardKind.air_quality, HazardKind.other)
+                   else ZoneLevel.immediate if kind in (HazardKind.fire, HazardKind.hurricane, HazardKind.earthquake)
+                   else ZoneLevel.evacuate),
             latitude=lat,
             longitude=lon,
             # A planned burn is managed by crews: just a "be cautious" area.
@@ -351,6 +395,65 @@ async def fetch_spc(client: httpx.AsyncClient) -> list[HazardOut]:
 
 
 # ---------------------------------------------------------------------------
+# National Hurricane Center: active hurricanes and tropical storms
+# ---------------------------------------------------------------------------
+NHC_URL = "https://www.nhc.noaa.gov/CurrentStorms.json"
+NHC_CLASSES = {
+    "HU": "Hurricane", "MH": "Major hurricane", "TS": "Tropical storm", "TD": "Tropical depression",
+    "STS": "Subtropical storm", "STD": "Subtropical depression", "PTC": "Potential tropical cyclone",
+    "PC": "Post-tropical cyclone",
+}
+# Storms this close to the middle of Texas are shown (they can reach the coast in a few days).
+NHC_MAX_DISTANCE_KM = 1_500
+
+
+def parse_nhc(data: dict) -> list[HazardOut]:
+    west, south, east, north = HAZARD_AREA
+    center = ((south + north) / 2, (west + east) / 2)
+    hazards = []
+    for storm in data.get("activeStorms", []):
+        try:
+            lat, lon = float(storm["latitudeNumeric"]), float(storm["longitudeNumeric"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        distance = distance_km(lat, lon, *center)
+        if distance > NHC_MAX_DISTANCE_KM:
+            continue
+        cls = storm.get("classification", "")
+        kind_name = NHC_CLASSES.get(cls, "Tropical storm")
+        wind = storm.get("intensity")
+        moving = storm.get("movementDir"), storm.get("movementSpeed")
+        detail = f"{kind_name} {storm.get('name', '')}".strip() + "."
+        if wind:
+            detail += f" Winds near {round(float(wind) * 1.15078)} mph."
+        if all(moving):
+            detail += f" Moving {moving[1]} mph, heading {moving[0]} degrees."
+        detail += " From the National Hurricane Center. Follow evacuation orders from local officials."
+        inside = in_area(lat, lon, HAZARD_AREA)
+        hazards.append(HazardOut(
+            id=f"nhc:{storm.get('id')}",
+            source="nhc",
+            source_label="National Hurricane Center",
+            kind=HazardKind.hurricane,
+            title=f"{kind_name} {storm.get('name', '')}".strip(),
+            detail=detail,
+            level=ZoneLevel.immediate if inside and cls in ("HU", "MH") else ZoneLevel.evacuate if inside else ZoneLevel.cautious,
+            latitude=lat,
+            longitude=lon,
+            zones=rings(HazardKind.hurricane),
+            observed_at=parse_time(storm.get("lastUpdate")),
+            link=(storm.get("publicAdvisory") or {}).get("url") or "https://www.nhc.noaa.gov",
+        ))
+    return hazards
+
+
+async def fetch_nhc(client: httpx.AsyncClient) -> list[HazardOut]:
+    response = await client.get(NHC_URL)
+    response.raise_for_status()
+    return parse_nhc(response.json())
+
+
+# ---------------------------------------------------------------------------
 # All sources
 # ---------------------------------------------------------------------------
 SOURCES = [
@@ -358,6 +461,7 @@ SOURCES = [
     ("NASA satellites (FIRMS)", fetch_firms),
     ("NASA EONET", fetch_eonet),
     ("NOAA Storm Prediction Center", fetch_spc),
+    ("National Hurricane Center", fetch_nhc),
 ]
 
 

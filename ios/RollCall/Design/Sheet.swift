@@ -26,17 +26,18 @@ import SwiftUI
 // MARK: - Page
 
 extension View {
-    /// Ink-colored buttons and controls (without the page background).
+    /// Buttons and controls in the chosen color theme (without the page background).
     func sheetBrand() -> some View {
-        environment(\.brand, .ink).tint(.ink)
+        modifier(ThemeModifier())
     }
 
     /// Page background, ink-colored buttons and controls, for a whole screen.
     func sheetPage() -> some View {
         self
             .background(Color.paper.ignoresSafeArea())
-            .environment(\.brand, .ink)
-            .tint(.ink)
+            .modifier(ThemeModifier())
+            // Scrolling down puts the keyboard away, so it never traps you.
+            .scrollDismissesKeyboard(.interactively)
             .toolbarBackground(Color.paper, for: .navigationBar)
             // When this page is shown as a sheet, give it a solid background
             // instead of the system's see-through glass (ignored elsewhere).
@@ -201,6 +202,8 @@ struct SheetTabs<Value: Hashable>: View {
     var identifierPrefix = ""
     var identifiers: [String] = []
     @Namespace private var fill
+    @Environment(\.brand) private var brand
+    @Environment(\.onBrand) private var onBrand
 
     var body: some View {
         HStack(spacing: 6) {
@@ -209,14 +212,14 @@ struct SheetTabs<Value: Hashable>: View {
                 Button { selection = option.value } label: {
                     Text(option.title)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(isSelected ? Color.paper : Color.primary)
+                        .foregroundStyle(isSelected ? onBrand : Color.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                         .padding(.horizontal, Spacing.s)
                         .frame(maxWidth: .infinity, minHeight: minimumTapSize)
                         .background {
                             if isSelected {
-                                Capsule().fill(Color.ink).matchedGeometryEffect(id: "fill", in: fill)
+                                Capsule().fill(brand).matchedGeometryEffect(id: "fill", in: fill)
                             } else {
                                 Capsule().fill(Color.paperRaised)
                             }
@@ -242,6 +245,8 @@ struct InkButtonStyle: ButtonStyle {
     var prominent = true
     var destructive = false
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.brand) private var brand
+    @Environment(\.onBrand) private var onBrand
 
     func makeBody(configuration: Configuration) -> some View {
         let red = Color(.systemRed)
@@ -250,8 +255,8 @@ struct InkButtonStyle: ButtonStyle {
             .multilineTextAlignment(.center)
             .padding(.horizontal, Spacing.l)
             .frame(maxWidth: .infinity, minHeight: 56)
-            .foregroundStyle(prominent ? (destructive ? .white : Color.paper) : (destructive ? red : Color.primary))
-            .background(prominent ? (destructive ? red : Color.ink) : Color.paperRaised, in: Capsule())
+            .foregroundStyle(prominent ? (destructive ? .white : onBrand) : (destructive ? red : Color.primary))
+            .background(prominent ? (destructive ? red : brand) : Color.paperRaised, in: Capsule())
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.35)
             .animation(.snappy(duration: 0.15), value: configuration.isPressed)
@@ -263,6 +268,8 @@ struct InkButtonStyle: ButtonStyle {
 struct SmallInkButtonStyle: ButtonStyle {
     var prominent = true
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.brand) private var brand
+    @Environment(\.onBrand) private var onBrand
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -270,8 +277,8 @@ struct SmallInkButtonStyle: ButtonStyle {
             .lineLimit(1)
             .padding(.horizontal, Spacing.l)
             .frame(minHeight: minimumTapSize)
-            .foregroundStyle(prominent ? Color.paper : Color.primary)
-            .background(prominent ? Color.ink : Color.primary.opacity(0.08), in: Capsule())
+            .foregroundStyle(prominent ? onBrand : Color.primary)
+            .background(prominent ? brand : Color.primary.opacity(0.08), in: Capsule())
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.35)
             .contentShape(Capsule())

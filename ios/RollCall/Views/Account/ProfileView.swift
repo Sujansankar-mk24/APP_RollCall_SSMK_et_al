@@ -278,6 +278,7 @@ private struct EditProfileFieldSheet: View {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text("Bio").sheetLabelStyle().foregroundStyle(.secondary)
                         TextField("Nurse at Hunt Regional. Two dogs. Happy to help neighbors.", text: $text, axis: .vertical)
+                            .returnClosesKeyboard($text)
                             .lineLimit(3...5)
                             .padding(Spacing.m)
                             .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))

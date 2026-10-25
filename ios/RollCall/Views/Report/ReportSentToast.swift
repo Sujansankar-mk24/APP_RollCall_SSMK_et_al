@@ -21,7 +21,8 @@ enum ReportAnalysisState: Equatable {
 struct ReportSentToast: View {
     let result: ReportCreated
     let analysis: ReportAnalysisState
-    let onView: () -> Void
+    /// nil while the report is under review (it isn't on the map to view yet).
+    let onView: (() -> Void)?
 
     var body: some View {
         HStack(spacing: Spacing.m) {
@@ -43,9 +44,11 @@ struct ReportSentToast: View {
 
             Spacer(minLength: Spacing.s)
 
-            Button("View", action: onView)
-                .font(.subheadline.weight(.semibold))
-                .frame(minWidth: minimumTapSize, minHeight: minimumTapSize)
+            if let onView {
+                Button("View", action: onView)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(minWidth: minimumTapSize, minHeight: minimumTapSize)
+            }
         }
         .padding(.leading, Spacing.l)
         .padding(.trailing, Spacing.s)

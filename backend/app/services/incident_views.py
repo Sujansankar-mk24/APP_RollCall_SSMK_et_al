@@ -81,6 +81,7 @@ def to_summary(incident: Incident, reports: list[Report], media: list[Media]) ->
         last_report_at=as_utc(incident.last_report_at),
         responding_at=as_utc(incident.responding_at),
         resolved_at=as_utc(incident.resolved_at),
+        under_review=incident.under_review,
         priority=PriorityOut(
             score=priority.score,
             level=priority.level,

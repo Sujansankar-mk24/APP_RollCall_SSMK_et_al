@@ -93,6 +93,16 @@ def current_user(
     return user
 
 
+def optional_user(
+    authorization: Optional[str] = Header(None),
+    session: Session = Depends(get_session),
+) -> Optional[User]:
+    """The signed-in user if there is one, or None (for pages anyone can see)."""
+    token = _bearer(authorization)
+    row = session.exec(select(AuthToken).where(AuthToken.token_hash == _token_hash(token))).first() if token else None
+    return session.get(User, row.user_id) if row else None
+
+
 def current_token(authorization: Optional[str] = Header(None)) -> str:
     token = _bearer(authorization)
     if not token:

@@ -126,3 +126,18 @@ def test_members_show_who_has_a_buddy():
     members = {m["name"]: m for m in client.get(f"/communities/{community_id}", headers=admin).json()["members"]}
     assert members["Mo Member"]["wants_buddy"] is True and members["Mo Member"]["has_buddy"] is False
     assert members["Ana Admin"]["wants_buddy"] is False
+
+
+def test_members_see_who_checks_on_whom():
+    admin, resident, outsider = sign_up("Ana Admin"), sign_up("Rosa Resident"), sign_up("Out Sider")
+    community_id = community(admin, "Pecan Hollow", resident)
+    register(resident)
+    volunteer(admin)
+    neighbors = client.get("/buddy/neighbors", headers=admin).json()
+    client.post("/buddy/requests/community", json={"household_id": neighbors[0]["household_id"]}, headers=admin)
+    request = client.get("/me/buddy-requests", headers=resident).json()[0]
+    client.post(f"/me/buddy-requests/{request['id']}/accept", headers=resident)
+    pairs = client.get(f"/communities/{community_id}", headers=admin).json()["buddy_pairs"]
+    assert pairs == [{"volunteer_id": me(admin)["id"], "resident_id": me(resident)["id"]}]
+    # People outside the community don't see who checks on whom.
+    assert client.get(f"/communities/{community_id}", headers=outsider).json()["buddy_pairs"] == []

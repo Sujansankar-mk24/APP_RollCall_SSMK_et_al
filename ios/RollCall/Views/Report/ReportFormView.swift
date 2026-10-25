@@ -272,6 +272,7 @@ struct ReportFormView: View {
         VStack(alignment: .trailing, spacing: Spacing.xs) {
             TextField("What do you see, and how bad is it? Landmarks help, like \"by the water tower on FM 1570\".",
                       text: $viewModel.description, axis: .vertical)
+                .returnClosesKeyboard($viewModel.description)
                 .lineLimit(3...6)
                 .focused($isEditingDescription)
                 .padding(Spacing.m)

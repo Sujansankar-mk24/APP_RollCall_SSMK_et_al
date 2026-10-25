@@ -55,7 +55,7 @@ struct NearbyDanger: Equatable {
                                           meters: meters, isInside: inside))
             }
         }
-        for incident in incidents where incident.type != .injury && incident.status != .resolved {
+        for incident in incidents where incident.type != .injury && incident.status != .resolved && !incident.underReview {
             let kind = incident.type.hazardKind
             let meters = location.distance(from: CLLocation(latitude: incident.latitude, longitude: incident.longitude))
             if meters <= warningRadius(for: kind) {

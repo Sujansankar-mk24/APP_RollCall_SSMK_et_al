@@ -162,10 +162,12 @@ struct IncidentMapView: View {
             if viewModel.loadState == .loaded {
                 VStack(spacing: Spacing.m) {
                     if let report = lastReport {
-                        ReportSentToast(result: report, analysis: lastReportAnalysis) {
+                        // "View" only once it's on the map (a report under review isn't yet).
+                        let isOnMap = viewModel.incidents.contains { $0.id == report.incidentId }
+                        ReportSentToast(result: report, analysis: lastReportAnalysis, onView: isOnMap ? {
                             selectedIncidentID = report.incidentId
                             lastReport = nil
-                        }
+                        } : nil)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     reportButton
@@ -269,6 +271,7 @@ struct IncidentMapView: View {
             lastReportAnalysis = .analyzing
             if let analysis = await viewModel.waitForAnalysis(incidentID: report.incidentId, mediaID: mediaID) {
                 lastReportAnalysis = .finished(analysis)
+                await viewModel.load()   // if the AI confirmed it, it's on the map now
             } else {
                 lastReportAnalysis = .unknown
             }

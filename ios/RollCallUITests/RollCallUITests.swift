@@ -750,6 +750,48 @@ final class RollCallUITests: XCTestCase {
         snapshot(app, "they need help")
     }
 
+    @MainActor
+    func testConnectionsShowBuddiesAsBubbles() throws {
+        let admin = try newAccount("Ada Admin")
+        let communityID = try community(admin: admin, with: try newAccount("Ben Brooks"))
+        var people: [Account] = []
+        for name in ["Cora Diaz", "Dev Patel", "Elena Ruiz", "Frank Moore"] {
+            let person = try newAccount(name)
+            server("communities/\(communityID)/join", "POST", token: person.token)
+            server("communities/\(communityID)/requests/\(person.id)/approve", "POST", token: admin.token)
+            people.append(person)
+        }
+        // Cora and Dev want a buddy; Elena volunteers and checks on Cora.
+        _ = try registerHousehold(for: people[0])
+        _ = try registerHousehold(for: people[1])
+        server("me/volunteer", "PUT", ["city": "Greenville"], token: people[2].token)
+        let neighbors = serverList("buddy/neighbors", token: people[2].token)
+        let cora = try XCTUnwrap(neighbors.first?["household_id"] as? Int)
+        server("buddy/requests/community", "POST", ["household_id": cora], token: people[2].token)
+        let request = try XCTUnwrap(serverList("me/buddy-requests", token: people[0].token).first?["id"] as? Int)
+        server("me/buddy-requests/\(request)/accept", "POST", token: people[0].token)
+
+        let app = launchSignedIn(admin, tab: "community")
+        let open = app.buttons["seeConnections"]
+        scrollTo(open, in: app)
+        XCTAssertTrue(open.waitForExistence(timeout: 15))
+        open.tap()
+        let bubble = app.descendants(matching: .any)["bubble_\(people[0].id)"]
+        XCTAssertTrue(bubble.waitForExistence(timeout: 10), "No bubble for Cora")
+        sleep(2)   // let the bubbles settle
+        snapshot(app, "connections")
+        // Drag one, then tap it: its name shows, and the name opens the profile.
+        bubble.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.35)))
+        sleep(1)
+        bubble.tap()
+        let name = app.buttons["openBubbleProfile"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5), "Tapping a bubble didn't show the name")
+        snapshot(app, "connections selected")
+        name.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["personHeader"].waitForExistence(timeout: 10))
+    }
+
     /// Tap a photo button (camera or library), choose the library, and pick
     /// the first photo.
     @MainActor

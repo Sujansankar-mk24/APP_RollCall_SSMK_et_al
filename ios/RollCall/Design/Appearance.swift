@@ -57,3 +57,67 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
         }
     }
 }
+
+/// The app's color theme (Settings > Display): the color of the main buttons,
+/// the chosen tab chips and switches on every page except the Map. Each one
+/// is shown with its color next to it, so it's easy to see what you'll get.
+enum AppTheme: String, CaseIterable, Identifiable {
+    case classic, ocean, forest, sunset, teal, graphite
+
+    var id: Self { self }
+    static let storageKey = "appTheme"
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .classic: "Classic"
+        case .ocean: "Ocean"
+        case .forest: "Forest"
+        case .sunset: "Sunset"
+        case .teal: "Lagoon"
+        case .graphite: "Graphite"
+        }
+    }
+
+    var subtitle: LocalizedStringKey {
+        switch self {
+        case .classic: "Black and white, like a printed sheet"
+        case .ocean: "Calm blue"
+        case .forest: "Deep green"
+        case .sunset: "Warm orange"
+        case .teal: "Fresh blue-green"
+        case .graphite: "Soft gray"
+        }
+    }
+
+    /// The main color. Classic is black in light mode and white in dark mode.
+    var color: Color {
+        switch self {
+        case .classic: .ink
+        case .ocean: Color(red: 0.12, green: 0.42, blue: 0.90)
+        case .forest: Color(red: 0.11, green: 0.52, blue: 0.31)
+        case .sunset: Color(red: 0.88, green: 0.40, blue: 0.08)
+        case .teal: Color(red: 0.0, green: 0.52, blue: 0.56)
+        case .graphite: Color(red: 0.36, green: 0.38, blue: 0.42)
+        }
+    }
+
+    /// Text drawn on top of the main color.
+    var onColor: Color { self == .classic ? .paper : .white }
+}
+
+extension EnvironmentValues {
+    /// The color of text on a filled main button (white, or the page color for Classic).
+    @Entry var onBrand: Color = .white
+}
+
+/// Applies the chosen color theme to a whole screen.
+struct ThemeModifier: ViewModifier {
+    @AppStorage(AppTheme.storageKey) private var theme: AppTheme = .classic
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.brand, theme.color)
+            .environment(\.onBrand, theme.onColor)
+            .tint(theme.color)
+    }
+}

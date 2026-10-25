@@ -105,6 +105,10 @@ class Incident(SQLModel, table=True):
     last_report_at: datetime = Field(default_factory=utc_now)  # newest report (used for merging)
     responding_at: Optional[datetime] = None  # when a responder marked it "responding"
     resolved_at: Optional[datetime] = None
+    # A new fire, smoke or injury report starts out "under review": it isn't
+    # on the map and nobody is warned until the AI finds what was reported in
+    # the photo (or a verified responder confirms it).
+    under_review: bool = False
 
 
 class Report(SQLModel, table=True):

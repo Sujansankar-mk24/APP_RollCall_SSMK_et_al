@@ -196,6 +196,9 @@ struct IncidentSummary: Codable, Identifiable, Hashable {
     let coverThumbnailUrl: String?
     /// The three danger zones around it (none once it's resolved).
     let zones: [HazardZone]
+    /// The AI hasn't found what was reported yet, so it's hidden from the map.
+    /// Only verified first responders see these, to confirm or dismiss them.
+    var underReview: Bool = false
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)

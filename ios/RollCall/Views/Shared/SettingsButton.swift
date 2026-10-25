@@ -5,30 +5,23 @@
 //  The gear in the corner of every main screen. It opens a small menu:
 //    Your profile     who's signed in, their roll call and community, Sign out
 //    About RollCall   what the app does and how privacy works
-//    Display          match the iPhone, light, or night mode
+//    Display          light, dark or match the iPhone, and the color theme
 //
 
 import SwiftUI
 
 struct SettingsButton: View {
-    @AppStorage(AppearanceMode.storageKey) private var mode: AppearanceMode = .system
     /// Blue on the map, ink on the paper pages, like the buttons around it.
     @Environment(\.brand) private var brand
     @State private var showsProfile = false
     @State private var showsAbout = false
+    @State private var showsDisplay = false
 
     var body: some View {
         Menu {
             Button("Your profile", systemImage: "person.crop.circle") { showsProfile = true }
             Button("About RollCall", systemImage: "info.circle") { showsAbout = true }
-            Picker(selection: $mode) {
-                ForEach(AppearanceMode.allCases) { option in
-                    Label(option.title, systemImage: option.symbol).tag(option)
-                }
-            } label: {
-                Label("Display", systemImage: mode.symbol)
-            }
-            .pickerStyle(.menu)
+            Button("Display", systemImage: "paintpalette") { showsDisplay = true }
         } label: {
             Image(systemName: "gearshape.fill")
                 .font(.title3.weight(.medium))
@@ -45,6 +38,9 @@ struct SettingsButton: View {
         }
         .sheet(isPresented: $showsAbout) {
             AboutView()
+        }
+        .sheet(isPresented: $showsDisplay) {
+            DisplaySettingsView()
         }
     }
 }

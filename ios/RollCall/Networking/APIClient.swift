@@ -56,6 +56,12 @@ struct APIClient {
         try await send(request("incidents/\(incidentID)/status", method: "PATCH", body: ["status": status.rawValue]))
     }
 
+    /// A verified first responder confirms (or dismisses) a report the AI
+    /// couldn't confirm.
+    func reviewIncident(id: Int, real: Bool) async throws(APIError) -> IncidentDetail {
+        try await send(request("incidents/\(id)/review", method: "POST", body: ["real": real]))
+    }
+
     /// Send a new report, with its photo or video if there is one. The server
     /// either adds it to a nearby matching incident or starts a new one.
     func submitReport(_ report: ReportSubmission) async throws(APIError) -> ReportCreated {

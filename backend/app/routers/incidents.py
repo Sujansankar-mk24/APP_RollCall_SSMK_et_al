@@ -5,22 +5,27 @@ Incident endpoints:
   GET   /incidents/{id}          one incident with reports, media, AI results and timeline
   PATCH /incidents/{id}/status   a verified first responder marks it responding / resolved
                                  (not for tornadoes, hurricanes and other weather nobody can stop)
+  POST  /incidents/{id}/review   a verified first responder confirms (or dismisses) a report
+                                 the AI couldn't confirm
+
+Reports under review (the AI hasn't found what was reported yet) aren't in
+the list, so they're not on the map and nobody is warned. Verified first
+responders see them, marked as under review, so they can check them.
 """
 
 from datetime import timedelta
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-
-from app.auth import current_user
-from app.config import NATURAL_HAZARD_TYPES
-from app.services.people import is_verified_responder
 from sqlmodel import Session, select
 
+from app.auth import current_user, optional_user
+from app.config import NATURAL_HAZARD_TYPES
 from app.database import get_session
 from app.models import Incident, IncidentStatus, IncidentType, TimelineKind, User, utc_now
-from app.schemas import IncidentDetailOut, IncidentSummaryOut, StatusUpdateIn
+from app.schemas import IncidentDetailOut, IncidentSummaryOut, ReviewIn, StatusUpdateIn
 from app.services.incident_views import load_children, to_detail, to_summary
+from app.services.people import is_verified_responder
 from app.services.timeline import add_event
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
@@ -38,9 +43,12 @@ def list_incidents(
     status: Optional[list[IncidentStatus]] = Query(None, description="Only these statuses (repeat for several)"),
     since_hours: Optional[int] = Query(None, ge=1, description="Only incidents with a report in the last N hours"),
     sort: Literal["priority", "recent"] = "priority",
+    user: Optional[User] = Depends(optional_user),
     session: Session = Depends(get_session),
 ):
     query = select(Incident)
+    if user is None or not is_verified_responder(user):
+        query = query.where(Incident.under_review == False)  # noqa: E712 (SQL needs ==)
     if type:
         query = query.where(Incident.type.in_(type))
     if status:
@@ -96,4 +104,27 @@ def update_status(incident_id: int, update: StatusUpdateIn, user: User = Depends
         add_event(session, incident.id, TimelineKind.status_change, STATUS_MESSAGES[update.status] + who, at=now)
         session.commit()
         session.refresh(incident)
+    return to_detail(session, incident)
+
+
+@router.post("/{incident_id}/review", response_model=IncidentDetailOut)
+def review(incident_id: int, data: ReviewIn, user: User = Depends(current_user),
+           session: Session = Depends(get_session)):
+    """A verified first responder looked at a report the AI couldn't confirm."""
+    if not is_verified_responder(user):
+        raise HTTPException(status_code=403, detail="Only verified first responders can review reports.")
+    incident = get_incident_or_404(session, incident_id)
+    who = f" ({user.responder_agency})" if user.responder_agency else ""
+    now = utc_now()
+    if data.real:
+        incident.under_review = False
+        add_event(session, incident.id, TimelineKind.status_change, f"Confirmed as real by a responder{who}. Now on the map.", at=now)
+    else:
+        # Not a real emergency: closed, and it stays off the map.
+        incident.status = IncidentStatus.resolved
+        incident.resolved_at = incident.resolved_at or now
+        add_event(session, incident.id, TimelineKind.status_change, f"Dismissed by a responder{who}: not an emergency.", at=now)
+    session.add(incident)
+    session.commit()
+    session.refresh(incident)
     return to_detail(session, incident)

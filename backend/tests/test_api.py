@@ -32,7 +32,9 @@ def test_first_report_creates_incident_and_second_merges():
     assert body["incident_id"] == first.json()["incident_id"]
     assert body["message"] == "Added to existing incident (2 reports)"
 
-    incidents = client.get("/incidents").json()
+    # The test photo is plain gray, so the AI found no fire: it's under review,
+    # which only verified first responders see in the list.
+    incidents = client.get("/incidents", headers=responder()).json()
     assert len(incidents) == 1 and incidents[0]["report_count"] == 2
 
 
@@ -44,7 +46,35 @@ def test_missing_location_name_gets_coordinates():
 def test_different_type_creates_separate_incident():
     report()
     report(type="flood")
-    assert len(client.get("/incidents").json()) == 2
+    assert len(client.get("/incidents", headers=responder()).json()) == 2
+
+
+def test_unconfirmed_report_stays_off_the_map_until_a_responder_reviews_it():
+    created = report().json()   # a fire report with a photo that shows no fire
+    assert "checking the photo" in created["message"]
+    incident_id = created["incident_id"]
+    assert client.get("/incidents").json() == []                        # nobody is alerted
+    detail = client.get(f"/incidents/{incident_id}").json()
+    assert detail["under_review"] is True
+    assert "couldn't find" in detail["timeline"][-1]["message"]
+    assert client.post(f"/incidents/{incident_id}/review", json={"real": True},
+                       headers=sign_up()).status_code == 403             # residents can't
+    confirmed = client.post(f"/incidents/{incident_id}/review", json={"real": True}, headers=responder()).json()
+    assert confirmed["under_review"] is False
+    assert [i["id"] for i in client.get("/incidents").json()] == [incident_id]
+
+
+def test_dismissed_report_is_closed():
+    incident_id = report().json()["incident_id"]
+    dismissed = client.post(f"/incidents/{incident_id}/review", json={"real": False}, headers=responder()).json()
+    assert dismissed["status"] == "resolved" and dismissed["under_review"] is True
+    assert client.get("/incidents").json() == []
+
+
+def test_weather_reports_go_straight_on_the_map():
+    # The AI can't recognize a flood, so those aren't held back.
+    report(type="flood", description="Water over the road")
+    assert len(client.get("/incidents").json()) == 1
 
 
 def test_filters():

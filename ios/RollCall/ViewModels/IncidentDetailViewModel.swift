@@ -67,6 +67,21 @@ final class IncidentDetailViewModel {
     }
 
     /// Returns true if the change was saved on the server.
+    /// A responder decides about a report the AI couldn't confirm.
+    func review(real: Bool) async -> Bool {
+        isUpdatingStatus = true
+        defer { isUpdatingStatus = false }
+        do {
+            let detail = try await api.reviewIncident(id: summary.id, real: real)
+            summary = detail.summary
+            loadState = .loaded(detail)
+            return true
+        } catch {
+            actionError = error
+            return false
+        }
+    }
+
     func setStatus(_ status: IncidentStatus) async -> Bool {
         isUpdatingStatus = true
         defer { isUpdatingStatus = false }

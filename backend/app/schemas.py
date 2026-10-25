@@ -124,6 +124,7 @@ class IncidentSummaryOut(BaseModel):
     ai: AISummaryOut
     cover_thumbnail_url: Optional[str]  # a preview picture for list rows
     zones: list[ZoneOut] = []           # danger zones on the map (none once resolved)
+    under_review: bool = False          # hidden until the AI or a responder confirms it
 
 
 class IncidentDetailOut(IncidentSummaryOut):
@@ -136,6 +137,10 @@ class IncidentDetailOut(IncidentSummaryOut):
 
 class StatusUpdateIn(BaseModel):
     status: IncidentStatus
+
+
+class ReviewIn(BaseModel):
+    real: bool   # a responder looked: is it a real emergency?
 
 
 class ReportCreatedOut(BaseModel):
@@ -463,8 +468,16 @@ class RecapPhotoOut(BaseModel):
     expires_at: Optional[datetime]   # None when pinned
 
 
+class BuddyPairOut(BaseModel):
+    """Volunteer X checks on resident Y (both in the community)."""
+
+    volunteer_id: int   # user ids
+    resident_id: int
+
+
 class CommunityDetailOut(CommunityOut):
     members: list[MemberOut]            # only shown to members
+    buddy_pairs: list[BuddyPairOut]     # who checks on whom (only shown to members)
     join_requests: list[MemberOut]      # only shown to admins
     recap: list[RecapPhotoOut]          # approved photos: anyone can see them
     pending_photos: list[RecapPhotoOut] # only shown to admins

@@ -29,6 +29,7 @@ struct CommunityDetail: Decodable, Equatable {
     let myStatus: MemberStatus?
     let isAdmin: Bool
     let members: [CommunityMember]       // only filled in for members
+    let buddyPairs: [BuddyPair]          // who checks on whom (only for members)
     let joinRequests: [CommunityMember]  // only filled in for the admin
     let recap: [RecapPhoto]              // the Weekly Recap: anyone can see it
     let pendingPhotos: [RecapPhoto]      // only filled in for the admin
@@ -63,4 +64,10 @@ struct CommunityMember: Decodable, Identifiable, Hashable {
 
     var id: Int { userId }
     var photoURL: URL? { AppConfig.mediaURL(photoUrl) }
+}
+
+/// Volunteer X checks on resident Y (user ids, both in the community).
+struct BuddyPair: Decodable, Hashable {
+    let volunteerId: Int
+    let residentId: Int
 }

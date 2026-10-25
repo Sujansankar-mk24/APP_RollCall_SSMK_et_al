@@ -22,9 +22,14 @@ struct RootView: View {
     @Environment(AuthStore.self) private var auth
     /// The intro pages show once, the first time the app is opened.
     @AppStorage("hasSeenIntro") private var hasSeenIntro = DebugLaunchOptions.skipsIntro
+    /// The splash stays up long enough to see the check mark draw itself in.
+    @State private var showsSplash = !DebugLaunchOptions.skipsIntro
 
     var body: some View {
         Group {
+            if showsSplash {
+                SplashView()
+            } else {
             switch auth.state {
             case .checking:
                 SplashView()
@@ -48,9 +53,15 @@ struct RootView: View {
             case .signedIn(let me):
                 MainTabView(me: me)
             }
+            }
         }
         .animation(.snappy(duration: 0.3), value: auth.state)
+        .animation(.easeInOut(duration: 0.35), value: showsSplash)
         .task { await auth.restore() }
+        .task {
+            try? await Task.sleep(for: .seconds(1.3))
+            showsSplash = false
+        }
     }
 }
 
@@ -126,7 +137,9 @@ private extension View {
         self
             .toolbar(.hidden, for: .tabBar)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                Color.clear.frame(height: SlidingTabBar<MainTabView.RootTab>.height)
+                // The bar's height, plus a little extra so the last button on
+                // a page can always be scrolled clear of it.
+                Color.clear.frame(height: SlidingTabBar<MainTabView.RootTab>.height + Spacing.l)
             }
     }
 }

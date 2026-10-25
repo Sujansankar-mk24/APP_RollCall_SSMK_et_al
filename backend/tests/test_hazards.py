@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from app.hazards import demo
 from app.hazards.service import HazardFeed
-from app.hazards.sources import drop_duplicate_fires, parse_eonet, parse_firms, parse_nws, parse_spc
+from app.hazards.sources import drop_duplicate_fires, parse_eonet, parse_firms, parse_nhc, parse_nws, parse_spc
 from app.hazards.zones import HazardKind, ZoneLevel, alert_kind, alert_level, ring_radii
 from tests.helpers import client, photo, responder, sign_up
 
@@ -66,6 +66,31 @@ def test_nasa_events_must_be_recent_and_planned_burns_are_calm():
     big, planned = hazards
     assert big.level == ZoneLevel.immediate and big.zones[0].radius_m == ring_radii(HazardKind.fire, 5.0)[ZoneLevel.immediate]
     assert planned.level == ZoneLevel.cautious and len(planned.zones) == 1
+
+
+def test_nasa_events_of_every_kind_are_kept():
+    def event(title, category):
+        return {"id": title, "title": title, "categories": [{"id": category}],
+                "geometry": [{"type": "Point", "coordinates": [-96.1, 33.1], "date": NOW.isoformat()}]}
+    hazards = parse_eonet({"events": [event("Hurricane Beryl", "severeStorms"), event("Hail storm", "severeStorms"),
+                                      event("Cold snap", "tempExtremes"), event("Texas drought", "drought"),
+                                      event("M4.1 earthquake", "earthquakes"), event("Dust storm", "dustHaze")]}, now=NOW)
+    kinds = {h.title: h.kind for h in hazards}
+    assert kinds == {"Hurricane Beryl": HazardKind.hurricane, "Hail storm": HazardKind.severe_storm,
+                     "Cold snap": HazardKind.winter_storm, "Texas drought": HazardKind.drought,
+                     "M4.1 earthquake": HazardKind.earthquake, "Dust storm": HazardKind.air_quality}
+
+
+def test_hurricane_center_keeps_storms_heading_for_texas():
+    near = {"id": "al022026", "name": "Beryl", "classification": "HU", "intensity": "85",
+            "latitudeNumeric": 27.5, "longitudeNumeric": -95.0, "movementDir": 315, "movementSpeed": 12,
+            "lastUpdate": NOW.isoformat(), "publicAdvisory": {"url": "https://www.nhc.noaa.gov/text/x.shtml"}}
+    far = {**near, "id": "al032026", "name": "Chris", "latitudeNumeric": 15.0, "longitudeNumeric": -40.0}
+    hazards = parse_nhc({"activeStorms": [near, far]})
+    assert [h.title for h in hazards] == ["Hurricane Beryl"]
+    beryl = hazards[0]
+    assert beryl.kind == HazardKind.hurricane and "98 mph" in beryl.detail
+    assert beryl.level == ZoneLevel.immediate   # a hurricane inside the Texas area
 
 
 def test_storm_reports_keep_texas_and_know_each_table():

@@ -2,8 +2,8 @@
 //  IntroView.swift
 //  RollCall
 //
-//  The splash screen (the logo on black while the app checks who's signed
-//  in), and three short intro pages shown the first time someone opens the
+//  The splash screen (the logo, with its check mark drawing in, while the
+//  app checks who's signed in), and three short intro pages shown the first time someone opens the
 //  app, before they make an account:
 //    1. Know who's safe          the roll call
 //    2. See danger near you      live data and warnings on the map
@@ -12,15 +12,15 @@
 
 import SwiftUI
 
-/// The logo on black, like the first screen of WHOOP or Phantom.
+/// The logo on its own, like the first screen of WHOOP or Phantom. It
+/// follows the phone's light or dark mode, and the check mark draws itself in.
 struct SplashView: View {
     @State private var appeared = false
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
-            BrandMark(size: 96)
-                .environment(\.brand, .white)
+            Color.paper.ignoresSafeArea()
+            BrandMark(size: 180, animatesCheck: true)
                 .scaleEffect(appeared ? 1 : 0.85)
                 .opacity(appeared ? 1 : 0)
         }
@@ -56,14 +56,14 @@ struct IntroView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.paper.ignoresSafeArea()
             VStack(spacing: 0) {
                 HStack {
                     pageDots
                     Spacer()
                     Button("Skip", action: onFinish)
                         .font(.headline)
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(.secondary)
                         .frame(minWidth: minimumTapSize, minHeight: minimumTapSize)
                         .opacity(page < pages.count - 1 ? 1 : 0)
                         .accessibilityIdentifier("skipIntro")
@@ -85,14 +85,14 @@ struct IntroView: View {
                                     .multilineTextAlignment(.center)
                                 Text(item.text)
                                     .font(.title3)
-                                    .foregroundStyle(.white.opacity(0.75))
+                                    .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             .padding(.horizontal, Spacing.xl)
                             Spacer()
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.primary)
                         .tag(item.id)
                     }
                 }
@@ -107,9 +107,9 @@ struct IntroView: View {
                 } label: {
                     Text(page < pages.count - 1 ? "Next" : "Get started")
                         .font(.headline)
-                        .foregroundStyle(.black)
+                        .foregroundStyle(Color.paper)
                         .frame(maxWidth: .infinity, minHeight: 56)
-                        .background(.white, in: Capsule())
+                        .background(Color.ink, in: Capsule())
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, Spacing.l)
@@ -117,14 +117,13 @@ struct IntroView: View {
                 .accessibilityIdentifier("introNext")
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     private var pageDots: some View {
         HStack(spacing: 6) {
             ForEach(pages) { item in
                 Capsule()
-                    .fill(item.id == page ? Color.white : Color.white.opacity(0.3))
+                    .fill(item.id == page ? Color.primary : Color.primary.opacity(0.25))
                     .frame(width: item.id == page ? 22 : 7, height: 7)
             }
         }

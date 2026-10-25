@@ -306,6 +306,7 @@ private struct MyCommunityView: View {
     @State private var openCommunity: Int?
     @State private var newPhoto: Data?
     @State private var isSavingAway = false
+    @State private var showsConnections = false
 
     var body: some View {
         Group {
@@ -332,13 +333,19 @@ private struct MyCommunityView: View {
         .sheet(item: $openCommunity) { id in CommunityPageView(communityID: id, viewModel: viewModel).sheetBrand() }
         .sheet(item: Binding(get: { newPhoto.map(PickedJPEG.init) }, set: { newPhoto = $0?.data })) { picked in
             if case .loaded(let community) = viewModel.detail {
-                AddRecapPhotoSheet(jpeg: picked.data) { caption in
+                AddRecapPhotoSheet(jpeg: picked.data, isAdmin: community.isAdmin) { caption in
                     await viewModel.addRecapPhoto(picked.data, caption: caption, in: community)
                 }
                 .sheetBrand()
             }
         }
-        .successOverlay(isPresented: $viewModel.photoSent, text: "Sent to the admin")
+        .fullScreenCover(isPresented: $showsConnections) {
+            if case .loaded(let community) = viewModel.detail {
+                ConnectionsView(members: community.members, pairs: community.buddyPairs).sheetBrand()
+            }
+        }
+        .successOverlay(isPresented: $viewModel.photoSent,
+                        text: viewModel.detail.value?.isAdmin == true ? "Added" : "Sent to the admin")
     }
 
     private func content(_ community: CommunityDetail) -> some View {
@@ -348,6 +355,7 @@ private struct MyCommunityView: View {
             if community.isAdmin && !community.pendingPhotos.isEmpty { pendingPhotos(community) }
             if community.isAdmin && !community.joinRequests.isEmpty { joinRequests(community) }
             awayToggle
+            connectionsButton(community)
             members(community)
             RespondersSection(viewModel: viewModel, city: community.city) { openPerson = $0 }
             CommunityList(viewModel: viewModel, title: "Other communities", canJoin: false,
@@ -432,7 +440,7 @@ private struct MyCommunityView: View {
                                 Color.primary.opacity(0.08)
                             }
                             .frame(width: 170, height: 210)
-                            .clipShape(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.paperCard, style: .continuous))
                             Text(verbatim: photo.caption.isEmpty ? photo.uploaderName : "\(photo.caption) · \(photo.uploaderName)")
                                 .font(.footnote).foregroundStyle(.secondary).lineLimit(1)
                             HStack(spacing: Spacing.s) {
@@ -470,6 +478,29 @@ private struct MyCommunityView: View {
                 }
             }
         }
+    }
+
+    /// Opens the web of bubbles: everyone, with lines for who checks on whom.
+    private func connectionsButton(_ community: CommunityDetail) -> some View {
+        Button { showsConnections = true } label: {
+            HStack(spacing: Spacing.m) {
+                Image(systemName: "point.3.filled.connected.trianglepath.dotted")
+                    .font(.title2)
+                    .frame(width: 44, height: 44)
+                    .background(Color.primary.opacity(0.08), in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("See connections").font(.headline)
+                    Text("\(community.buddyPairs.count) buddy pairs · \(community.members.filter { !$0.hasBuddy }.count) without a buddy")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+            }
+            .sheetBox(padding: Spacing.l)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("seeConnections")
     }
 
     /// "I'm away from home": shows next to your name, so neighbors don't go
@@ -648,6 +679,8 @@ struct CommunityPageView: View {
 /// Add a caption to a new Weekly Recap photo, then send it to the admin.
 private struct AddRecapPhotoSheet: View {
     let jpeg: Data
+    /// The admin's own photos go straight into the recap.
+    let isAdmin: Bool
     let send: (String) async -> Void
     @State private var caption = ""
     @State private var isSending = false
@@ -661,12 +694,18 @@ private struct AddRecapPhotoSheet: View {
                         Image(uiImage: image)
                             .resizable().scaledToFill()
                             .frame(height: 320).frame(maxWidth: .infinity)
+                            .clipped()
                             .clipShape(RoundedRectangle(cornerRadius: Radius.paperCard, style: .continuous))
                     }
                     LabeledField(label: "Caption (optional)", prompt: "What's happening?", text: $caption,
                                  handwritten: false, identifier: "recapCaption")
-                    SheetNote(text: "The admin sees it first. Once approved, everyone can see it for a week.",
-                              systemImage: "checkmark.shield")
+                    if isAdmin {
+                        SheetNote(text: "It goes straight into the Weekly Recap for a week. Press and hold it there to pin it.",
+                                  systemImage: "photo.stack")
+                    } else {
+                        SheetNote(text: "The admin sees it first. Once approved, everyone can see it for a week.",
+                                  systemImage: "checkmark.shield")
+                    }
                     Button {
                         Task {
                             isSending = true
@@ -675,7 +714,10 @@ private struct AddRecapPhotoSheet: View {
                             dismiss()
                         }
                     } label: {
-                        HStack { if isSending { ProgressView().tint(Color.paper) }; Text("Share with the community") }
+                        HStack {
+                            if isSending { ProgressView().tint(Color.paper) }
+                            Text(isAdmin ? "Add to the Weekly Recap" : "Send to the admin")
+                        }
                     }
                     .buttonStyle(InkButtonStyle())
                     .disabled(isSending)

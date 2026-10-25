@@ -36,7 +36,7 @@ from app.ai.scene import label_people
 from app.ai.video import sample_frames
 from app.config import ANALYSIS_MAX_SIDE, ANNOTATED_DIR, MEDIA_DIR, THUMBS_DIR
 from app.database import engine
-from app.models import AnalysisStatus, Media, MediaKind, TimelineKind, utc_now
+from app.models import AnalysisStatus, Incident, IncidentType, Media, MediaKind, TimelineKind, utc_now
 from app.services.timeline import add_event
 
 THUMBNAIL_MAX_SIDE = 480
@@ -226,6 +226,35 @@ def describe(media: Media) -> str:
     return message + "."
 
 
+def confirms_report(media: Media, incident_type: IncidentType) -> bool:
+    """Did the AI find what this kind of report is about?"""
+    if incident_type in (IncidentType.fire, IncidentType.smoke):
+        return media.fire_detected or media.smoke_detected
+    if incident_type == IncidentType.injury:
+        return media.people_count > 0
+    return True
+
+
+def review_after_analysis(session: Session, media: Media, event_time: Optional[datetime]) -> None:
+    """
+    An incident under review goes on the map once the AI finds what was
+    reported. If it doesn't, it stays hidden as a possible incident until a
+    verified first responder looks at it, so nobody is alerted by mistake.
+    """
+    incident = session.get(Incident, media.incident_id)
+    if incident is None or not incident.under_review:
+        return
+    if confirms_report(media, incident.type):
+        incident.under_review = False
+        session.add(incident)
+        add_event(session, incident.id, TimelineKind.ai_result,
+                  "Confirmed by the AI. Now on the map.", at=event_time)
+    else:
+        add_event(session, incident.id, TimelineKind.ai_result,
+                  "The AI couldn't find this in the photo, so it isn't on the map. "
+                  "A first responder will review it.", at=event_time)
+
+
 def analyze_media(media_id: int, event_time: Optional[datetime] = None) -> None:
     """
     Analyze one saved Media row and store the results.
@@ -268,6 +297,7 @@ def analyze_media(media_id: int, event_time: Optional[datetime] = None) -> None:
             media.analysis_status = AnalysisStatus.done
             media.analyzed_at = event_time or utc_now()
             add_event(session, media.incident_id, TimelineKind.ai_result, describe(media), at=event_time)
+            review_after_analysis(session, media, event_time)
         except Exception as error:  # never let one bad file crash the server
             traceback.print_exc()
             media.analysis_status = AnalysisStatus.failed

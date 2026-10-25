@@ -34,9 +34,11 @@ from sqlmodel import Session, delete, func, select
 from app.auth import current_user
 from app.config import PROFILES_DIR, RECAP_DAYS
 from app.database import get_session
-from app.models import Community, CommunityMember, CommunityPhoto, MemberStatus, PhotoStatus, User
+from app.models import (BuddyLink, BuddyStatus, Community, CommunityMember, CommunityPhoto, Household, MemberStatus,
+                        PhotoStatus, User, Volunteer)
 from app.privacy import membership, volunteer_of
-from app.schemas import CommunityDetailOut, CommunityIn, CommunityOut, CommunityPatch, MemberOut, RecapPhotoOut
+from app.schemas import (BuddyPairOut, CommunityDetailOut, CommunityIn, CommunityOut, CommunityPatch, MemberOut,
+                         RecapPhotoOut)
 from app.services.households import utc
 from app.services.incident_views import media_url
 from app.services.people import delete_media, has_active_buddy, household_of, media_name, save_picture
@@ -115,10 +117,23 @@ def details(community_id: int, user: User = Depends(current_user), session: Sess
     return CommunityDetailOut(
         **base.model_dump(),
         members=[member_out(session, m, u) for m, u in rows if m.status == MemberStatus.member] if is_member else [],
+        buddy_pairs=buddy_pairs(session, [u.id for m, u in rows if m.status == MemberStatus.member]) if is_member else [],
         join_requests=[member_out(session, m, u) for m, u in rows if m.status == MemberStatus.pending] if base.is_admin else [],
-        recap=[recap_out(p, u) for p, u in photos if in_recap(p)],
+        # Pinned photos come first, then the newest.
+        recap=[recap_out(p, u) for p, u in sorted((pu for pu in photos if in_recap(pu[0])),
+                                                  key=lambda pu: not pu[0].pinned)],
         pending_photos=[recap_out(p, u) for p, u in photos if p.status == PhotoStatus.pending] if base.is_admin else [],
     )
+
+
+def buddy_pairs(session: Session, member_ids: list[int]) -> list[BuddyPairOut]:
+    """Accepted buddy matches where both people are in the community (for the connections web)."""
+    rows = session.exec(select(Volunteer.user_id, Household.owner_id)
+                        .join(BuddyLink, BuddyLink.volunteer_id == Volunteer.id)
+                        .join(Household, Household.id == BuddyLink.household_id)
+                        .where(BuddyLink.status == BuddyStatus.active)).all()
+    members = set(member_ids)
+    return [BuddyPairOut(volunteer_id=v, resident_id=r) for v, r in rows if v in members and r in members]
 
 
 def member_out(session: Session, m: CommunityMember, u: User) -> MemberOut:

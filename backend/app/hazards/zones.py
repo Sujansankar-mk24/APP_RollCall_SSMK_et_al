@@ -35,6 +35,10 @@ class HazardKind(str, Enum):
     winter_storm = "winter_storm"   # ice, snow, freezing cold
     heat = "heat"
     air_quality = "air_quality"     # smoke, ozone, dust
+    earthquake = "earthquake"
+    landslide = "landslide"
+    volcano = "volcano"
+    drought = "drought"
     injury = "injury"
     other = "other"
 
@@ -65,6 +69,10 @@ RINGS: dict[HazardKind, tuple[int, int, int]] = {
     HazardKind.winter_storm: (1_000, 3_000, 6_000),
     HazardKind.heat:         (500, 2_000, 5_000),
     HazardKind.air_quality:  (1_000, 3_000, 8_000),
+    HazardKind.earthquake:   (2_000, 10_000, 30_000),
+    HazardKind.landslide:    (200, 800, 2_000),
+    HazardKind.volcano:      (5_000, 15_000, 40_000),
+    HazardKind.drought:      (5_000, 15_000, 40_000),
     HazardKind.injury:       (50, 150, 500),         # a crash scene: keep the road clear
     HazardKind.other:        (100, 300, 1_000),
 }
