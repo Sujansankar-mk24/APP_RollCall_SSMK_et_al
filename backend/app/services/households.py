@@ -18,22 +18,26 @@ def utc(moment: datetime) -> datetime:
     return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
 
 
-def buddy_of(session: Session, household_id: int) -> Optional[BuddyOut]:
-    """The household's accepted volunteer buddy, if it has one."""
-    link = session.exec(select(BuddyLink).where(
-        BuddyLink.household_id == household_id, BuddyLink.status == BuddyStatus.active)).first()
-    if link is None:
-        return None
-    volunteer = session.get(Volunteer, link.volunteer_id)
-    user = session.get(User, volunteer.user_id)
-    return BuddyOut(id=volunteer.id, user_id=user.id, name=user.name,
-                    phone=volunteer.phone or user.phone, city=volunteer.city)
+def buddies_of(session: Session, household_id: int) -> list[BuddyOut]:
+    """Every volunteer the household accepted (a household can have several)."""
+    links = session.exec(select(BuddyLink).where(
+        BuddyLink.household_id == household_id, BuddyLink.status == BuddyStatus.active)
+        .order_by(BuddyLink.answered_at)).all()
+    out = []
+    for link in links:
+        volunteer = session.get(Volunteer, link.volunteer_id)
+        user = session.get(User, volunteer.user_id) if volunteer else None
+        if user is not None:
+            out.append(BuddyOut(id=volunteer.id, user_id=user.id, name=user.name,
+                                phone=volunteer.phone or user.phone, city=volunteer.city))
+    return out
 
 
 def to_out(session: Session, household: Household) -> HouseholdOut:
     # The account's name and picture right now, so a renamed neighbor shows
     # their new name everywhere (contact_name is only what they typed at sign-up).
     owner = session.get(User, household.owner_id)
+    buddies = buddies_of(session, household.id)
     return HouseholdOut(
         id=household.id,
         owner_id=household.owner_id,
@@ -63,7 +67,8 @@ def to_out(session: Session, household: Household) -> HouseholdOut:
         wants_buddy=household.wants_buddy,
         check_in=household.check_in,
         checked_in_at=utc(household.checked_in_at) if household.checked_in_at else None,
-        buddy=buddy_of(session, household.id),
+        buddy=buddies[0] if buddies else None,
+        buddies=buddies,
         is_demo=household.is_demo,
         created_at=utc(household.created_at),
         updated_at=utc(household.updated_at),

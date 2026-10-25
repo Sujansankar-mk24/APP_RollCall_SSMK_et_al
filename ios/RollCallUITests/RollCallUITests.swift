@@ -114,6 +114,8 @@ final class RollCallUITests: XCTestCase {
 
         // The Resolved filter shows only the 3 resolved incidents.
         app.buttons["Resolved (3)"].tap()
+        // The rows start below the key numbers: scroll the log to reach them.
+        if !app.descendants(matching: .any)["incidentRow_2"].waitForExistence(timeout: 3) { active.swipeUp() }
         XCTAssertTrue(app.descendants(matching: .any)["incidentRow_2"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["incidentRow_1"].exists)
         app.buttons["Open (7)"].tap()
@@ -329,7 +331,8 @@ final class RollCallUITests: XCTestCase {
         let toast = app.descendants(matching: .any)["reportSentToast"]
         XCTAssertTrue(toast.waitForExistence(timeout: 20))
         // The confirmation follows the AI until it has an answer.
-        let finished = NSPredicate(format: "label CONTAINS 'AI found' OR label CONTAINS 'AI didn' OR label CONTAINS 'shortly'")
+        // It says whether the AI confirmed the report, not just what it counted.
+        let finished = NSPredicate(format: "label CONTAINS 'Confirmed by the AI' OR label CONTAINS 'Not confirmed yet' OR label CONTAINS 'shortly'")
         expectation(for: finished, evaluatedWith: toast)
         waitForExpectations(timeout: 30)
     }
@@ -564,7 +567,8 @@ final class RollCallUITests: XCTestCase {
         XCTAssertTrue(accept.waitForExistence(timeout: 15), "The resident should see the volunteer's offer")
         snapshot(app, "buddy request")
         accept.tap()
-        XCTAssertTrue(text("Your buddy", in: app).waitForExistence(timeout: 10))
+        let buddy = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Victor Volunteer'")).firstMatch
+        XCTAssertTrue(buddy.waitForExistence(timeout: 10), "The buddy isn't shown after accepting")
         XCTAssertFalse(app.buttons["acceptBuddy"].exists)
     }
 

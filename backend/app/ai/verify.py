@@ -16,6 +16,7 @@ indoor scene with no disaster in it is never confirmed.
 
 from typing import Optional
 
+from app.ai.fire import BASIC_DETECTOR_NAME
 from app.models import IncidentType, Media
 
 # What the phone's scene labels must include for each kind of report, and
@@ -73,11 +74,21 @@ def confirms_report(media: Media, incident_type: IncidentType) -> Optional[bool]
     calm_fire = any(labels.get(name, 0) >= 0.3 for name in CALM_FIRE)
 
     if incident_type in (IncidentType.fire, IncidentType.smoke):
+        scene_fire = scene_shows(labels, SCENE_RULES[incident_type]) is not None
         if calm_fire and not media.fire_detected:
             return False           # a fireplace or a grill
+        if yolo_fire and media.fire_detector == BASIC_DETECTOR_NAME:
+            # The basic color rule mistakes orange shirts, skin and sunsets
+            # for flames, so on its own it never confirms a fire. The phone's
+            # scene check has to see fire too.
+            return scene_fire
         if yolo_fire:
-            return True
-        return scene_shows(labels, SCENE_RULES[incident_type]) is not None if labels else False
+            # The trained model can still be fooled by a photo of people
+            # indoors. Unless it's very sure, an indoor photo needs the
+            # phone's scene check to agree.
+            sure = max(media.fire_confidence, media.smoke_confidence) >= 0.7
+            return sure or scene_fire or not indoor
+        return scene_fire if labels else False
 
     if incident_type == IncidentType.injury:
         # Someone has to be in the picture, and it can't be a calm room.

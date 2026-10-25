@@ -4,7 +4,9 @@
 //
 //  The "I check on" part of the Roll Call tab, for volunteer buddies:
 //    * neighbors who accepted you (full details, only because they said yes),
-//    * people in your community who asked for a buddy (first name and street only),
+//    * everyone else in your community on the roll call, so you can offer to
+//      check on them too (first name and street only). Anyone can check on
+//      anyone, and a household can have several buddies.
 //    * requests you've sent.
 //  You can also offer to be someone's buddy from their profile. Buddies only
 //  come from your own community.
@@ -81,16 +83,16 @@ struct BuddyHomeView: View {
     @ViewBuilder
     private var communitySection: some View {
         if let community = auth.me?.community, community.status == .member {
-            section("Asked for a buddy in \(community.name)",
-                    "Only their first name and street are shown until they accept you.") {
+            section("Neighbors in \(community.name)",
+                    "Offer to check on anyone here, even if someone already does. Only their first name and street are shown until they accept you.") {
                 if viewModel.neighbors.isEmpty {
-                    emptyNote("Everyone who asked already has a buddy.")
+                    emptyNote("You already check on everyone in your community who's on the roll call. When someone new joins, they'll show up here.")
                 } else {
                     ForEach(viewModel.neighbors) { neighborRow($0) }
                 }
             }
         } else {
-            SheetNote(text: "Join your neighborhood in the Community tab to see neighbors who asked for a buddy.",
+            SheetNote(text: "Join your neighborhood in the Community tab to see neighbors you can check on.",
                       systemImage: "house.and.flag.fill")
         }
     }
@@ -100,6 +102,13 @@ struct BuddyHomeView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: neighbor.firstName).sheetEntryStyle()
                 Text(verbatim: "\(neighbor.street), \(neighbor.city)").font(.callout).foregroundStyle(.secondary)
+                // Who needs someone most: asked for a buddy, or nobody checks on them yet.
+                if neighbor.buddyCount == 0 && neighbor.askedForBuddy {
+                    Text("Asked for a buddy").font(.footnote.weight(.semibold)).foregroundStyle(Color(.systemOrange))
+                } else if neighbor.buddyCount > 0 {
+                    Text(AttributedString(localized: "Checked on by ^[\(neighbor.buddyCount) neighbor](inflect: true)"))
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
             }
             Spacer()
             if neighbor.alreadyAsked {

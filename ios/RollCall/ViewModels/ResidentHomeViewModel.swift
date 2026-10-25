@@ -61,9 +61,9 @@ final class ResidentHomeViewModel {
         }
     }
 
-    func removeBuddy() async {
+    func removeBuddy(_ buddy: Buddy) async {
         do {
-            try await api.removeMyBuddy()
+            try await api.removeBuddy(volunteerID: buddy.id)
             await load()
         } catch {
             actionError = error

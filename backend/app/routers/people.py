@@ -28,7 +28,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from sqlmodel import Session, func, select
 
 from app.auth import current_user
-from app.config import ID_PHOTOS_DIR, MAX_TEXT_LENGTH
+from app.config import ID_PHOTOS_DIR, MAX_CHECK_ONS, MAX_TEXT_LENGTH
 from app.database import engine, get_session
 from app.models import BuddyLink, CommunityMember, MemberStatus, ResponderReport, ResponderStatus, User, Volunteer
 from app.models import TimelineKind, utc_now
@@ -150,8 +150,8 @@ def offer_to_be_buddy(user_id: int, user: User = Depends(current_user), session:
         session.flush()
     active = session.exec(select(func.count()).select_from(BuddyLink).where(
         BuddyLink.volunteer_id == volunteer.id, BuddyLink.status == "active")).one()
-    if active >= volunteer.capacity:
-        raise HTTPException(status_code=409, detail=f"You're already checking on {volunteer.capacity} households, your limit.")
+    if active >= MAX_CHECK_ONS:
+        raise HTTPException(status_code=409, detail=f"You're already checking on {MAX_CHECK_ONS} households, the most allowed.")
     session.add(BuddyLink(volunteer_id=volunteer.id, household_id=household_of(session, other.id).id))
     session.commit()
     return with_connections(session, user, other)

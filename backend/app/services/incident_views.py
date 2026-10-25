@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from app.hazards.models import ZoneOut
 from app.hazards.zones import HazardKind, report_scale, ring_radii
-from app.models import AnalysisStatus, Incident, IncidentStatus, Media, Report, TimelineEvent
+from app.models import AnalysisStatus, Incident, IncidentStatus, IncidentType, Media, Report, TimelineEvent
 from app.schemas import (
     AISummaryOut,
     AnalysisOut,
@@ -23,6 +23,7 @@ from app.schemas import (
     ReportOut,
     TimelineEventOut,
 )
+from app.ai.verify import confirms_report, explain
 from app.services.priority import compute_priority, is_verified
 
 
@@ -110,7 +111,8 @@ def incident_zones(incident: Incident, report_count: int) -> list[ZoneOut]:
     return [ZoneOut(level=level, radius_m=radius) for level, radius in radii.items()]
 
 
-def to_media_out(item: Media) -> MediaOut:
+def to_media_out(item: Media, incident_type: Optional[IncidentType] = None) -> MediaOut:
+    done = item.analysis_status == AnalysisStatus.done and incident_type is not None
     return MediaOut(
         id=item.id,
         report_id=item.report_id,
@@ -134,6 +136,8 @@ def to_media_out(item: Media) -> MediaOut:
             annotated_url=media_url(item.annotated_name),
             analyzed_at=as_utc(item.analyzed_at),
             error=item.analysis_error,
+            confirms_report=confirms_report(item, incident_type) if done else None,
+            verdict=explain(item, incident_type) if done else "",
         ),
     )
 
@@ -155,7 +159,7 @@ def to_detail(session: Session, incident: Incident) -> IncidentDetailOut:
                       longitude=r.longitude, created_at=as_utc(r.created_at))
             for r in reports
         ],
-        media=[to_media_out(m) for m in media],
+        media=[to_media_out(m, incident.type) for m in media],
         timeline=[
             TimelineEventOut(id=e.id, kind=e.kind, message=e.message, created_at=as_utc(e.created_at))
             for e in timeline

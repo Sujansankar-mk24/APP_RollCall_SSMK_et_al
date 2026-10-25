@@ -105,6 +105,10 @@ VIDEO_MAX_SAMPLES = 30
 # Households (Roll Call tab)
 # ---------------------------------------------------------------------------
 MAX_PEOPLE_PER_HOUSEHOLD = 20
+
+# A volunteer can check on up to this many households. Anyone in a community
+# can check on anyone else in it, and a household can have several buddies.
+MAX_CHECK_ONS = 25
 MAX_TEXT_LENGTH = 120          # names, addresses, phone numbers
 MAX_NOTE_LENGTH = 500
 

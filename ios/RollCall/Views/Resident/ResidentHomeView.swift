@@ -17,7 +17,7 @@ struct ResidentHomeView: View {
     @Environment(AuthStore.self) private var auth
     @State private var viewModel: ResidentHomeViewModel
     @State private var isEditing = false
-    @State private var confirmsEndingMatch = false
+    @State private var endingMatchWith: Buddy?
     @State private var openPerson: Int?
     @State private var buddyNeedsHelp: Buddy?
     @State private var checkedIn = false
@@ -51,9 +51,11 @@ struct ResidentHomeView: View {
             .fullScreenCover(item: $buddyNeedsHelp) { buddy in
                 EmergencyHelpView(name: buddy.name, address: nil, facts: [], emergencyContact: nil).sheetBrand()
             }
-            .confirmationDialog("End your buddy match?", isPresented: $confirmsEndingMatch, titleVisibility: .visible) {
-                Button("End match", role: .destructive) { Task { await viewModel.removeBuddy() } }
-            } message: {
+            .confirmationDialog("End your buddy match?", isPresented: Binding(
+                get: { endingMatchWith != nil }, set: { if !$0 { endingMatchWith = nil } }
+            ), titleVisibility: .visible, presenting: endingMatchWith) { buddy in
+                Button("End match with \(buddy.name)", role: .destructive) { Task { await viewModel.removeBuddy(buddy) } }
+            } message: { _ in
                 Text("They'll no longer see your household or be asked to check on you.")
             }
     }
@@ -142,7 +144,7 @@ struct ResidentHomeView: View {
 
     private var checkInTitle: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("How are you?").font(.headline)
+            Text("How are you?").font(.heading(19, relativeTo: .headline))
             Text("Tells your buddy").font(.footnote).foregroundStyle(.secondary)
         }
     }
@@ -247,69 +249,83 @@ struct ResidentHomeView: View {
     }
 
     @ViewBuilder
+    /// The neighbors who check on you. You can have more than one.
     private func buddySection(_ household: Household) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            SectionLabel("Buddy")
+        let buddies = household.allBuddies
+        return VStack(alignment: .leading, spacing: Spacing.s) {
+            SectionLabel(buddies.count > 1 ? "Your buddies" : "Buddy")
             SheetCard {
-            if let buddy = household.buddy {
-                VStack(alignment: .leading, spacing: Spacing.m) {
-                HStack(spacing: Spacing.m) {
-                    Button { openPerson = buddy.userId } label: {
-                        HStack(spacing: Spacing.m) {
-                            Avatar(url: nil, name: buddy.name, size: 48)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Your buddy").sheetLabelStyle().foregroundStyle(.secondary)
-                                Text(verbatim: buddy.name).sheetEntryStyle()
-                                Text("Checks on you if you don't answer during an emergency.")
-                                    .font(.callout).foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
+                if buddies.isEmpty {
+                    if household.wantsBuddy {
+                        textRow(title: "Waiting for a buddy",
+                                subtitle: "Neighbors in your community can offer to check on you. You'll choose whether to accept.")
+                    } else {
+                        Button { isEditing = true } label: {
+                            linkRow(title: "Want a neighbor to check on you?", subtitle: "Ask for a volunteer buddy in your profile.")
                         }
-                        .contentShape(Rectangle())
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Opens their profile")
-                    Spacer(minLength: 0)
-                    Menu {
-                        Button("End buddy match", systemImage: "person.badge.minus", role: .destructive) {
-                            confirmsEndingMatch = true
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.title3.weight(.bold))
-                            .frame(width: minimumTapSize, height: minimumTapSize)
-                    }
-                    .accessibilityLabel("Buddy options")
+                } else {
+                    ForEach(buddies) { buddyRow($0) }
                 }
-                if let digits = PersonProfileView.digits(buddy.phone) {
-                    HStack(spacing: Spacing.s) {
-                        Button { open("tel:\(digits)") } label: { Label("Call", systemImage: "phone.fill") }
-                            .buttonStyle(InkButtonStyle())
-                            .accessibilityIdentifier("callBuddy")
-                        Button { open("sms:\(digits)") } label: { Label("Text", systemImage: "message.fill") }
-                            .buttonStyle(InkButtonStyle(prominent: false))
-                            .accessibilityIdentifier("textBuddy")
-                    }
-                }
-                Button { buddyNeedsHelp = buddy } label: {
-                    Label("My buddy needs help", systemImage: "cross.case.fill")
-                }
-                .buttonStyle(InkButtonStyle(prominent: false, destructive: true))
-                .accessibilityIdentifier("buddyNeedsHelp")
-                }
-                .sheetRow()
-                .accessibilityElement(children: .contain)
-            } else if household.wantsBuddy {
-                textRow(title: "Waiting for a buddy",
-                        subtitle: "Volunteers in your community can offer to check on you. You'll choose whether to accept.")
-            } else {
-                Button { isEditing = true } label: {
-                    linkRow(title: "Want a neighbor to check on you?", subtitle: "Ask for a volunteer buddy in your profile.")
-                }
-                .buttonStyle(.plain)
             }
+            if !buddies.isEmpty {
+                Text("More neighbors can offer to check on you too. Each one shows up here once you accept.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                    .padding(.leading, Spacing.xs)
             }
         }
+    }
+
+    private func buddyRow(_ buddy: Buddy) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            HStack(spacing: Spacing.m) {
+                Button { openPerson = buddy.userId } label: {
+                    HStack(spacing: Spacing.m) {
+                        Avatar(url: nil, name: buddy.name, size: 48)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(verbatim: buddy.name).sheetEntryStyle()
+                            Text("Checks on you if you don't answer during an emergency.")
+                                .font(.callout).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens their profile")
+                Spacer(minLength: 0)
+                Menu {
+                    Button("End buddy match", systemImage: "person.badge.minus", role: .destructive) {
+                        endingMatchWith = buddy
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.title3.weight(.bold))
+                        .frame(width: minimumTapSize, height: minimumTapSize)
+                }
+                .accessibilityLabel("Options for \(buddy.name)")
+            }
+            HStack(spacing: Spacing.s) {
+                if let digits = PersonProfileView.digits(buddy.phone) {
+                    Button { open("tel:\(digits)") } label: { Label("Call", systemImage: "phone.fill") }
+                        .buttonStyle(SmallInkButtonStyle())
+                        .accessibilityIdentifier("callBuddy")
+                    Button { open("sms:\(digits)") } label: { Label("Text", systemImage: "message.fill") }
+                        .buttonStyle(SmallInkButtonStyle(prominent: false))
+                        .accessibilityIdentifier("textBuddy")
+                }
+                Spacer(minLength: 0)
+                Button { buddyNeedsHelp = buddy } label: {
+                    Label("They need help", systemImage: "cross.case.fill")
+                }
+                .buttonStyle(SmallInkButtonStyle(prominent: false))
+                .foregroundStyle(Color(.systemRed))
+                .accessibilityIdentifier("buddyNeedsHelp")
+            }
+        }
+        .sheetRow()
+        .accessibilityElement(children: .contain)
     }
 
     private func open(_ link: String) {

@@ -72,8 +72,17 @@ struct ReportSentToast: View {
             }
             .foregroundStyle(Color.themeAccent)
         case .finished(let analysis):
-            Label(finishedText(analysis), systemImage: "viewfinder")
-                .foregroundStyle(analysis.foundSomething ? Color.primary : Color.secondary)
+            // The AI's answer to "does the photo show what you reported?",
+            // not just what it counted. People alone never confirm a fire.
+            if let confirmed = analysis.confirmsReport {
+                Label(confirmed ? "Confirmed by the AI. It's on the map." : "Not confirmed yet. A first responder will review it.",
+                      systemImage: confirmed ? "checkmark.seal.fill" : "hourglass")
+                    .foregroundStyle(confirmed ? Color(.systemGreen) : Color(.systemOrange))
+                    .accessibilityIdentifier(confirmed ? "reportConfirmed" : "reportNotConfirmed")
+            } else {
+                Label(finishedText(analysis), systemImage: "viewfinder")
+                    .foregroundStyle(.secondary)
+            }
         case .unknown:
             Label("AI results will appear on the incident shortly.", systemImage: "clock")
                 .foregroundStyle(.secondary)

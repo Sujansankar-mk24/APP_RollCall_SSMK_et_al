@@ -181,8 +181,9 @@ struct APIClient {
         try await sendWithoutAnswer(request("me/buddy-requests/\(id)/\(accept ? "accept" : "decline")", method: "POST"))
     }
 
-    func removeMyBuddy() async throws(APIError) {
-        try await sendWithoutAnswer(request("me/buddy", method: "DELETE"))
+    /// End the match with one buddy, and keep any others.
+    func removeBuddy(volunteerID: Int) async throws(APIError) {
+        try await sendWithoutAnswer(request("me/buddies/\(volunteerID)", method: "DELETE"))
     }
 
     // MARK: - Buddies: the volunteer's side

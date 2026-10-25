@@ -46,6 +46,11 @@ struct MediaAnalysis: Codable, Hashable {
     let annotatedUrl: String?     // the picture with detection boxes drawn on
     let analyzedAt: Date?
     let error: String?
+    /// Does the photo show what was reported? (backend/app/ai/verify.py)
+    /// nil while the AI is still working, or from an older server.
+    var confirmsReport: Bool? = nil
+    /// Why, in plain words: "The AI couldn't see fire or smoke in the photo..."
+    var verdict: String? = nil
 
     /// Did the AI find anything at all?
     var foundSomething: Bool { fireDetected || smokeDetected || peopleCount > 0 }

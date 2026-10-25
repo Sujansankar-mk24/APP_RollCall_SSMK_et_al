@@ -39,6 +39,10 @@ struct NeighborWantingBuddy: Decodable, Identifiable, Hashable {
     let city: String
     let people: Int
     let alreadyAsked: Bool
+    /// They said they'd like someone to check on them.
+    var askedForBuddy: Bool = false
+    /// How many neighbors already check on them (more can).
+    var buddyCount: Int = 0
 
     var id: Int { householdId }
 }

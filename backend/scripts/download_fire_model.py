@@ -14,10 +14,9 @@ Run from the backend folder:
     python -m scripts.download_fire_model
 """
 
-import shutil
-import urllib.request
+import httpx
 
-from app.config import FIRE_MODEL_PATH
+from app.config import DATA_USER_AGENT, FIRE_MODEL_PATH
 
 URL = "https://huggingface.co/rabahdev/fire-smoke-yolov8n/resolve/main/best.pt"
 
@@ -27,9 +26,13 @@ def download() -> None:
         print(f"Already downloaded: {FIRE_MODEL_PATH}")
         return
     partial = FIRE_MODEL_PATH.with_suffix(".part")
-    request = urllib.request.Request(URL, headers={"User-Agent": "RollCall student project"})
-    with urllib.request.urlopen(request, timeout=60) as response, open(partial, "wb") as out:
-        shutil.copyfileobj(response, out)
+    # httpx brings its own list of trusted certificates, so this works even on
+    # a Python from python.org that hasn't run "Install Certificates".
+    with httpx.stream("GET", URL, headers={"User-Agent": DATA_USER_AGENT}, timeout=60,
+                      follow_redirects=True) as response, open(partial, "wb") as out:
+        response.raise_for_status()
+        for chunk in response.iter_bytes():
+            out.write(chunk)
     partial.rename(FIRE_MODEL_PATH)   # only a complete download gets the real name
     print(f"Saved the fire and smoke model to {FIRE_MODEL_PATH}")
 

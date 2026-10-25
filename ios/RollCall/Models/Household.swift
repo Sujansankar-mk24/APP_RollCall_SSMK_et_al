@@ -98,6 +98,8 @@ struct Household: Codable, Identifiable, Hashable {
     var checkIn: String = ""
     var checkedInAt: Date? = nil
     let buddy: Buddy?
+    /// Everyone who checks on this household (it can have several buddies).
+    var buddies: [Buddy] = []
     let isDemo: Bool
     let createdAt: Date
     let updatedAt: Date
@@ -193,4 +195,6 @@ extension Household {
     /// The name to show: the account's current name, or the sign-up name.
     var displayName: String { ownerName.flatMap { $0.isEmpty ? nil : $0 } ?? contactName }
     var ownerPhotoURL: URL? { AppConfig.mediaURL(ownerPhotoUrl) }
+    /// All buddies (an older server only sends the first one).
+    var allBuddies: [Buddy] { buddies.isEmpty ? (buddy.map { [$0] } ?? []) : buddies }
 }

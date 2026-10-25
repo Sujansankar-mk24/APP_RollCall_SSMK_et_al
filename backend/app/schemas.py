@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.auth import MIN_PASSWORD_LENGTH
 from app.hazards.models import ZoneOut
 from app.config import (MAX_BIO_LENGTH, MAX_NOTE_LENGTH, MAX_PEOPLE_PER_HOUSEHOLD, MAX_TEXT_LENGTH, MEDICAL_EQUIPMENT,
-                        RESPONDER_REPORT_REASONS)
+                        RESPONDER_REPORT_REASONS, MAX_CHECK_ONS)
 from app.models import (
     AnalysisStatus,
     BuddyStatus,
@@ -78,6 +78,10 @@ class AnalysisOut(BaseModel):
     annotated_url: Optional[str]  # image with detection boxes drawn on
     analyzed_at: Optional[datetime]
     error: Optional[str]
+    # Does it show what was reported? (app/ai/verify.py) True, False, or None
+    # while the AI is still working. `verdict` says why, in plain words.
+    confirms_report: Optional[bool] = None
+    verdict: str = ""
 
 
 class MediaOut(BaseModel):
@@ -289,7 +293,7 @@ class ResponderReportIn(BaseModel):
 class VolunteerIn(BaseModel):
     phone: str = Text
     city: str = Text
-    capacity: int = Field(default=5, ge=1, le=10)
+    capacity: int = Field(default=MAX_CHECK_ONS, ge=1, le=MAX_CHECK_ONS)
 
 
 # ---------------------------------------------------------------------------
@@ -380,7 +384,8 @@ class HouseholdOut(BaseModel):
     wants_buddy: bool
     check_in: str                       # "safe", "needs_help", or "" (no check-in yet)
     checked_in_at: Optional[datetime]
-    buddy: Optional[BuddyOut]
+    buddy: Optional[BuddyOut]   # the first buddy (kept for older app versions)
+    buddies: list[BuddyOut] = []   # everyone who checks on this household
     is_demo: bool
     created_at: datetime
     updated_at: datetime
@@ -428,6 +433,8 @@ class NeighborWantingBuddy(BaseModel):
     city: str
     people: int
     already_asked: bool
+    asked_for_buddy: bool = False   # they said they'd like someone to check on them
+    buddy_count: int = 0            # how many neighbors already check on them
 
 
 # ---------------------------------------------------------------------------

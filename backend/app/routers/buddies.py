@@ -3,9 +3,11 @@ Volunteer buddy endpoints.
 
 For volunteers:
   GET    /buddy/residents            the households that accepted them
-  GET    /buddy/neighbors            community neighbors who asked for a buddy
+  GET    /buddy/neighbors            everyone in your community you could check on
   GET    /buddy/requests             requests they've sent
   POST   /buddy/requests/community   ask to check on a neighbor from the list
+                                     (anyone in your community; a household can
+                                     have several buddies)
   POST   /buddy/requests/address     ask to check on someone by typing their address
   DELETE /buddy/requests/{id}        cancel a request, or stop checking on someone
 
@@ -13,7 +15,8 @@ For residents:
   GET    /me/buddy-requests              volunteers asking to check on them
   POST   /me/buddy-requests/{id}/accept  say yes (this volunteer becomes their buddy)
   POST   /me/buddy-requests/{id}/decline say no
-  DELETE /me/buddy                       stop having a buddy
+  DELETE /me/buddy                       stop having any buddy
+  DELETE /me/buddies/{volunteer_id}      stop having this one buddy
 
 Nothing about a household is shared until the resident accepts.
 """
@@ -22,6 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlmodel import Session, func, select
 
 from app.auth import current_user
+from app.config import MAX_CHECK_ONS
 from app.database import get_session
 from app.models import (
     BuddyLink,
@@ -100,8 +104,13 @@ def my_residents(user: User = Depends(current_user), session: Session = Depends(
 
 
 @router.get("/buddy/neighbors", response_model=list[NeighborWantingBuddy])
-def neighbors_wanting_a_buddy(user: User = Depends(current_user), session: Session = Depends(get_session)):
-    """Members of the volunteer's community who asked for a buddy and don't have one yet."""
+def neighbors_to_check_on(user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """
+    Everyone in the volunteer's community who joined the roll call, except
+    the ones they already check on. It doesn't matter whether someone already
+    has a buddy: more than one neighbor can check on the same household.
+    People who asked for a buddy, and people with nobody yet, come first.
+    """
     volunteer = require_volunteer(session, user)
     community = community_of(session, user.id)
     if community is None:
@@ -109,17 +118,20 @@ def neighbors_wanting_a_buddy(user: User = Depends(current_user), session: Sessi
     households = session.exec(
         select(Household).join(CommunityMember, CommunityMember.user_id == Household.owner_id)
         .where(CommunityMember.community_id == community.id, CommunityMember.status == MemberStatus.member,
-               Household.wants_buddy, Household.owner_id != user.id)
-        .order_by(Household.contact_name)
+               Household.owner_id != user.id)
     ).all()
     links = session.exec(select(BuddyLink).where(BuddyLink.household_id.in_([h.id for h in households]))).all()
-    has_buddy = {l.household_id for l in links if l.status == BuddyStatus.active}
-    asked = {l.household_id for l in links if l.volunteer_id == volunteer.id}
-    return [
+    mine = {l.household_id: l for l in links if l.volunteer_id == volunteer.id}
+    buddy_count = {h.id: sum(1 for l in links if l.household_id == h.id and l.status == BuddyStatus.active)
+                   for h in households}
+    out = [
         NeighborWantingBuddy(household_id=h.id, first_name=first_name(h), street=h.address, city=h.city,
-                             people=h.people, already_asked=h.id in asked)
-        for h in households if h.id not in has_buddy
+                             people=h.people, already_asked=h.id in mine, asked_for_buddy=h.wants_buddy,
+                             buddy_count=buddy_count[h.id])
+        for h in households
+        if not (h.id in mine and mine[h.id].status == BuddyStatus.active)   # already in your list
     ]
+    return sorted(out, key=lambda n: (n.buddy_count > 0, not n.asked_for_buddy, n.first_name.lower()))
 
 
 @router.get("/buddy/requests", response_model=list[BuddyRequestSent])
@@ -136,15 +148,15 @@ def ask_neighbor(data: CommunityBuddyIn, user: User = Depends(current_user), ses
     volunteer = require_volunteer(session, user)
     household = session.get(Household, data.household_id)
     mine, theirs = community_of(session, user.id), community_of(session, household.owner_id) if household else None
-    if household is None or mine is None or theirs is None or mine.id != theirs.id or not household.wants_buddy:
-        raise HTTPException(status_code=403, detail="You can only pick neighbors from your own community who asked for a buddy.")
+    if household is None or mine is None or theirs is None or mine.id != theirs.id:
+        raise HTTPException(status_code=403, detail="You can only pick neighbors from your own community.")
     if household.owner_id == user.id:
         raise HTTPException(status_code=400, detail="That's your own household.")
     if session.exec(select(BuddyLink).where(BuddyLink.volunteer_id == volunteer.id,
                                             BuddyLink.household_id == household.id)).first():
         raise HTTPException(status_code=409, detail="You've already asked to check on them.")
-    if active_count(session, volunteer) >= volunteer.capacity:
-        raise HTTPException(status_code=409, detail=f"You're already checking on {volunteer.capacity} households, your limit.")
+    if active_count(session, volunteer) >= MAX_CHECK_ONS:
+        raise HTTPException(status_code=409, detail=f"You're already checking on {MAX_CHECK_ONS} households, the most allowed.")
     link = BuddyLink(volunteer_id=volunteer.id, household_id=household.id)
     session.add(link)
     session.commit()
@@ -238,11 +250,8 @@ def my_request_or_404(session: Session, user: User, link_id: int) -> tuple[House
 
 @router.post("/me/buddy-requests/{link_id}/accept", response_model=HouseholdOut)
 def accept(link_id: int, user: User = Depends(current_user), session: Session = Depends(get_session)):
-    """The volunteer becomes this household's buddy (replacing any earlier buddy)."""
+    """The volunteer becomes one of this household's buddies (it can have several)."""
     household, link = my_request_or_404(session, user, link_id)
-    for old in session.exec(select(BuddyLink).where(
-            BuddyLink.household_id == household.id, BuddyLink.status == BuddyStatus.active)).all():
-        session.delete(old)
     link.status, link.answered_at = BuddyStatus.active, utc_now()
     household.wants_buddy = True
     session.add_all([link, household])
@@ -268,5 +277,21 @@ def remove_my_buddy(user: User = Depends(current_user), session: Session = Depen
             BuddyLink.household_id == household.id, BuddyLink.status == BuddyStatus.active)).all():
         session.delete(link)
     add_household_event(session, household.id, TimelineKind.buddy, "The resident ended their buddy match")
+    session.commit()
+    return Response(status_code=204)
+
+
+@router.delete("/me/buddies/{volunteer_id}", status_code=204)
+def remove_one_buddy(volunteer_id: int, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """End the match with one buddy, and keep the others."""
+    household = my_household_or_400(session, user)
+    link = session.exec(select(BuddyLink).where(
+        BuddyLink.household_id == household.id, BuddyLink.volunteer_id == volunteer_id,
+        BuddyLink.status == BuddyStatus.active)).first()
+    if link is None:
+        raise HTTPException(status_code=404, detail="That person isn't your buddy.")
+    volunteer_user = session.get(User, session.get(Volunteer, volunteer_id).user_id)
+    session.delete(link)
+    add_household_event(session, household.id, TimelineKind.buddy, f"The resident ended their match with {volunteer_user.name}")
     session.commit()
     return Response(status_code=204)

@@ -40,7 +40,8 @@ def test_community_neighbors_see_who_wants_a_buddy_with_limited_details():
     volunteer(buddy)
     neighbors = client.get("/buddy/neighbors", headers=buddy).json()
     assert neighbors == [{"household_id": household["id"], "first_name": "Margaret", "street": "100 Example Ln",
-                          "city": "Greenville", "people": 1, "already_asked": False}]
+                          "city": "Greenville", "people": 1, "already_asked": False, "asked_for_buddy": True,
+                          "buddy_count": 0}]
     asked = client.post("/buddy/requests/community", json={"household_id": household["id"]}, headers=buddy)
     assert asked.status_code == 201
     request = client.get("/me/buddy-requests", headers=resident).json()[0]
@@ -79,3 +80,27 @@ def test_resident_can_end_the_match():
     client.post(f"/me/buddy-requests/{request['id']}/accept", headers=resident)
     assert client.delete("/me/buddy", headers=resident).status_code == 204
     assert client.get(f"/households/{household['id']}", headers=buddy).status_code == 403
+
+
+def test_anyone_in_a_community_can_check_on_anyone():
+    admin, first, second, resident = sign_up(), sign_up("Ana"), sign_up("Ben"), sign_up("Cora")
+    community(admin, "Pecan Hollow", first, second, resident)
+    household = register(resident, wants_buddy=False)   # didn't ask for a buddy, still on the list
+    for helper in (first, second):
+        volunteer(helper)
+        assert [n["household_id"] for n in client.get("/buddy/neighbors", headers=helper).json()] == [household["id"]]
+        client.post("/buddy/requests/community", json={"household_id": household["id"]}, headers=helper)
+    for request in client.get("/me/buddy-requests", headers=resident).json():
+        client.post(f"/me/buddy-requests/{request['id']}/accept", headers=resident)
+    # Both check on her now: accepting the second didn't drop the first.
+    mine = client.get(f"/households/{household['id']}", headers=resident).json()
+    assert sorted(b["name"] for b in mine["buddies"]) == ["Ana", "Ben"]
+    # She ends one match and keeps the other.
+    ana = next(b for b in mine["buddies"] if b["name"] == "Ana")
+    assert client.delete(f"/me/buddies/{ana['id']}", headers=resident).status_code == 204
+    left = client.get(f"/households/{household['id']}", headers=resident).json()["buddies"]
+    assert [b["name"] for b in left] == ["Ben"]
+    # Someone who already has a buddy still shows up for other neighbors.
+    volunteer(admin)
+    listed = client.get("/buddy/neighbors", headers=admin).json()
+    assert [(n["household_id"], n["buddy_count"]) for n in listed] == [(household["id"], 1)]

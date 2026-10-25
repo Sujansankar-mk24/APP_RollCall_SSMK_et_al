@@ -43,6 +43,7 @@ struct AIAnalysisCard: View {
                     }
                     .font(.subheadline)
                 }
+                verdictLine
                 findings
                 if !analyzed.isEmpty {
                     annotatedImages
@@ -110,6 +111,25 @@ struct AIAnalysisCard: View {
         .font(.subheadline)
         .padding(.vertical, 10)
         .accessibilityElement(children: .combine)
+    }
+
+    /// Did any photo show the disaster that was reported? (People alone never count.)
+    @ViewBuilder
+    private var verdictLine: some View {
+        let verdicts = analyzed.compactMap { item in item.analysis.confirmsReport.map { ($0, item.analysis.verdict ?? "") } }
+        if let confirmed = verdicts.first(where: { $0.0 }) ?? verdicts.first {
+            Label {
+                Text(verbatim: confirmed.1.isEmpty
+                     ? (confirmed.0 ? String(localized: "The photo shows what was reported.") : String(localized: "The photo doesn't show what was reported."))
+                     : confirmed.1)
+            } icon: {
+                Image(systemName: confirmed.0 ? "checkmark.seal.fill" : "hourglass")
+                    .foregroundStyle(confirmed.0 ? Color(.systemGreen) : Color(.systemOrange))
+            }
+            .font(.subheadline.weight(.medium))
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("aiVerdict")
+        }
     }
 
     private func detectedText(_ detected: Bool, confidence: Double?) -> String {
