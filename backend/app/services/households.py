@@ -10,6 +10,7 @@ from sqlmodel import Session, delete, select
 
 from app.models import BuddyLink, BuddyStatus, Household, TimelineEvent, User, Volunteer
 from app.schemas import BuddyOut, HouseholdIn, HouseholdOut
+from app.services.incident_views import media_url
 
 
 def utc(moment: datetime) -> datetime:
@@ -30,9 +31,14 @@ def buddy_of(session: Session, household_id: int) -> Optional[BuddyOut]:
 
 
 def to_out(session: Session, household: Household) -> HouseholdOut:
+    # The account's name and picture right now, so a renamed neighbor shows
+    # their new name everywhere (contact_name is only what they typed at sign-up).
+    owner = session.get(User, household.owner_id)
     return HouseholdOut(
         id=household.id,
         owner_id=household.owner_id,
+        owner_name=owner.name if owner else household.contact_name,
+        owner_photo_url=media_url(owner.photo_path) if owner else None,
         contact_name=household.contact_name,
         phone=household.phone,
         address=household.address,

@@ -116,6 +116,27 @@ def can_view_person(session: Session, viewer: User, person: User) -> bool:
             or same_community(session, viewer, person) or are_buddies(session, viewer, person))
 
 
+def buddy_offer_status(session: Session, viewer: User, person: User) -> str:
+    """
+    Can the viewer offer to be this person's volunteer buddy (from their
+    profile)? Only for someone in the same community who joined the roll
+    call. Answers "none", "can_offer", "asked" or "checking_on".
+    """
+    household = household_of(session, person.id)
+    if (viewer.id == person.id or viewer.is_responder or household is None
+            or not same_community(session, viewer, person)):
+        return "none"
+    volunteer = volunteer_of(session, viewer)
+    link = volunteer and session.exec(select(BuddyLink).where(
+        BuddyLink.volunteer_id == volunteer.id, BuddyLink.household_id == household.id)).first()
+    if not link:
+        return "can_offer"
+    if link.status == BuddyStatus.active:
+        return "checking_on"
+    # A "no thanks" looks the same as waiting, so nobody keeps asking.
+    return "asked"
+
+
 def person_out(session: Session, viewer: User, person: User) -> PersonOut:
     community = community_of(session, person.id)
     m = membership(session, person.id)
@@ -149,4 +170,5 @@ def person_out(session: Session, viewer: User, person: User) -> PersonOut:
                                    city=person.responder_city) if is_verified_responder(person) else None,
         address=f"{household.address}, {household.city}" if household and neighbors else None,
         phone=phone,
+        buddy_offer=buddy_offer_status(session, viewer, person),
     )

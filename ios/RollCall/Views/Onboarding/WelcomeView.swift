@@ -6,7 +6,8 @@
 //  photo of a rescue during Hurricane Harvey (Port Arthur, Texas, 2017, by
 //  the South Carolina National Guard, public domain, from Wikimedia
 //  Commons), what RollCall does, and two ways in: make an account, or sign
-//  in to one you already have.
+//  in to one you already have. About RollCall can replay it (isReplay), and
+//  then the buttons are "See how it works" and "Close".
 //
 
 import SwiftUI
@@ -14,6 +15,8 @@ import SwiftUI
 struct WelcomeView: View {
     let onGetStarted: () -> Void
     let onSignIn: () -> Void
+    /// Opened again from About RollCall, by someone already signed in.
+    var isReplay = false
     @State private var appeared = false
 
     var body: some View {
@@ -56,10 +59,10 @@ struct WelcomeView: View {
                     Spacer(minLength: 0)
 
                     VStack(spacing: Spacing.m) {
-                        Button(action: onGetStarted) { Text("Get started") }
+                        Button(action: onGetStarted) { Text(isReplay ? "See how it works" : "Get started") }
                             .buttonStyle(InkButtonStyle())
                             .accessibilityIdentifier("welcomeGetStarted")
-                        Button(action: onSignIn) { Text("I already have an account") }
+                        Button(action: onSignIn) { Text(isReplay ? "Close" : "I already have an account") }
                             .buttonStyle(OutlinePillStyle())
                             .accessibilityIdentifier("welcomeSignIn")
                     }

@@ -197,6 +197,7 @@ class User(SQLModel, table=True):
     responder_badge: str = ""                     # badge or employee number
     responder_city: str = ""                      # the area they serve
     responder_id_photo: Optional[str] = None      # path under private/, until reviewed
+    responder_check: str = ""                     # the automatic check, as JSON (app/services/responder_check.py)
 
 
 class ResponderReport(SQLModel, table=True):

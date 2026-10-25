@@ -265,6 +265,13 @@ class PersonOut(BaseModel):
     responder: Optional[ResponderInfoOut]   # only for verified first responders
     address: Optional[str]    # only shown to people in the same community
     phone: Optional[str]      # only shown to their buddy
+    # Can you offer to be their volunteer buddy? "none" (not possible),
+    # "can_offer", "asked" (waiting for them) or "checking_on" (they accepted).
+    buddy_offer: str = "none"
+    # Their buddy connections in your community, for the bubble web on their
+    # profile: them, who they check on, and who checks on them.
+    connections: list["MemberOut"] = []
+    connection_pairs: list["BuddyPairOut"] = []
 
 
 class ResponderReportIn(BaseModel):
@@ -347,7 +354,9 @@ class HouseholdOut(BaseModel):
 
     id: int
     owner_id: int             # the resident's account, to open their profile
-    contact_name: str
+    owner_name: str = ""      # the account's current name (follows profile changes)
+    owner_photo_url: Optional[str] = None   # the account's current profile picture
+    contact_name: str         # the name typed when the household signed up
     phone: str
     address: str
     city: str
@@ -506,6 +515,10 @@ class CommunityDetailOut(CommunityOut):
     join_requests: list[MemberOut]      # only shown to admins
     recap: list[RecapPhotoOut]          # approved photos: anyone can see them
     pending_photos: list[RecapPhotoOut] # only shown to admins
+
+
+class DeleteAccountIn(BaseModel):
+    password: str = Field(max_length=200)
 
 
 class CheckInIn(BaseModel):

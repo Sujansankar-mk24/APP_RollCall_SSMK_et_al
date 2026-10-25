@@ -8,6 +8,11 @@
 //  The server decides that: the address only if you're in the same
 //  community, the phone only if you're their buddy.
 //
+//  For someone in your community who joined the roll call, there's "Be their
+//  buddy": an offer to check on them in an emergency, which they accept or
+//  decline in Roll Call. Their buddy connections show as the same bubble web
+//  the Community tab uses (tap a bubble to open that person).
+//
 //  For a first responder there's also "Report this responder", in case
 //  someone is faking it, abusing the role or being reckless.
 //
@@ -18,6 +23,10 @@ struct PersonProfileView: View {
     let personID: Int
     @State private var state: LoadState<Person> = .loading
     @State private var reports = false
+    @State private var isOffering = false
+    @State private var offerError: APIError?
+    @State private var confirmsOffer = false
+    @State private var openPerson: Int?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
@@ -42,6 +51,13 @@ struct PersonProfileView: View {
             }
             .sheet(isPresented: $reports) {
                 if let person = state.value { ReportResponderSheet(person: person) }
+            }
+            .sheet(item: $openPerson) { id in PersonProfileView(personID: id).sheetBrand() }
+            .alert("Couldn't send the offer", isPresented: Binding(
+                get: { offerError != nil }, set: { if !$0 { offerError = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(offerError?.message ?? "")
             }
         }
         .task { await load() }
@@ -75,6 +91,14 @@ struct PersonProfileView: View {
                 contactCard(person)
             }
 
+            if person.buddyOffer != .none {
+                buddyOfferCard(person)
+            }
+
+            if person.connections.count > 1 {
+                connectionsCard(person)
+            }
+
             SheetCard {
                 if let responder = person.responder {
                     infoRow("cross.case.fill", "First responder", "\(responder.role), \(responder.agency)")
@@ -97,6 +121,87 @@ struct PersonProfileView: View {
                           systemImage: "lock.fill")
             }
         }
+    }
+
+    /// "Be their buddy", or where that offer stands.
+    @ViewBuilder
+    private func buddyOfferCard(_ person: Person) -> some View {
+        switch person.buddyOffer {
+        case .canOffer:
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                Button { confirmsOffer = true } label: {
+                    HStack {
+                        if isOffering { ProgressView().tint(Color.paper) }
+                        Label("Be \(person.firstName)'s buddy", systemImage: "hand.raised.fill")
+                    }
+                }
+                .buttonStyle(InkButtonStyle())
+                .disabled(isOffering)
+                .accessibilityIdentifier("offerToBeBuddy")
+                Text("You'd check on \(person.firstName) in an emergency. They get your offer in Roll Call and decide. You only see their household details if they accept.")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .confirmationDialog("Offer to be \(person.firstName)'s buddy?", isPresented: $confirmsOffer,
+                                titleVisibility: .visible) {
+                Button("Send the offer") { Task { await offer(to: person) } }
+                    .accessibilityIdentifier("confirmBuddyOffer")
+            } message: {
+                Text("If you aren't a volunteer buddy yet, this signs you up as one.")
+            }
+        case .asked:
+            SheetNote(text: "You offered to be \(person.firstName)'s buddy. Waiting for them to accept.",
+                      systemImage: "clock.fill")
+                .accessibilityIdentifier("buddyOfferSent")
+        case .checkingOn:
+            SheetNote(text: "You check on \(person.firstName). They're in your list under I check on.",
+                      systemImage: "person.2.fill")
+        case .none:
+            EmptyView()
+        }
+    }
+
+    private func offer(to person: Person) async {
+        isOffering = true
+        defer { isOffering = false }
+        do throws(APIError) {
+            state = .loaded(try await APIClient.shared.offerToBeBuddy(personID: person.id))
+        } catch {
+            offerError = error
+        }
+    }
+
+    /// Who they check on and who checks on them, as floating bubbles joined by
+    /// lines (only matches inside your community, like the Community tab's web).
+    private func connectionsCard(_ person: Person) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            SectionLabel("Connections")
+            ConnectionsWeb(members: person.connections, pairs: person.connectionPairs, bubbleSize: 64,
+                           onOpenProfile: { id in if id != person.id { openPerson = id } })
+                .frame(height: 260)
+                .frame(maxWidth: .infinity)
+                .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .accessibilityIdentifier("personConnections")
+            Text(connectionsSummary(person))
+                .font(.footnote).foregroundStyle(.secondary)
+                .padding(.leading, Spacing.xs)
+        }
+    }
+
+    private func connectionsSummary(_ person: Person) -> String {
+        let checksOn = person.connectionPairs.filter { $0.volunteerId == person.id }.count
+        let checkedBy = person.connectionPairs.filter { $0.residentId == person.id }.count
+        // Only the parts that apply, e.g. "Checked on by 1 neighbor".
+        var parts: [String] = []
+        // ^[...](inflect: true) makes it "1 neighbor" or "2 neighbors".
+        if checksOn > 0 {
+            parts.append(String(AttributedString(localized: "Checks on ^[\(checksOn) neighbor](inflect: true)").characters))
+        }
+        if checkedBy > 0 {
+            parts.append(String(AttributedString(localized: "Checked on by ^[\(checkedBy) neighbor](inflect: true)").characters))
+        }
+        return parts.joined(separator: " · ")
     }
 
     /// Call, text and directions, only for what you're allowed to see.

@@ -203,10 +203,6 @@ struct APIClient {
         try await send(request("buddy/requests/community", method: "POST", body: ["household_id": neighbor.householdId]))
     }
 
-    func askToCheckOn(address: AddressInput) async throws(APIError) -> BuddyRequestSent {
-        try await send(request("buddy/requests/address", method: "POST", body: address))
-    }
-
     func cancelBuddyRequest(id: Int) async throws(APIError) {
         try await sendWithoutAnswer(request("buddy/requests/\(id)", method: "DELETE"))
     }
@@ -303,6 +299,16 @@ struct APIClient {
         try await send(request("people/\(id)"))
     }
 
+    /// "Be their buddy" from someone's profile. They accept or decline in Roll Call.
+    func offerToBeBuddy(personID: Int) async throws(APIError) -> Person {
+        try await send(request("people/\(personID)/buddy-offer", method: "POST"))
+    }
+
+    /// Delete the account and everything in it. The password is asked again.
+    func deleteAccount(password: String) async throws(APIError) {
+        try await sendWithoutAnswer(request("me/delete", method: "POST", body: ["password": password]))
+    }
+
     // MARK: - First responders
 
     struct ResponderApplication {
@@ -310,13 +316,17 @@ struct APIClient {
         var role = ""
         var badgeNumber = ""
         var city = ""
+        /// The words the phone read on the ID photo (SceneCheck.text), so the
+        /// server can compare them with what was typed.
+        var idText = ""
     }
 
     /// Apply as a first responder, with a photo of your ID. A person reviews it.
     func applyAsResponder(_ application: ResponderApplication, idPhoto jpeg: Data) async throws(APIError) -> Me {
         try await send(upload("me/responder-application", method: "POST", jpeg: jpeg, fileField: "id_photo",
                               fields: ["agency": application.agency, "role": application.role,
-                                       "badge_number": application.badgeNumber, "city": application.city]))
+                                       "badge_number": application.badgeNumber, "city": application.city,
+                                       "id_text": String(application.idText.prefix(4000))]))
     }
 
     /// Verified first responders, in one area or all of them.

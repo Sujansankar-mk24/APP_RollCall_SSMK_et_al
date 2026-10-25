@@ -13,6 +13,7 @@ struct RollCallApp: App {
     @State private var auth = AuthStore()
     /// The display choice (Match iPhone / Light / Night mode), saved on the device.
     @AppStorage(AppearanceMode.storageKey) private var appearance: AppearanceMode = .system
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         DebugLaunchOptions.resetIntroIfRequested()   // debug builds only (UI tests)
@@ -26,6 +27,8 @@ struct RollCallApp: App {
                 // Apply the saved display choice at launch and whenever it changes.
                 .onChange(of: appearance, initial: true) { appearance.apply() }
                 .task { appearance.apply() }
+                // Leaving the app: "How are you?" shows again next time it's opened.
+                .onChange(of: scenePhase) { if scenePhase == .background { AlertsManager.shared.answeredThisVisit = false } }
         }
     }
 }

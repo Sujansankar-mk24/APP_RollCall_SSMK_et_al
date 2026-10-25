@@ -135,7 +135,7 @@ RECAP_REACTIONS = ["❤️", "🙏", "👏", "😂", "😮", "💪"]
 # Live hazard data (Map tab)
 # ---------------------------------------------------------------------------
 # Every request to a data source says who we are (the Weather Service asks for this).
-DATA_USER_AGENT = "RollCall/1.0 (Congressional App Challenge student project)"
+DATA_USER_AGENT = "RollCall/1.0 (Congressional App Challenge student project; https://github.com/Sujansankar-mk24/DEMOPROJECT)"
 
 # Ask the sources again at most this often; in between, the saved copy is used.
 HAZARD_REFRESH_SECONDS = 300

@@ -82,6 +82,12 @@ final class AuthStore {
         use(try await api.signIn(email: email, password: password))
     }
 
+    /// Delete the account for good, then show the sign-in screen.
+    func deleteAccount(password: String) async throws(APIError) {
+        try await api.deleteAccount(password: password)
+        forgetToken()
+    }
+
     func signOut() async {
         try? await api.signOut()   // forget it on the server too (fine if offline)
         forgetToken()

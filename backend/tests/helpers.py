@@ -30,11 +30,14 @@ def photo(name: str = "photo.jpg") -> dict:
     return {"file": (name, jpeg.tobytes(), "image/jpeg")}
 
 
+PASSWORD = "correct horse"   # every test account's password
+
+
 def sign_up(name: str = "Test Person") -> dict:
     """A new account. Returns the headers that act as it."""
     n = next(_numbers)
     response = client.post("/auth/signup", json={"name": name, "email": f"person{n}@example.com",
-                                                 "password": "correct horse"})
+                                                 "password": PASSWORD})
     assert response.status_code == 201, response.text
     return {"Authorization": f"Bearer {response.json()['token']}"}
 

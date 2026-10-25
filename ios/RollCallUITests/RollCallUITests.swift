@@ -174,6 +174,43 @@ final class RollCallUITests: XCTestCase {
         XCTAssertTrue(app.buttons["reportIncidentButton"].waitForExistence(timeout: 5))
     }
 
+    /// About RollCall can play the Welcome screen and intro pages again.
+    @MainActor
+    func testAboutReplaysTheIntro() {
+        let app = launchApp()
+        openSettings("About RollCall", in: app)
+        let replay = app.buttons["replayIntro"]
+        XCTAssertTrue(replay.waitForExistence(timeout: 5))
+        replay.tap()
+        let next = app.buttons["welcomeGetStarted"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5), "The Welcome screen didn't open")
+        next.tap()
+        XCTAssertTrue(app.buttons["introNext"].waitForExistence(timeout: 5), "The intro pages didn't follow")
+        while app.buttons["introNext"].exists && !app.buttons["closeAbout"].isHittable {
+            app.buttons["introNext"].tap()
+        }
+        XCTAssertTrue(app.buttons["closeAbout"].waitForExistence(timeout: 5), "Didn't come back to About")
+    }
+
+    @MainActor
+    func testDeletingYourAccount() throws {
+        let account = try newAccount("Dee Leted")
+        let app = launchSignedIn(account)
+        openSettings("Your profile", in: app)
+        let delete = app.buttons["deleteAccount"]
+        scrollTo(delete, in: app)
+        delete.tap()
+        let field = app.secureTextFields["deletePasswordField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText(password)
+        app.buttons["confirmDeleteAccount"].tap()
+        XCTAssertTrue(app.textFields["emailField"].waitForExistence(timeout: 15), "Didn't go back to sign-in")
+        // The account is really gone: signing in fails.
+        let answer = server("auth/signin", "POST", ["email": account.email, "password": password])
+        XCTAssertNil(answer["token"], "The deleted account can still sign in")
+    }
+
     @MainActor
     func testProfileShowsWhoIsSignedInOnEveryTab() throws {
         let account = try newAccount("Paula Profile")
@@ -533,26 +570,44 @@ final class RollCallUITests: XCTestCase {
 
     // MARK: - Roll Call tab: volunteer and responder
 
+    /// Offer to be a neighbor's buddy from their profile. Once they accept,
+    /// they're in "I check on", under the name they use now (renames show up).
     @MainActor
-    func testVolunteerAsksToCheckOnSomeoneByAddress() throws {
-        let volunteer = try newAccount("Victor Volunteer")
-        server("me/volunteer", "PUT", ["city": "Greenville"], token: volunteer.token)
-        let app = launchSignedIn(volunteer, tab: "rollCall")
+    func testOfferingToBeABuddyFromTheirProfile() throws {
+        let admin = try newAccount("Ada Admin")
+        let member = try newAccount("Mo Member")
+        _ = try community(admin: admin, with: member)
+        _ = try registerHousehold(for: member)
+        var app = launchSignedIn(admin, tab: "community")
+        let row = app.buttons["member_\(member.id)"]
+        XCTAssertTrue(row.waitForExistence(timeout: 15))
+        scrollTo(row, in: app)
+        row.tap()
+        let offer = app.buttons["offerToBeBuddy"]
+        XCTAssertTrue(offer.waitForExistence(timeout: 15), "No Be their buddy button on the profile")
+        offer.tap()
+        app.buttons["Send the offer"].firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["buddyOfferSent"].waitForExistence(timeout: 10))
+        snapshot(app, "buddy offer sent")
+        app.terminate()
+
+        // They accept, then change their name.
+        let request = try XCTUnwrap(serverList("me/buddy-requests", token: member.token).first?["id"] as? Int)
+        server("me/buddy-requests/\(request)/accept", "POST", token: member.token)
+        server("me/profile", "PATCH", ["name": "Ajit Aravind"], token: member.token)
+        app = launchSignedIn(admin, tab: "rollCall")
         let section = app.buttons["section_buddy"]
         XCTAssertTrue(section.waitForExistence(timeout: 15))
         section.tap()
-        XCTAssertTrue(text("Neighbors you check on", in: app).waitForExistence(timeout: 10))
-        snapshot(app, "volunteer")
-
-        let ask = app.buttons["askByAddress"]
-        scrollTo(ask, in: app)
-        ask.tap()
-        type("999 Nowhere Rd", into: app.textFields["buddyAddressField"])
-        type("Greenville", into: app.textFields["buddyCityField"])
-        type("75401", into: app.textFields["buddyZipField"])
-        app.buttons["sendBuddyRequest"].tap()
-        // The same answer whether or not anyone lives there.
-        XCTAssertTrue(app.descendants(matching: .any)["buddyRequestSent"].waitForExistence(timeout: 10))
+        let renamed = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Ajit Aravind'")).firstMatch
+        XCTAssertTrue(renamed.waitForExistence(timeout: 15), "The buddy list shows an old name")
+        XCTAssertFalse(app.buttons["askByAddress"].exists, "Buddies only come from your community now")
+        // Their profile shows the two of them as connected bubbles.
+        renamed.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["personConnections"].waitForExistence(timeout: 15),
+                      "No connections web on the profile")
+        app.swipeUp()
+        snapshot(app, "profile connections")
     }
 
     @MainActor

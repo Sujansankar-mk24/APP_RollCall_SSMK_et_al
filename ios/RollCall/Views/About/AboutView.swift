@@ -10,12 +10,18 @@ import SwiftUI
 
 struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var replaysIntro = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     header
+                    Button { replaysIntro = true } label: {
+                        Label("Watch the intro again", systemImage: "play.circle.fill")
+                    }
+                    .buttonStyle(InkButtonStyle(prominent: false))
+                    .accessibilityIdentifier("replayIntro")
                     tabsSection
                     privacySection
                     projectSection
@@ -24,6 +30,9 @@ struct AboutView: View {
                 .padding(Spacing.l)
             }
             .sheetPage()
+            .fullScreenCover(isPresented: $replaysIntro) {
+                IntroReplay { replaysIntro = false }.sheetBrand()
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -181,4 +190,22 @@ struct AboutView: View {
 
 #Preview {
     AboutView()
+}
+
+/// The first-launch intro again: the Welcome screen, then the three short
+/// pages that explain how RollCall works.
+private struct IntroReplay: View {
+    let onClose: () -> Void
+    @State private var showsPages = false
+
+    var body: some View {
+        if showsPages {
+            IntroView(onFinish: onClose)
+                .transition(.opacity)
+        } else {
+            WelcomeView(onGetStarted: { withAnimation(.easeInOut) { showsPages = true } },
+                        onSignIn: onClose, isReplay: true)
+                .transition(.opacity)
+        }
+    }
 }

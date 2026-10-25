@@ -18,6 +18,7 @@ struct ProfileView: View {
     @State private var saved = false
     @State private var error: APIError?
     @State private var isUploading = false
+    @State private var deletesAccount = false
 
     enum EditField: String, Identifiable {
         case name, bio, phone
@@ -69,6 +70,11 @@ struct ProfileView: View {
                             .buttonStyle(InkButtonStyle(prominent: false, destructive: true))
                             .accessibilityIdentifier("signOut")
                             SheetNote(text: "You stay signed in on this phone until you sign out.")
+                            Button("Delete account", role: .destructive) { deletesAccount = true }
+                                .font(.callout.weight(.semibold))
+                                .underline()
+                                .frame(maxWidth: .infinity, minHeight: minimumTapSize)
+                                .accessibilityIdentifier("deleteAccount")
                         }
                     }
                     .padding(Spacing.l)
@@ -86,6 +92,9 @@ struct ProfileView: View {
             }
             .sheet(item: $editing) { field in
                 EditProfileFieldSheet(field: field) { saved = true }.sheetBrand()
+            }
+            .sheet(isPresented: $deletesAccount) {
+                DeleteAccountSheet { dismiss() }.sheetBrand()
             }
             .sheet(isPresented: $showsApplication) {
                 ResponderApplicationView().sheetBrand()
@@ -335,6 +344,86 @@ private struct EditProfileFieldSheet: View {
             try await auth.updateProfile(change)
             onSaved()
             dismiss()
+        } catch {
+            self.error = error
+        }
+    }
+}
+
+/// "Delete account": says exactly what goes, then asks for the password once
+/// more, so nobody holding an unlocked phone can wipe the account by mistake.
+private struct DeleteAccountSheet: View {
+    /// Closes the profile too, once the account is gone.
+    let onDeleted: () -> Void
+    @Environment(AuthStore.self) private var auth
+    @Environment(\.dismiss) private var dismiss
+    @State private var password = ""
+    @State private var isDeleting = false
+    @State private var error: APIError?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.l) {
+                    SheetTitle(title: "Delete your account?", kicker: String(localized: "Can't be undone"))
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        Text("This deletes, for good:").font(.body.weight(.semibold))
+                        ForEach(Self.whatGoes.indices, id: \.self) { index in
+                            Label(Self.whatGoes[index], systemImage: "minus.circle").font(.callout)
+                        }
+                        Text("Incident reports you sent stay on the map, because they aren't tied to your account.")
+                            .font(.callout).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .sheetBox()
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Your password").sheetLabelStyle().foregroundStyle(.secondary)
+                        SecureField("Type it to confirm", text: $password)
+                            .textContentType(.password)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .padding(.horizontal, Spacing.m)
+                            .frame(minHeight: 50)
+                            .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
+                            .submitLabel(.done)
+                            .accessibilityIdentifier("deletePasswordField")
+                    }
+                    if let error {
+                        Text(error.message).font(.callout).foregroundStyle(Color(.systemRed))
+                    }
+                    Button {
+                        Task { await delete() }
+                    } label: {
+                        HStack { if isDeleting { ProgressView().tint(Color.paper) }; Text("Delete my account") }
+                    }
+                    .buttonStyle(InkButtonStyle(destructive: true))
+                    .disabled(password.isEmpty || isDeleting)
+                    .accessibilityIdentifier("confirmDeleteAccount")
+                }
+                .padding(Spacing.l)
+            }
+            .sheetPage()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }.flat()
+            }
+        }
+    }
+
+    private static let whatGoes: [LocalizedStringKey] = [
+        "Your profile, picture and sign-in",
+        "Your household and its roll call answers",
+        "Your buddy matches, both ways",
+        "Your place in your community (the next member becomes admin)",
+        "Weekly Recap photos and stickers you added",
+    ]
+
+    private func delete() async {
+        isDeleting = true
+        defer { isDeleting = false }
+        do throws(APIError) {
+            try await auth.deleteAccount(password: password)
+            dismiss()
+            onDeleted()
         } catch {
             self.error = error
         }

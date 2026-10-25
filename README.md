@@ -14,10 +14,10 @@ Make sure no one gets left behind. RollCall is a community emergency app for Nor
 | Tab | What it's for |
 |---|---|
 | **Map** | Live hazards (diamonds) and community reports (circles) with their danger zones. Tap one for details. **Incidents** (top left) unrolls the incident log: key numbers and every incident sorted by priority, with "Why this priority?". **Report incident** needs a recent photo you took and a short description. **Use my location** works like Google Maps: a blue dot with a cone for the way you face, follow and compass modes, and an always-on compass. A warning appears when you're near an active fire, storm or flood, and **↻** asks NASA, NOAA and the Weather Service for new data right away. The **Source** chip shows everything, only community reports, or only live data. **My community** shows where your community's members live, as small house markers with each person's picture floating above (only when zoomed in closer than about a quarter mile). Tap a house for the profile, or tap a picture bubble to pop it (it comes back after 5 seconds). |
-| **Roll Call** | **My household**: a **How are you?** card with **I'm safe** and **I need help** (your buddy sees it right away), join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, call or text your buddy, privacy and Delete my data. **I check on**: the neighbors you check on, with Call, Text, Directions and **They need help**, which calls 911 and shows everything the dispatcher will ask for. Responders see their own view. |
+| **Roll Call** | **My household**: a small **How are you?** card with **I'm safe** and **Need help** (your buddy sees it right away, and the card hides until you next open the app), join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, call or text your buddy, privacy and Delete my data. **I check on**: the neighbors you check on, with Call, Text, Directions and **They need help**, which calls 911 and shows everything the dispatcher will ask for. Responders see their own view. |
 | **Community** | The **Weekly Recap**, a stacked photo deck like Locket: swipe or tap through neighborhood photos, each with the poster's name in bold above their caption, and add emoji stickers (❤️ 🙏 👏 😂 😮 💪). Photos are approved by the admin and gone after a week unless pinned, and pinned ones come first. **Connections** shows a small preview of the web, and **View connections** opens it full screen: everyone as floating Liquid Glass bubbles with lines for who checks on whom. Rings mark who has no buddy yet (orange), the admin (yellow), new members (blue, joined in the last hour for the demo) and people away from home (dashed). Drag bubbles, tap one for the name and profile, or press and hold to pop it (it comes back after 5 seconds). Member tags say **Checks on 2** or **Ready to help** only for people who really signed up as volunteers. Also: members split by who has a buddy, **Away from home**, first responders in your town, and other communities to browse. Start one and be its admin. |
 
-The **gear** at the top of every tab opens **Your profile** (your picture, bio, phone, badges, the first responder application, and **Sign out**), **About RollCall** (what the app does, who can see your information, credits) and **Display** (light, dark or match the iPhone, each with a preview, plus six color themes shown with their colors). The pill in the tab bar turns green on the Map, red on Roll Call and orange on Community.
+The **gear** at the top of every tab opens **Your profile** (your picture, bio, phone, badges, the first responder application, **Sign out** and **Delete account**, which asks for your password and removes everything tied to the account), **About RollCall** (what the app does, who can see your information, credits, and **Watch the intro again**) and **Display** (light, dark or match the iPhone, each with a preview, plus six color themes shown with their colors). The pill in the tab bar turns green on the Map, red on Roll Call and orange on Community.
 
 **The logo** is a circle with "RollCall" in the middle and a ring of people around it (`Assets.xcassets/Logo`). In dark mode the center swaps black and white. The app icon uses the same logo, with light, dark and tinted versions. While something loads, the ring of people spins once around the center, settles, pauses about a second and goes again (`LoadingLogo` in `Views/Components/BrandMark.swift`). The very first launch opens on **Welcome to RollCall**, with a photo of a real Hurricane Harvey rescue, then three short intro pages, then sign-up. All text uses the iPhone's system font, SF Pro (SF Pro Text at small sizes and SF Pro Display at large sizes, chosen automatically). It isn't bundled into the app, because iOS already has it and Apple's license doesn't allow copying it.
 
@@ -32,7 +32,7 @@ You sign in once, and the app remembers you until you sign out. There are no pla
 - **Profiles:** a picture from the camera or library, a bio, a phone, and badges (Volunteer buddy, Looking for a buddy, Away from home, Verified responder).
 - **Accounts:** sign up, sign in, stay signed in, sign out. Passwords are hashed with scrypt, and the sign-in token lives in the iPhone Keychain.
 - **Roll Call, step 1, household profile:** a five-step sign-up (home, who lives here, needs, contact, review) with a typed address checked on the map and by GPS, **Not now** for people who'd rather not, a clear "who can see this" privacy screen, and **Delete my data**, which really deletes everything.
-- **Communities and buddies:** neighborhoods with admin approval, a community picture, the Weekly Recap, and buddy offers from community neighbors (or, for people not in a community, by exact address), always accepted or declined by the resident.
+- **Communities and buddies:** neighborhoods with admin approval, a community picture, the Weekly Recap, and buddy offers from community neighbors, from the "I check on" list or with **Be their buddy** on someone's profile, always accepted or declined by the resident. A profile also shows that person's buddy connections as the same bubble web the Community tab uses.
 - *(Coming next)* Emergency events from National Weather Service alerts, responder-drawn zones, and demo events.
 - *(Coming)* The roll call check-in in English and Spanish, escalation to buddies and responders, the responder roll-call dashboard with risk scores and routes, and buddy matching.
 
@@ -43,7 +43,7 @@ Settings (the gear) > **Notifications** has two switches, both off until you tur
 - **Danger near me** sends a notification when a fire, storm or flood comes close to you, with **I'm safe** and **I need help** buttons right on it.
 - **Live status on the Lock Screen** keeps a live status on the Lock Screen and in the Dynamic Island, the way live sports scores work: "All clear near you" or what's nearby and how far, with the same two buttons. It uses ActivityKit (a Live Activity) and lives in the `RollCallWidgets` extension.
 
-A check-in from any of these goes to `POST /me/check-in`, shows on your household, and your buddy sees **Safe** or **Needs help** next to your name.
+A check-in from any of these goes to `POST /me/check-in`, shows on your household, and your buddy sees **Safe** or **Needs help** next to your name. After **I'm safe**, RollCall clears its notifications and the Lock Screen status goes away until something changes (a new danger, or the same one getting closer).
 
 ## Project layout
 
@@ -166,7 +166,7 @@ Reports can be about any of these, grouped into "modes" so the map can show one 
 
 - Joining is opt-in ("Not now" is always an option), and nothing is shared until you agree on the last sign-up step.
 - **You** can always see, edit or delete your household.
-- **A volunteer buddy** sees your household only after you accept their offer. Neighbors in your community who volunteer see only your first name and street (and only if you asked for a buddy). If you're in a community, your buddy comes from it (a neighbor can get there fast). If you're not, a volunteer can offer by typing your exact address, and the app gives them the same answer whether or not anyone lives there.
+- **A volunteer buddy** sees your household only after you accept their offer. Neighbors in your community who volunteer see only your first name and street (and only if you asked for a buddy). Your buddy always comes from your own community, so it's a neighbor who can get there fast.
 - **Profiles:** people in your community can see your profile and your address. Your phone is shown only to your buddy. Anyone can see verified first responders, so residents know who is helping.
 - **First responder ID photos** are kept outside the server's shared folder (`backend/private/`), never shown in the app, and deleted as soon as the application is reviewed.
 - **Responders** see a household only during an active emergency, and only if it's inside the emergency zone.
@@ -176,7 +176,7 @@ These rules are enforced by the server (`backend/app/privacy.py`), not just hidd
 
 **Accounts:** passwords are never stored, only a salted scrypt hash. Signing in gives the app a random token, kept in the iPhone Keychain and sent with each request; the server stores only a hash of it.
 
-**First responder accounts.** People apply in the app (sign up with **I'm a first responder**, or Profile > **Are you a first responder?**). There's no government database to check IDs against, so a person reviews each application from the `backend` folder:
+**First responder accounts.** People apply in the app (sign up with **I'm a first responder**, or Profile > **Are you a first responder?**). Each application gets an automatic check first (`backend/app/services/responder_check.py`). The iPhone reads the words on the ID photo with Apple's Vision framework, on the phone. The server checks that the applicant's name, agency and badge number are on it and that it looks like a responder ID. Then it searches the internet for the agency: Wikipedia for larger departments, and OpenStreetMap, which maps fire, police and EMS stations by name. The result is a recommendation like "Looks real: the ID matches what they typed and the agency exists." Nothing public lists who works at a department, and a fake card could carry matching words, so a person still makes the decision from the `backend` folder:
 
 ```bash
 python -m scripts.review_responders              # list applications waiting, and reports about responders
@@ -207,7 +207,9 @@ For test and demo accounts, `python -m scripts.make_responder chief@example.com 
 | `PUT` `DELETE` | `/me/volunteer` | Become (or stop being) a volunteer buddy |
 | `GET` | `/me/buddy-requests` | Volunteers offering to check on you. `POST .../{id}/accept` or `/decline` |
 | `GET` | `/buddy/residents`, `/buddy/neighbors`, `/buddy/requests` | A volunteer's lists |
-| `POST` | `/buddy/requests/community`, `/buddy/requests/address` | Offer to check on a neighbor, or someone by exact address |
+| `POST` | `/buddy/requests/community` | Offer to check on a neighbor who asked for a buddy |
+| `POST` | `/people/{id}/buddy-offer` | "Be their buddy" from a neighbor's profile (signs you up as a volunteer if needed) |
+| `POST` | `/me/delete` | Delete your account and everything in it (needs your password) |
 | `GET` `POST` | `/communities` | Search or create a community |
 | `GET` `PATCH` | `/communities/{id}` | Details, members (for members), the Weekly Recap (for everyone). The admin can rename it |
 | `PUT` | `/communities/{id}/photo` | The admin sets the community picture |
@@ -281,7 +283,7 @@ The −20 only applies to types the AI can check. It looks for flames, smoke and
 - "May be down" is a hint, not a diagnosis: someone resting on the ground looks the same, and a camera angle can make distances look shorter than they are.
 - The basic fire detector was tuned on a small set of photos. In testing it mistook a yellow "Water over road" sign for fire and missed some small flames. It no longer reports smoke without flames. The trained model (`python -m scripts.download_fire_model`) fixes most of this.
 - Report photos must carry a camera's name and a date from the last 2 days. That blocks screenshots, most saved images and old photos, but someone could still edit that information on purpose.
-- First responder IDs are checked by a person, not against a government database.
+- First responder IDs get an automatic check (the words on the ID and an internet search for the agency), but there's no public list of who works where, so a person makes the final decision. Small agencies without a Wikipedia article or mapped stations show as "not found online".
 - The scene check recognizes snow, water, storms and fire from general labels, not a model trained on disasters. It can miss a real one (the report then waits for a responder) and could be fooled by a photo of a snowy picture on a screen, which the recent-camera-photo rule mostly blocks.
 - Notifications and the Lock Screen status only update while RollCall is open or was used recently. Waking a closed app needs push messages from a server, which this project doesn't have.
 

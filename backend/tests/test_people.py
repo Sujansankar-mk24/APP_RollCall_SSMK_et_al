@@ -1,12 +1,14 @@
 """Profiles, first responder applications and reports, and the Weekly Recap."""
 
+import json
+
 from sqlmodel import Session
 
 from app.config import ID_PHOTOS_DIR
 from app.database import engine
 from app.models import ResponderStatus, User
 from scripts.review_responders import review
-from tests.helpers import ADDRESS_OF, client, community, photo, register, responder, sign_up, volunteer
+from tests.helpers import ADDRESS_OF, PASSWORD, client, community, photo, register, responder, sign_up, volunteer
 
 
 def me(headers: dict) -> dict:
@@ -179,3 +181,79 @@ def test_checking_in_tells_your_buddy():
     assert seen["check_in"] == "needs_help"
     assert client.post("/me/check-in", json={"status": "maybe"}, headers=resident).status_code == 422
     assert client.post("/me/check-in", json={"status": "safe"}, headers=sign_up()).status_code == 400
+
+
+def test_offering_to_be_a_buddy_from_a_profile():
+    admin, neighbor, stranger = sign_up("Ana Admin"), sign_up("Nick Neighbor"), sign_up("Sam Stranger")
+    community(admin, "Pecan Hollow", neighbor)
+    register(neighbor, address="12 Oak St", city="Greenville")
+    neighbor_id = me(neighbor)["id"]
+    assert client.get(f"/people/{neighbor_id}", headers=admin).json()["buddy_offer"] == "can_offer"
+    # Not a volunteer yet: offering signs you up as one.
+    offered = client.post(f"/people/{neighbor_id}/buddy-offer", headers=admin)
+    assert offered.status_code == 201 and offered.json()["buddy_offer"] == "asked"
+    assert me(admin)["is_volunteer"] is True
+    # The neighbor accepts in Roll Call, and the profile says so.
+    request = client.get("/me/buddy-requests", headers=neighbor).json()[0]
+    client.post(f"/me/buddy-requests/{request['id']}/accept", headers=neighbor)
+    seen = client.get(f"/people/{neighbor_id}", headers=admin).json()
+    assert seen["buddy_offer"] == "checking_on"
+    # The profile's bubble web: the two of them, joined by one line.
+    assert {c["user_id"] for c in seen["connections"]} == {neighbor_id, me(admin)["id"]}
+    assert seen["connection_pairs"] == [{"volunteer_id": me(admin)["id"], "resident_id": neighbor_id}]
+    # Outside the community, there's no offer button and no web.
+    register(stranger, address="9 Elm St", city="Greenville")
+    community(stranger, "Elm Park")
+    assert client.post(f"/people/{me(stranger)['id']}/buddy-offer", headers=admin).status_code == 404
+
+
+def test_buddy_list_shows_the_neighbors_current_name_and_picture():
+    resident, buddy = sign_up("Pranav Singh"), sign_up()
+    register(resident)
+    volunteer(buddy)
+    client.post("/buddy/requests/address", json=ADDRESS_OF(), headers=buddy)
+    request = client.get("/me/buddy-requests", headers=resident).json()[0]
+    client.post(f"/me/buddy-requests/{request['id']}/accept", headers=resident)
+    client.patch("/me/profile", json={"name": "Ajit Aravind"}, headers=resident)
+    client.put("/me/photo", files=photo(), headers=resident)
+    listed = client.get("/buddy/residents", headers=buddy).json()[0]
+    assert listed["owner_name"] == "Ajit Aravind" and listed["owner_photo_url"].startswith("/media/profiles/")
+
+
+def test_deleting_an_account_removes_everything():
+    admin, neighbor = sign_up("Ana Admin"), sign_up("Nick Neighbor")
+    community_id = community(admin, "Pecan Hollow", neighbor)
+    register(admin)
+    client.put("/me/photo", files=photo(), headers=admin)
+    admin_id = me(admin)["id"]
+    # The password is asked again.
+    assert client.post("/me/delete", json={"password": "wrong password"}, headers=admin).status_code == 403
+    assert client.post("/me/delete", json={"password": PASSWORD}, headers=admin).status_code == 204
+    assert client.get("/me", headers=admin).status_code == 401          # signed out everywhere
+    with Session(engine) as session:
+        assert session.get(User, admin_id) is None
+    # The neighbor took over the community.
+    assert client.get(f"/communities/{community_id}", headers=neighbor).json()["is_admin"] is True
+
+
+def test_responder_application_gets_an_automatic_check(monkeypatch):
+    from app.services import responder_check
+    monkeypatch.setattr(responder_check, "lookup_agency_online",
+                        lambda agency, city: "Greenville Fire Station #1 in Greenville (OpenStreetMap)")
+    headers = sign_up("Jordan Reyes")
+    applied = client.post("/me/responder-application", headers=headers,
+                          files={"id_photo": ("id.jpg", photo()["file"][1], "image/jpeg")},
+                          data={"agency": "Greenville Fire-Rescue", "role": "Firefighter", "badge_number": "4471",
+                                "city": "Greenville",
+                                "id_text": "GREENVILLE FIRE-RESCUE\nFIREFIGHTER\nJORDAN REYES\nBADGE 4471"}).json()
+    with Session(engine) as session:
+        check = json.loads(session.get(User, applied["id"]).responder_check)
+    assert all(check["checks"].values())
+    assert check["verdict"].startswith("Looks real")
+    assert check["agency_found_online"].startswith("Greenville Fire Station")
+
+
+def test_a_card_that_isnt_a_responder_id_doesnt_match():
+    from app.services.responder_check import check_id_text, verdict
+    checks = check_id_text("Costco Wholesale member ADA LOVELACE", "Jordan Reyes", "Greenville Fire-Rescue", "4471")
+    assert verdict(checks, None, True).startswith("Doesn't match")

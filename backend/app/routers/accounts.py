@@ -8,6 +8,7 @@ Account endpoints:
   PATCH  /me              e.g. "Not now" for the roll call
   PUT    /me/volunteer    agree to check on neighbors
   DELETE /me/volunteer    stop being a volunteer buddy
+  POST   /me/delete       delete the account and everything in it (needs the password)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -17,7 +18,8 @@ from app.auth import check_password, current_token, current_user, hash_password,
 from app.database import get_session
 from app.models import BuddyLink, User, Volunteer
 from app.privacy import volunteer_of
-from app.schemas import AuthOut, MeOut, MePatch, SignInIn, SignUpIn, VolunteerIn
+from app.schemas import AuthOut, DeleteAccountIn, MeOut, MePatch, SignInIn, SignUpIn, VolunteerIn
+from app.services.account_deletion import delete_account
 from app.services.accounts import me_out
 
 router = APIRouter(tags=["accounts"])
@@ -87,3 +89,13 @@ def stop_volunteering(user: User = Depends(current_user), session: Session = Dep
         session.delete(volunteer)
         session.commit()
     return me_out(session, user)
+
+
+@router.post("/me/delete", status_code=204)
+def delete_me(data: DeleteAccountIn, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """Delete the account for good. The password is asked again, so someone
+    holding an unlocked phone can't wipe the account by accident."""
+    if not check_password(data.password, user.password_hash):
+        raise HTTPException(status_code=403, detail="That password isn't right.")
+    delete_account(session, user)
+    return Response(status_code=204)

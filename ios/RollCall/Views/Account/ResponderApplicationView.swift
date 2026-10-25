@@ -106,6 +106,9 @@ struct ResponderApplicationView: View {
         guard let idPhoto else { return }
         isSending = true
         defer { isSending = false }
+        // Read the words on the ID right here on the phone, for the automatic check.
+        var application = application
+        if let image = UIImage(data: idPhoto) { application.idText = await SceneCheck.text(in: image) }
         do throws(APIError) {
             try await auth.applyAsResponder(application, idPhoto: idPhoto)
             sent = true

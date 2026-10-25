@@ -68,6 +68,10 @@ struct Buddy: Codable, Hashable, Identifiable {
 struct Household: Codable, Identifiable, Hashable {
     let id: Int
     let ownerId: Int   // the resident's account, to open their profile
+    /// The account's current name and picture. They follow profile changes,
+    /// unlike contactName (what was typed when the household signed up).
+    var ownerName: String? = nil
+    var ownerPhotoUrl: String? = nil
     let contactName: String
     let phone: String
     let address: String
@@ -183,4 +187,10 @@ struct HouseholdInput: Codable, Equatable {
         emergencyContactName = h.emergencyContactName; emergencyContactPhone = h.emergencyContactPhone
         wantsBuddy = h.wantsBuddy
     }
+}
+
+extension Household {
+    /// The name to show: the account's current name, or the sign-up name.
+    var displayName: String { ownerName.flatMap { $0.isEmpty ? nil : $0 } ?? contactName }
+    var ownerPhotoURL: URL? { AppConfig.mediaURL(ownerPhotoUrl) }
 }

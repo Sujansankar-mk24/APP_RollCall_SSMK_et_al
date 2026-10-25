@@ -41,6 +41,7 @@ from app.models import (BuddyLink, BuddyStatus, Community, CommunityMember, Comm
 from app.privacy import membership, volunteer_of
 from app.schemas import (BuddyPairOut, CommunityDetailOut, CommunityIn, CommunityOut, CommunityPatch, HomeOut,
                          MemberOut, ReactionIn, ReactionOut, RecapPhotoOut)
+from app.services.account_deletion import leave_community
 from app.services.households import utc
 from app.services.incident_views import media_url
 from app.services.people import delete_media, has_active_buddy, household_of, media_name, save_picture
@@ -315,18 +316,9 @@ def leave(community_id: int, user: User = Depends(current_user), session: Sessio
     m = membership(session, user.id)
     if m is None or m.community_id != community.id:
         raise HTTPException(status_code=404, detail="You're not in this community.")
-    session.delete(m)
-    session.flush()
-    remaining = session.exec(select(CommunityMember).where(
-        CommunityMember.community_id == community.id, CommunityMember.status == MemberStatus.member
-    ).order_by(CommunityMember.created_at)).all()
-    if not remaining:
-        # Nobody left: remove the community (and any pending requests to join it).
-        session.exec(delete(CommunityMember).where(CommunityMember.community_id == community.id))
-        session.delete(community)
-    elif m.is_admin and not any(r.is_admin for r in remaining):
-        remaining[0].is_admin = True   # the longest-standing member takes over
-        session.add(remaining[0])
+    # If nobody's left, the community goes too. If the admin leaves, the
+    # longest-standing member takes over. (app/services/account_deletion.py)
+    leave_community(session, user)
     session.commit()
     return Response(status_code=204)
 

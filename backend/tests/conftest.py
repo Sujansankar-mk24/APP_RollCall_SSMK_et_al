@@ -23,6 +23,13 @@ from app.database import create_tables, engine  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
+def no_internet_lookups(monkeypatch):
+    """The responder check never searches the real internet in tests."""
+    from app.services import responder_check
+    monkeypatch.setattr(responder_check, "lookup_agency_online", lambda agency, city: None)
+
+
+@pytest.fixture(autouse=True)
 def empty_database():
     """Every test starts with empty tables."""
     from app import models  # noqa: F401

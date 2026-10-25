@@ -7,7 +7,10 @@ Profiles and first responders:
   POST   /me/check-in                  "I'm safe" or "I need help" (from the app, a
                                        notification, or the Lock Screen)
   GET    /people/{user_id}             someone's profile (see app/services/people.py
-                                       for who can see what)
+                                       for who can see what), with their buddy
+                                       connections in your community
+  POST   /people/{user_id}/buddy-offer offer to be their volunteer buddy (same
+                                       community only; they accept or decline)
   POST   /me/responder-application     apply as a first responder: agency, role,
                                        badge number, area, and a photo of your ID
   GET    /responders?city=Greenville   verified first responders (in an area)
@@ -21,20 +24,24 @@ media/ (never shared) and deleted right after the review.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from sqlmodel import Session, func, select
 
 from app.auth import current_user
 from app.config import ID_PHOTOS_DIR, MAX_TEXT_LENGTH
-from app.database import get_session
-from app.models import ResponderReport, ResponderStatus, User
+from app.database import engine, get_session
+from app.models import BuddyLink, CommunityMember, MemberStatus, ResponderReport, ResponderStatus, User, Volunteer
 from app.models import TimelineKind, utc_now
+from app.privacy import community_of, volunteer_of
+from app.routers.communities import buddy_pairs, member_out
 from app.schemas import CheckInIn, HouseholdOut, MeOut, PersonOut, ProfilePatch, ResponderReportIn
 from app.services.households import to_out
+from app.services.responder_check import check_application
 from app.services.timeline import add_household_event
 from app.services.accounts import me_out
-from app.services.people import (can_view_person, delete_media, household_of, is_verified_responder, person_out,
-                                 save_picture, save_profile_picture)
+from app.services.people import (buddy_offer_status, can_view_person, delete_media, household_of,
+                                 is_verified_responder, person_out, same_community, save_picture,
+                                 save_profile_picture)
 
 router = APIRouter(tags=["people"])
 
@@ -96,7 +103,58 @@ def person(user_id: int, user: User = Depends(current_user), session: Session = 
     # can't be used to find out who has an account.
     if other is None or not can_view_person(session, user, other):
         raise HTTPException(status_code=404, detail="This profile isn't shared with you.")
-    return person_out(session, user, other)
+    return with_connections(session, user, other)
+
+
+def with_connections(session: Session, viewer: User, person: User) -> PersonOut:
+    """
+    The profile plus the person's buddy connections, for the bubble web on it.
+    Only for people in your own community, and only matches inside it (the
+    same pairs the community's connections web already shows its members).
+    """
+    out = person_out(session, viewer, person)
+    community = community_of(session, person.id)
+    if community is None or not (viewer.id == person.id or same_community(session, viewer, person)):
+        return out
+    rows = session.exec(select(CommunityMember, User).join(User, User.id == CommunityMember.user_id).where(
+        CommunityMember.community_id == community.id, CommunityMember.status == MemberStatus.member)).all()
+    pairs = [p for p in buddy_pairs(session, [u.id for _, u in rows])
+             if person.id in (p.volunteer_id, p.resident_id)]
+    linked = {person.id} | {p.volunteer_id for p in pairs} | {p.resident_id for p in pairs}
+    out.connections = [member_out(session, m, u) for m, u in rows if u.id in linked]
+    out.connection_pairs = pairs
+    return out
+
+
+@router.post("/people/{user_id}/buddy-offer", response_model=PersonOut, status_code=201)
+def offer_to_be_buddy(user_id: int, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """
+    "Be their buddy" on someone's profile. It's a request: they accept or
+    decline in Roll Call, and nothing about their household is shared until
+    they accept. If you aren't a volunteer yet, this signs you up as one.
+    """
+    other = session.get(User, user_id)
+    if other is None or not can_view_person(session, user, other):
+        raise HTTPException(status_code=404, detail="This profile isn't shared with you.")
+    status = buddy_offer_status(session, user, other)
+    if status == "none":
+        raise HTTPException(status_code=403, detail="You can offer to be a buddy for people in your own community "
+                                                    "who joined the roll call.")
+    if status in ("asked", "checking_on"):
+        return with_connections(session, user, other)   # already done, nothing new
+    volunteer = volunteer_of(session, user)
+    if volunteer is None:
+        community = community_of(session, user.id)
+        volunteer = Volunteer(user_id=user.id, phone=user.phone, city=community.city if community else "")
+        session.add(volunteer)
+        session.flush()
+    active = session.exec(select(func.count()).select_from(BuddyLink).where(
+        BuddyLink.volunteer_id == volunteer.id, BuddyLink.status == "active")).one()
+    if active >= volunteer.capacity:
+        raise HTTPException(status_code=409, detail=f"You're already checking on {volunteer.capacity} households, your limit.")
+    session.add(BuddyLink(volunteer_id=volunteer.id, household_id=household_of(session, other.id).id))
+    session.commit()
+    return with_connections(session, user, other)
 
 
 # ---------------------------------------------------------------------------
@@ -105,11 +163,14 @@ def person(user_id: int, user: User = Depends(current_user), session: Session = 
 
 @router.post("/me/responder-application", response_model=MeOut)
 async def apply_as_responder(
+    background: BackgroundTasks,
     agency: str = Form(..., min_length=2, max_length=MAX_TEXT_LENGTH),
     role: str = Form(..., min_length=2, max_length=MAX_TEXT_LENGTH),
     badge_number: str = Form(..., min_length=2, max_length=MAX_TEXT_LENGTH),
     city: str = Form(..., min_length=2, max_length=MAX_TEXT_LENGTH),
     id_photo: UploadFile = File(...),
+    # The words the iPhone read on the ID (with Apple's Vision, on the phone).
+    id_text: str = Form("", max_length=4000),
     user: User = Depends(current_user),
     session: Session = Depends(get_session),
 ):
@@ -122,9 +183,18 @@ async def apply_as_responder(
     user.responder_agency, user.responder_role = agency.strip(), role.strip()
     user.responder_badge, user.responder_city = badge_number.strip(), city.strip()
     user.responder_id_photo = saved.name
+    user.responder_check = ""
     session.add(user)
     session.commit()
+    # The automatic check (the ID's words and an internet search for the
+    # agency) runs after answering, so the app doesn't wait for it.
+    background.add_task(run_responder_check, user.id, id_text)
     return me_out(session, user)
+
+
+def run_responder_check(user_id: int, id_text: str) -> None:
+    with Session(engine) as session:
+        check_application(session, user_id, id_text)
 
 
 @router.get("/responders", response_model=list[PersonOut])

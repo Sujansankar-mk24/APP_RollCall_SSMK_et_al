@@ -12,7 +12,9 @@
 //                      two buttons
 //
 //  Both are off until the user turns them on. They update while RollCall is
-//  open or was used recently. (Waking up a closed app needs push messages
+//  open or was used recently. After "I'm safe", the notifications are cleared
+//  and the Lock Screen status goes away until something changes (a new
+//  danger, or the same one getting closer). (Waking up a closed app needs push messages
 //  from a server, which is out of scope for this project.)
 //
 
@@ -32,9 +34,16 @@ final class AlertsManager: NSObject, UNUserNotificationCenterDelegate {
         didSet { UserDefaults.standard.set(showsLiveStatus, forKey: "showsLiveStatus") }
     }
     private(set) var permissionDenied = false
+    /// Answered "How are you?" since the app was last opened. The card in
+    /// Roll Call hides until the next time the app is opened.
+    var answeredThisVisit = false
 
     @ObservationIgnored private var lastState: AreaStatusAttributes.ContentState?
     @ObservationIgnored private var notified: Set<String> = []
+    /// What the area status is about right now ("clear", or a hazard and how
+    /// close it is), and the one the user already said "I'm safe" to.
+    @ObservationIgnored private var currentKey = "clear"
+    @ObservationIgnored private var dismissedKey: String?
 
     nonisolated static let categoryID = "CHECK_IN"
     nonisolated static let safeAction = "SAFE"
@@ -79,6 +88,8 @@ final class AlertsManager: NSObject, UNUserNotificationCenterDelegate {
             checkIn: lastState?.checkIn ?? "",
             updatedAt: .now)
         lastState = state
+        currentKey = danger.map { "\($0.id)-\(state.level)" } ?? "clear"
+        if dismissedKey != nil && dismissedKey != currentKey { dismissedKey = nil }   // something changed
         if notifiesNearbyDanger, let danger, !notified.contains(danger.id) {
             notified.insert(danger.id)
             notify(about: danger)
@@ -101,7 +112,7 @@ final class AlertsManager: NSObject, UNUserNotificationCenterDelegate {
 
     func refreshLiveStatus(place: String) async {
         let activities = Activity<AreaStatusAttributes>.activities
-        guard showsLiveStatus, let state = lastState ?? defaultState else {
+        guard showsLiveStatus, dismissedKey == nil, let state = lastState ?? defaultState else {
             for activity in activities { await activity.end(nil, dismissalPolicy: .immediate) }
             return
         }
@@ -119,8 +130,18 @@ final class AlertsManager: NSObject, UNUserNotificationCenterDelegate {
                                           level: "clear", symbol: "checkmark.shield.fill", checkIn: "", updatedAt: .now)
     }
 
-    /// After a check-in from anywhere, show it on the Lock Screen too.
+    /// After a check-in from anywhere (Roll Call, a notification or the Lock
+    /// Screen). "I'm safe" clears the notifications and the Lock Screen status
+    /// until something changes. "I need help" shows "Help sent" there.
     func didCheckIn(safe: Bool, place: String) async {
+        answeredThisVisit = true
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        if safe {
+            dismissedKey = currentKey
+            await refreshLiveStatus(place: place)   // ends it
+            return
+        }
+        dismissedKey = nil
         if var state = lastState ?? defaultState {
             state.checkIn = safe ? "safe" : "needs_help"
             lastState = state

@@ -5,9 +5,9 @@
 //  The "I check on" part of the Roll Call tab, for volunteer buddies:
 //    * neighbors who accepted you (full details, only because they said yes),
 //    * people in your community who asked for a buddy (first name and street only),
-//    * "Check on someone by address", for people outside your community,
 //    * requests you've sent.
-//  (Check-in statuses, calling and "I checked on them" arrive in step 6.)
+//  You can also offer to be someone's buddy from their profile. Buddies only
+//  come from your own community.
 //
 
 import SwiftUI
@@ -15,7 +15,6 @@ import SwiftUI
 struct BuddyHomeView: View {
     @Environment(AuthStore.self) private var auth
     @State private var viewModel = BuddyHomeViewModel()
-    @State private var asksByAddress = false
     @State private var confirmsStopping = false
     @State private var openPerson: Int?
     @State private var emergencyFor: Household?
@@ -24,10 +23,6 @@ struct BuddyHomeView: View {
     var body: some View {
         content
             .task { await viewModel.load() }
-            .sheet(isPresented: $asksByAddress) {
-                AddressBuddySheet { address in await viewModel.ask(address: address) }
-                    .sheetBrand()
-            }
             .alert("Couldn't do that", isPresented: Binding(
                 get: { viewModel.actionError != nil }, set: { if !$0 { viewModel.actionError = nil } }
             )) {
@@ -37,7 +32,7 @@ struct BuddyHomeView: View {
             }
             .sheet(item: $openPerson) { id in PersonProfileView(personID: id).sheetBrand() }
             .fullScreenCover(item: $emergencyFor) { resident in
-                EmergencyHelpView(name: resident.contactName, address: "\(resident.address), \(resident.city) \(resident.zipCode)",
+                EmergencyHelpView(name: resident.displayName, address: "\(resident.address), \(resident.city) \(resident.zipCode)",
                                   facts: resident.dispatcherFacts,
                                   emergencyContact: resident.emergencyContactPhone.isEmpty ? nil
                                       : (resident.emergencyContactName, resident.emergencyContactPhone))
@@ -62,26 +57,12 @@ struct BuddyHomeView: View {
                 section("Neighbors you check on",
                         "They accepted you, so you can see their details. Nobody else can see this list.") {
                     if residents.isEmpty {
-                        emptyNote("No one yet. Offer to help a neighbor below.")
+                        emptyNote("No one yet. Offer to help a neighbor below, or from their profile in Community.")
                     } else {
                         ForEach(residents) { residentCard($0) }
                     }
                 }
                 communitySection
-                VStack(alignment: .leading, spacing: Spacing.s) {
-                    SectionLabel("Someone outside your community")
-                    VStack(alignment: .leading, spacing: Spacing.m) {
-                        Text("You'll need their exact address, and they decide whether to accept.")
-                            .font(.callout).foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Button { asksByAddress = true } label: {
-                            Label("Check on someone by address", systemImage: "magnifyingglass")
-                        }
-                        .buttonStyle(InkButtonStyle(prominent: false))
-                        .accessibilityIdentifier("askByAddress")
-                    }
-                    .sheetBox()
-                }
                 if !viewModel.sent.isEmpty {
                     section("Requests you sent", nil) {
                         ForEach(viewModel.sent) { sentRow($0) }
@@ -142,9 +123,10 @@ struct BuddyHomeView: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             Button { openPerson = resident.ownerId } label: {
                 HStack(spacing: Spacing.m) {
-                    Avatar(url: nil, name: resident.contactName, size: 44)
+                    // Their name and picture as they are now (renames show up here too).
+                    Avatar(url: resident.ownerPhotoURL, name: resident.displayName, size: 44)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(verbatim: resident.contactName).sheetEntryStyle()
+                        Text(verbatim: resident.displayName).sheetEntryStyle()
                         Text(verbatim: "\(resident.address), \(resident.city)").font(.subheadline).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 0)
@@ -231,77 +213,5 @@ struct BuddyHomeView: View {
         Text(text)
             .font(.callout).foregroundStyle(.secondary)
             .sheetRow()
-    }
-}
-
-/// "Check on someone by address": type their exact address. The answer is
-/// the same whether or not anyone lives there, so this can't be used to find
-/// out who lives where.
-struct AddressBuddySheet: View {
-    let send: (AddressInput) async -> Bool
-    @State private var address = AddressInput()
-    @State private var isSending = false
-    @State private var sent = false
-    @Environment(\.dismiss) private var dismiss
-
-    private var isComplete: Bool {
-        !address.address.trimmed.isEmpty && !address.city.trimmed.isEmpty
-            && address.zipCode.count == 5 && address.zipCode.allSatisfy(\.isNumber)
-    }
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.l) {
-                    if sent {
-                        VStack(alignment: .leading, spacing: Spacing.m) {
-                            Stamp(text: String(localized: "Request sent"), systemImage: "paperplane.fill")
-                                .padding(.vertical, Spacing.s)
-                            Text("If someone at that address uses RollCall and accepts, they'll appear in your list. To protect their privacy, we can't tell you whether anyone lives there.")
-                                .font(.body)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .accessibilityIdentifier("buddyRequestSent")
-                    } else {
-                        Text("Type the exact address of the person you'd like to check on. They'll get a request and decide whether to accept. You won't see anything about them unless they do.")
-                            .font(.body)
-                            .fixedSize(horizontal: false, vertical: true)
-                        LabeledField(label: "Street address", prompt: "e.g. 1418 Pecan Hollow Dr", text: $address.address,
-                                     contentType: .streetAddressLine1, identifier: "buddyAddressField")
-                        HStack(alignment: .top, spacing: Spacing.m) {
-                            LabeledField(label: "Town", prompt: "Greenville", text: $address.city,
-                                         contentType: .addressCity, identifier: "buddyCityField")
-                            LabeledField(label: "ZIP code", prompt: "75401", text: $address.zipCode,
-                                         contentType: .postalCode, keyboard: .numberPad, identifier: "buddyZipField")
-                                .frame(maxWidth: 130)
-                        }
-                    }
-                }
-                .padding(Spacing.l)
-            }
-            .sheetPage()
-            .navigationTitle("Check on someone")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(sent ? "Done" : "Cancel") { dismiss() }
-                }
-                .flat()
-                if !sent {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Send") {
-                            Task {
-                                isSending = true
-                                sent = await send(address)
-                                isSending = false
-                            }
-                        }
-                        .disabled(!isComplete || isSending)
-                        .accessibilityIdentifier("sendBuddyRequest")
-                    }
-                    .flat()
-                }
-            }
-        }
     }
 }

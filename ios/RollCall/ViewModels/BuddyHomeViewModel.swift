@@ -46,10 +46,6 @@ final class BuddyHomeViewModel {
     }
 
     /// Ask to check on someone by typing their address. Returns true if sent.
-    func ask(address: AddressInput) async -> Bool {
-        await run { () async throws(APIError) in _ = try await self.api.askToCheckOn(address: address) }
-    }
-
     /// Cancel a request, or stop checking on someone.
     func cancel(requestID: Int) async {
         await run { () async throws(APIError) in try await self.api.cancelBuddyRequest(id: requestID) }

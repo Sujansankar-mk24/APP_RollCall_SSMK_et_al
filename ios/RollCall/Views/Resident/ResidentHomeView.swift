@@ -47,6 +47,7 @@ struct ResidentHomeView: View {
             }
             .sheet(item: $openPerson) { id in PersonProfileView(personID: id).sheetBrand() }
             .successOverlay(isPresented: $checkedIn, text: "Sent to your buddy")
+            .animation(.snappy, value: AlertsManager.shared.answeredThisVisit)
             .fullScreenCover(item: $buddyNeedsHelp) { buddy in
                 EmergencyHelpView(name: buddy.name, address: nil, facts: [], emergencyContact: nil).sheetBrand()
             }
@@ -74,7 +75,11 @@ struct ResidentHomeView: View {
                 ForEach(viewModel.buddyRequests) { request in
                     buddyRequestBox(request)
                 }
-                checkInCard(household)
+                // Hidden once answered, until the next time the app is opened.
+                if !AlertsManager.shared.answeredThisVisit {
+                    checkInCard
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 homeSection(household)
                 needsSection(household)
                 buddySection(household)
@@ -103,7 +108,7 @@ struct ResidentHomeView: View {
         HStack(alignment: .center, spacing: Spacing.m) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: "No. \(String(format: "%03d", household.id))").sheetLabelStyle().foregroundStyle(.secondary)
-                Text(verbatim: household.contactName)
+                Text(verbatim: household.displayName)
                     .sheetEntryStyle(large: true)
                     .lineLimit(2)
                     .minimumScaleFactor(0.7)
@@ -115,49 +120,61 @@ struct ResidentHomeView: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// "How are you?": one tap tells your buddy you're safe, or that you need
-    /// help. (The same buttons are on the danger notification and the Lock Screen.)
-    private func checkInCard(_ household: Household) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            HStack {
-                Text("How are you?").font(.sheetHeading)
-                Spacer()
-                if let at = household.checkedInAt {
-                    Stamp(text: household.checkIn == "safe" ? String(localized: "Safe") : String(localized: "Needs help"),
-                          systemImage: household.checkIn == "safe" ? "checkmark" : "exclamationmark.triangle.fill",
-                          color: household.checkIn == "safe" ? Color(.systemGreen) : Color(.systemRed))
-                        .accessibilityLabel("Last check-in \(at.formatted(.relative(presentation: .named)))")
-                }
+    /// "How are you?": a small card. One tap tells your buddy you're safe, or
+    /// that you need help. (The same buttons are on the danger notification
+    /// and the Lock Screen.) It hides after an answer, until the app is opened again.
+    private var checkInCard: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Spacing.s) {
+                checkInTitle
+                Spacer(minLength: Spacing.s)
+                checkInButtons
             }
-            checkInLine(household)
-                .font(.callout).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: Spacing.m) {
-                Button {
-                    Task { if await viewModel.checkIn(safe: true) { checkedIn = true } }
-                } label: { Label("I'm safe", systemImage: "checkmark.circle.fill") }
-                .buttonStyle(InkButtonStyle())
-                .accessibilityIdentifier("checkInSafe")
-                Button {
-                    Task { if await viewModel.checkIn(safe: false) { checkedIn = true } }
-                } label: { Label("I need help", systemImage: "exclamationmark.triangle.fill") }
-                .buttonStyle(InkButtonStyle(destructive: true))
-                .accessibilityIdentifier("checkInHelp")
+            VStack(alignment: .leading, spacing: Spacing.s) {   // very large text
+                checkInTitle
+                checkInButtons
             }
-            .disabled(viewModel.isCheckingIn)
-            Text("In a life-threatening emergency, call 911.")
-                .font(.footnote).foregroundStyle(.secondary)
         }
-        .sheetBox()
+        .sheetBox(padding: Spacing.m)
+        .disabled(viewModel.isCheckingIn)
         .accessibilityElement(children: .contain)
     }
 
-    private func checkInLine(_ household: Household) -> Text {
-        guard let at = household.checkedInAt else {
-            return Text("If an emergency hits, tell your buddy how you are with one tap.")
+    private var checkInTitle: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("How are you?").font(.headline)
+            Text("Tells your buddy").font(.footnote).foregroundStyle(.secondary)
         }
-        let when = at.formatted(.relative(presentation: .named))
-        return Text("You checked in \(when). Tap again any time things change.")
+    }
+
+    private var checkInButtons: some View {
+        HStack(spacing: Spacing.s) {
+            checkInButton("I'm safe", "checkmark", Color(.systemGreen), safe: true)
+                .accessibilityIdentifier("checkInSafe")
+            checkInButton("Need help", "exclamationmark.triangle.fill", Color(.systemRed), safe: false)
+                .accessibilityIdentifier("checkInHelp")
+        }
+    }
+
+    private func checkInButton(_ title: LocalizedStringKey, _ symbol: String, _ color: Color, safe: Bool) -> some View {
+        Button {
+            Task {
+                if await viewModel.checkIn(safe: safe) {
+                    checkedIn = true
+                }
+            }
+        } label: {
+            Label(title, systemImage: symbol)
+                .font(.callout.weight(.semibold))
+                .lineLimit(1)
+                .padding(.horizontal, Spacing.m)
+                .frame(minHeight: minimumTapSize)
+                .foregroundStyle(.white)
+                .background(color, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(safe ? Text("I'm safe") : Text("I need help"))
     }
 
     /// "Daniel offered to check on you": the resident decides.

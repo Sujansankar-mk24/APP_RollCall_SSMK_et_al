@@ -3,8 +3,11 @@ Review first responder applications, and reports about responders.
 
 People apply in the app (Profile > Apply as a first responder) with their
 agency, role, badge number, the area they serve and a photo of their ID.
-There's no government database to check against, so a person looks at each
-application here. The ID photo is deleted as soon as you decide.
+Each application gets an automatic check first (app/services/responder_check.py):
+the words on the ID are compared with what they typed, and the agency is looked
+up online. It's shown here as a recommendation. There's no public list of who
+works where, so a person still makes the decision. The ID photo is deleted as
+soon as you decide.
 
 Run from the backend folder:
     python -m scripts.review_responders              list waiting applications and reports
@@ -14,6 +17,7 @@ Run from the backend folder:
     python -m scripts.review_responders done 5       mark report 5 as reviewed
 """
 
+import json
 import sys
 
 from sqlmodel import Session, select
@@ -61,11 +65,38 @@ def show_waiting() -> None:
             print(f"  #{user.id}  {user.name} <{user.email}>")
             print(f"       {user.responder_role}, {user.responder_agency}, serves {user.responder_city}")
             print(f"       badge {user.responder_badge}   ID photo: {photo}")
+            print_check(user.responder_check)
         reports = session.exec(select(ResponderReport).where(ResponderReport.reviewed == False)).all()  # noqa: E712
         print(f"\nReports about responders: {len(reports)}")
         for report in reports:
             responder = session.get(User, report.responder_id)
             print(f"  report #{report.id}: {responder.name} (#{responder.id}), {report.reason}. {report.details}")
+
+
+CHECK_LABELS = {
+    "read_text": "Text could be read on the ID",
+    "name_on_id": "Their name is on the ID",
+    "agency_on_id": "The agency is on the ID",
+    "badge_on_id": "The badge number is on the ID",
+    "looks_like_responder_id": "It looks like a responder ID",
+}
+
+
+def print_check(saved: str) -> None:
+    """The automatic check, as a short checklist."""
+    if not saved:
+        print("       Automatic check: still running (or the app sent no ID text)")
+        return
+    check = json.loads(saved)
+    print(f"       Automatic check: {check['verdict']}")
+    for key, label in CHECK_LABELS.items():
+        print(f"         [{'x' if check['checks'].get(key) else ' '}] {label}")
+    if check["agency_found_online"]:
+        print(f"         [x] Agency found online: {check['agency_found_online']}")
+    elif check["online_checked"]:
+        print("         [ ] Agency not found online (OpenStreetMap, Wikipedia)")
+    else:
+        print("         [?] Couldn't search online (no internet)")
 
 
 def mark_done(report_id: int) -> None:
