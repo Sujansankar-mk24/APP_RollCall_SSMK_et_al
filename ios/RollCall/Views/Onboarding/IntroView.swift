@@ -81,7 +81,7 @@ struct IntroView: View {
                                 .frame(height: 200)
                             VStack(spacing: Spacing.m) {
                                 Text(item.title)
-                                    .font(.system(.largeTitle, weight: .bold))
+                                    .font(.heading(34, relativeTo: .largeTitle, extraBold: true))
                                     .multilineTextAlignment(.center)
                                 Text(item.text)
                                     .font(.title3)

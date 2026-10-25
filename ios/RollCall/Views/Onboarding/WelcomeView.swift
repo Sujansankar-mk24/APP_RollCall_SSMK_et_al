@@ -42,7 +42,7 @@ struct WelcomeView: View {
                         BrandMark(size: 58)
                         VStack(alignment: .leading, spacing: 0) {
                             Text("Welcome to").font(.title3.weight(.medium)).foregroundStyle(.secondary)
-                            Text("RollCall").font(.system(size: 38, weight: .bold))
+                            Text("RollCall").font(.heading(40, relativeTo: .largeTitle, extraBold: true))
                         }
                     }
                     Text("When disaster hits North Texas, the people who can't get out alone are the easiest to miss. RollCall makes sure someone checks on every one of them.")

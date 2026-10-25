@@ -138,7 +138,7 @@ struct RecapCarousel: View {
                 .font(.system(size: 40, weight: .semibold))
                 .foregroundStyle(.secondary)
             Text("No photos this week yet")
-                .font(.sheetHeading)
+                .font(.recap(24, relativeTo: .title3))
             Text("Share what's happening in the neighborhood: a cleanup, a block party, a storm you got through together.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -235,9 +235,10 @@ private struct RecapCard: View {
             Avatar(url: photo.uploaderPhotoURL, name: photo.uploaderName, size: 40)
                 .overlay(Circle().strokeBorder(.white.opacity(0.8), lineWidth: 1.5))
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: photo.uploaderName).font(.headline.weight(.bold))
+                // The Weekly Recap uses Quitars, a friendly rounded font.
+                Text(verbatim: photo.uploaderName).font(.recap(20, relativeTo: .headline))
                 if !photo.caption.isEmpty {
-                    Text(verbatim: photo.caption).font(.subheadline).lineLimit(3)
+                    Text(verbatim: photo.caption).font(.recap(17, relativeTo: .subheadline)).lineLimit(3)
                 }
                 Text(photo.createdAt, format: .relative(presentation: .named))
                     .font(.caption).opacity(0.8)

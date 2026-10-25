@@ -193,7 +193,7 @@ struct IncidentMapView: View {
                     }
                     reportButton
                 }
-                .padding(.bottom, Spacing.l)
+                .padding(.bottom, Spacing.s)
             }
         }
         .overlay {

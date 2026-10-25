@@ -402,7 +402,14 @@ private struct MyCommunityView: View {
     private func recap(_ community: CommunityDetail) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             HStack {
-                SectionLabel("Weekly recap")
+                // The Weekly Recap's own heading, in Quitars.
+                Text("Weekly recap")
+                    .font(.recap(26, relativeTo: .title2))
+                    .foregroundStyle(ThemeStore.shared.theme.labelColor)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, Spacing.s)
+                    .padding(.leading, Spacing.xs)
+                    .accessibilityAddTraits(.isHeader)
                 PhotoChooser(onPicked: { newPhoto = $0 }) {
                     Label("Add photo", systemImage: "plus")
                         .font(.callout.weight(.semibold))

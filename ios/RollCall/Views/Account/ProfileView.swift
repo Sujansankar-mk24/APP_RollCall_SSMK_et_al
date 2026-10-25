@@ -136,7 +136,7 @@ struct ProfileView: View {
                     .font(.footnote.weight(.semibold))
             }
             VStack(spacing: 4) {
-                Text(verbatim: me.name).font(.title.weight(.bold))
+                Text(verbatim: me.name).font(.heading(30))
                 Text(verbatim: me.email).font(.subheadline).foregroundStyle(.secondary)
             }
             badges(me)

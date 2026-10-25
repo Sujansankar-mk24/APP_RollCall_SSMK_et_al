@@ -73,7 +73,7 @@ struct PersonProfileView: View {
             // The big picture and name, like the top of an Instagram profile.
             VStack(spacing: Spacing.m) {
                 Avatar(url: person.photoURL, name: person.name, size: 112)
-                Text(verbatim: person.name).font(.title.weight(.bold)).multilineTextAlignment(.center)
+                Text(verbatim: person.name).font(.heading(30)).multilineTextAlignment(.center)
                 if !person.bio.isEmpty {
                     Text(verbatim: person.bio)
                         .font(.body)

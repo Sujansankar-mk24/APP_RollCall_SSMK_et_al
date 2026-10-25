@@ -1,0 +1,8 @@
+Animosa by Stefano Giliberti (brumale), https://www.behance.net/brumale
+"Free for personal and commercial use." (from the font's readme)
+
+Quitars by Arliyan Creative, https://creativemarket.com/arliyancreative
+"Free for personal use." It is NOT committed to git (see .gitignore), because
+putting it in a public repo would mean giving the font away. Copy Quitars.otf
+into this folder to use it. Without it, the Weekly Recap falls back to the
+system font.

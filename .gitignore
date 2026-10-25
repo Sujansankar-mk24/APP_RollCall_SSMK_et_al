@@ -36,3 +36,6 @@ demo_video/
 .vercel
 .env
 .env.*
+
+# Quitars is free for personal use only, so it is not shared in the public repo
+ios/RollCall/Fonts/Quitars.otf

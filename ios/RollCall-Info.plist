@@ -9,6 +9,13 @@
 	</dict>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Animosa-Regular.otf</string>
+		<string>Animosa-Bold.otf</string>
+		<string>Animosa-ExtraBold.otf</string>
+		<string>Quitars.otf</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

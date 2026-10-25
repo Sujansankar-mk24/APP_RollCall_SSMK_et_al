@@ -57,16 +57,31 @@ extension Radius {
 // MARK: - Type
 
 extension Font {
+    // Headings use Animosa (Fonts/, free for personal and commercial use).
+    // `relativeTo` keeps Dynamic Type working: they grow with the user's text size.
+
     /// Page titles: "Roll Call", "Community".
-    static let sheetDisplay = Font.system(.largeTitle, weight: .bold)
+    static let sheetDisplay = Font.custom("Animosa-ExtraBold", size: 36, relativeTo: .largeTitle)
     /// Card and section headings: "Join the roll call?".
-    static let sheetHeading = Font.system(.title3, weight: .semibold)
+    static let sheetHeading = Font.custom("Animosa-Bold", size: 21, relativeTo: .title3)
     /// The small uppercase labels ("YOUR HOUSEHOLD"), still 15 pt so they're easy to read.
     static let sheetLabel = Font.system(.subheadline, weight: .semibold)
     /// Someone's name or address in a list.
     static let sheetEntry = Font.system(.body, weight: .semibold)
     /// A name at the top of a page or card.
-    static let sheetEntryLarge = Font.system(.title2, weight: .bold)
+    static let sheetEntryLarge = Font.custom("Animosa-Bold", size: 24, relativeTo: .title2)
+
+    /// Any heading at a given size, in Animosa.
+    static func heading(_ size: CGFloat, relativeTo style: Font.TextStyle = .title, extraBold: Bool = false) -> Font {
+        .custom(extraBold ? "Animosa-ExtraBold" : "Animosa-Bold", size: size, relativeTo: style)
+    }
+
+    /// The Weekly Recap's friendly handwriting-like font, Quitars (free for
+    /// personal use, so it isn't in the public repo; see Fonts/FONTS-LICENSE.txt).
+    /// If the file is missing, iOS falls back to the system font.
+    static func recap(_ size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
+        .custom("QuitarsRegular", size: size, relativeTo: style)
+    }
 }
 
 extension View {
@@ -288,7 +303,7 @@ struct SmallInkButtonStyle: ButtonStyle {
 
 // MARK: - Badges
 
-/// A small tinted status label: "✓ SAFE", "NEEDS HELP". This is where color
+/// A small tinted status pill: "✓ Safe", "Needs help". This is where color
 /// lives, always next to a word so color isn't the only clue.
 /// (`tilt` is ignored now. It's kept so older calls still work.)
 struct Stamp: View {
@@ -298,16 +313,18 @@ struct Stamp: View {
     var tilt: Double = 0
 
     var body: some View {
-        HStack(spacing: 5) {
-            if let systemImage { Image(systemName: systemImage).font(.caption.weight(.bold)) }
-            Text(text).font(.caption.weight(.bold)).textCase(.uppercase).tracking(0.8)
+        // A soft, very rounded pill with the words in normal case, like the
+        // offer pills in banking apps: "⚡ Increased at ...".
+        HStack(spacing: 6) {
+            if let systemImage { Image(systemName: systemImage).font(.subheadline.weight(.semibold)) }
+            Text(text).font(.heading(16, relativeTo: .subheadline))
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.75)
         }
         .foregroundStyle(color)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(color.opacity(0.14), in: Capsule())
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+        .background(color.opacity(0.13), in: Capsule())
         .accessibilityElement(children: .combine)
     }
 }

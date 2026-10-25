@@ -105,7 +105,7 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selection) {
             IncidentMapView(store: store)
-                .roomForTabBar()
+                .roomForTabBar(extra: Spacing.s)   // Report incident sits just above the bar
                 .tag(RootTab.map)
 
             RollCallTabView()
@@ -149,13 +149,14 @@ struct MainTabView: View {
 private extension View {
     /// Hide the system tab bar on this tab, and keep the bottom of the screen
     /// free for our own bar, so buttons and lists stay above it.
-    func roomForTabBar() -> some View {
+    /// `extra` is room on top of the bar's height: plenty on scrolling pages,
+    /// so the last button (like Leave community) scrolls well clear of it,
+    /// and just a little on the map.
+    func roomForTabBar(extra: CGFloat = 72) -> some View {
         self
             .toolbar(.hidden, for: .tabBar)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                // The bar's height, plus extra room so the last button on a
-                // page (like Leave community) scrolls well clear of it.
-                Color.clear.frame(height: SlidingTabBar<MainTabView.RootTab>.height + 72)
+                Color.clear.frame(height: SlidingTabBar<MainTabView.RootTab>.height + extra)
             }
     }
 }
