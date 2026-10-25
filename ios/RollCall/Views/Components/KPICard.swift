@@ -19,8 +19,9 @@ struct KPICard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
+            // Plain words (not capitals): narrow cards need every letter of room.
             Label { Text(title) } icon: { Image(systemName: systemImage) }
-                .sheetLabelStyle()
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(emphasis ?? .secondary)
                 .lineLimit(2, reservesSpace: true)   // every card's label takes two lines, so the numbers line up
                 .fixedSize(horizontal: false, vertical: true)

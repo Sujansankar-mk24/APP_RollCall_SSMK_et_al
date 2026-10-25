@@ -13,22 +13,24 @@ Make sure no one gets left behind. RollCall is a community emergency app for Nor
 
 | Tab | What it's for |
 |---|---|
-| **Map** | Live hazards (diamonds) and community reports (circles) with their danger zones. Tap one for details. **Incidents** (top left) unrolls the incident log: key numbers and every incident sorted by priority, with "Why this priority?". **Report incident** with a pin, address search, and a photo or video. Filters, legend, zoom, and **Use my location**, which asks permission once and then shows you as a blue dot. |
-| **Roll Call** | **My household**: join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, privacy and Delete my data. **I check on**: be a volunteer buddy. Responders see their own view. |
-| **Community** | Find your neighborhood and ask to join, or start one and be its admin: approve members, and decide whether buddies from outside are allowed. |
+| **Map** | Live hazards (diamonds) and community reports (circles) with their danger zones. Tap one for details. **Incidents** (top left) unrolls the incident log: key numbers and every incident sorted by priority, with "Why this priority?". **Report incident** needs a recent photo you took and a short description. **Use my location** works like Google Maps: a blue dot with a cone for the way you face, follow and compass modes, and an always-on compass. A warning appears when you're near an active fire, storm or flood, and **↻** asks NASA, NOAA and the Weather Service for new data right away. |
+| **Roll Call** | **My household**: join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, call or text your buddy, privacy and Delete my data. **I check on**: the neighbors you check on, with Call, Text, Directions and **They need help**, which calls 911 and shows everything the dispatcher will ask for. Responders see their own view. |
+| **Community** | The **Weekly Recap** (neighborhood photos you swipe through, approved by the admin, gone after a week unless pinned), members split by who has a buddy, **Away from home**, first responders in your town, and other communities to browse. Start one and be its admin. Tap anyone to see their profile. |
 
-The **gear** at the top of every tab opens **Your profile** (who's signed in, with **Sign out**), **About RollCall** (what the app does, who can see your information, credits) and **Display** (light or dark). The pill in the tab bar turns green on the Map, red on Roll Call and orange on Community.
+The **gear** at the top of every tab opens **Your profile** (your picture, bio, phone, badges, the first responder application, and **Sign out**), **About RollCall** (what the app does, who can see your information, credits) and **Display** (light or dark). The pill in the tab bar turns green on the Map, red on Roll Call and orange on Community.
 
-**The look:** the Map keeps its blue map style. Nothing uses see-through glass. Every other screen looks like a paper roll-call sheet: warm paper with related things grouped on paper cards. Everything the app says is printed, and what people wrote in (names, addresses, neighborhood names) is in handwriting, the way names are filled in on a real roll call. Color only appears on the "stamped" status labels (green safe, red needs help, amber waiting). Text never goes below 15 pt. The pieces live in `ios/RollCall/Design/Sheet.swift`.
+**The look**, inspired by Phantom and WHOOP: dark first (a near-black page in dark mode, soft gray in light mode), big bold titles, small uppercase labels with wide letter spacing, full-width pill buttons, related rows grouped on rounded cards, capsule chips, a big "Saved ✓" confirmation, a splash screen, and three intro pages on first launch. Nothing uses see-through glass. Color only appears on status badges (green safe, red needs help, amber waiting), always next to a word. Text never goes below 15 pt. The pieces live in `ios/RollCall/Design/Sheet.swift` and `Design/Kit.swift`, and the logo is a placeholder in `Views/Components/BrandMark.swift`.
 
 You sign in once, and the app remembers you until you sign out. There are no placeholder people or communities: everything in Roll Call and Community comes from real accounts made in the app.
 
 ## What works so far
 
-- **Map and incident log:** live hazard data with danger zones, reporting with photo/video, merging, AI photo/video checks, priority scoring, responder status updates, timeline.
+- **Map and incident log:** live hazard data with danger zones, a follow-me blue dot and compass, nearby-danger warnings, reporting with a required photo and description, merging, AI photo checks, priority scoring, responder status updates, timeline.
+- **Verified first responders:** apply in the app with your agency, role, badge number and a photo of your ID. A person approves it, and only then can you mark incidents responding or resolved. Nobody can mark a tornado, hurricane or storm resolved. Residents can see responders in their town and report one who's fake, abusing the role or reckless.
+- **Profiles:** a picture from the camera or library, a bio, a phone, and badges (Volunteer buddy, Looking for a buddy, Away from home, Verified responder).
 - **Accounts:** sign up, sign in, stay signed in, sign out. Passwords are hashed with scrypt, and the sign-in token lives in the iPhone Keychain.
 - **Roll Call, step 1, household profile:** a five-step sign-up (home, who lives here, needs, contact, review) with a typed address checked on the map and by GPS, **Not now** for people who'd rather not, a clear "who can see this" privacy screen, and **Delete my data**, which really deletes everything.
-- **Communities and buddies:** neighborhoods with admin approval, and buddy offers from community neighbors or by exact address, always accepted or declined by the resident.
+- **Communities and buddies:** neighborhoods with admin approval, a community picture, the Weekly Recap, and buddy offers from community neighbors (or, for people not in a community, by exact address), always accepted or declined by the resident.
 - *(Coming next)* Emergency events from National Weather Service alerts, responder-drawn zones, and demo events.
 - *(Coming)* The roll call check-in in English and Spanish, escalation to buddies and responders, the responder roll-call dashboard with risk scores and routes, and buddy matching.
 
@@ -65,7 +67,10 @@ In a new terminal, run `source .venv/bin/activate` again before using `python` o
 
 | Command | What it does |
 |---|---|
-| `python -m scripts.reset_demo` | Wipes everything and reloads the demo incidents, households and volunteers |
+| `python -m scripts.reset_demo` | Wipes everything (accounts too) and reloads the demo incidents |
+| `python -m scripts.clear_test_data` | Removes the UI tests' accounts (`@example.com`) and reloads the demo incidents, keeping real accounts |
+| `python -m scripts.download_fire_model` | Downloads the trained fire and smoke model (about 6 MB) |
+| `python -m scripts.review_responders` | Reviews first responder applications and reports about responders |
 | `python -m scripts.download_samples` | Downloads the sample media only |
 | `python -m pytest` | Runs the automated tests |
 
@@ -149,7 +154,9 @@ Reports can be about any of these, grouped into "modes" so the map can show one 
 
 - Joining is opt-in ("Not now" is always an option), and nothing is shared until you agree on the last sign-up step.
 - **You** can always see, edit or delete your household.
-- **A volunteer buddy** sees your household only after you accept their offer. Neighbors in your community who volunteer see only your first name and street (and only if you asked for a buddy). A volunteer outside your community can only offer by typing your exact address, only if your community's admin allows outside buddies, and the app gives them the same answer whether or not anyone lives there.
+- **A volunteer buddy** sees your household only after you accept their offer. Neighbors in your community who volunteer see only your first name and street (and only if you asked for a buddy). If you're in a community, your buddy comes from it (a neighbor can get there fast). If you're not, a volunteer can offer by typing your exact address, and the app gives them the same answer whether or not anyone lives there.
+- **Profiles:** people in your community can see your profile and your address. Your phone is shown only to your buddy. Anyone can see verified first responders, so residents know who is helping.
+- **First responder ID photos** are kept outside the server's shared folder (`backend/private/`), never shown in the app, and deleted as soon as the application is reviewed.
 - **Responders** see a household only during an active emergency, and only if it's inside the emergency zone.
 - **Nobody else** sees anything. Incident reports on the map don't show who sent them.
 
@@ -157,11 +164,16 @@ These rules are enforced by the server (`backend/app/privacy.py`), not just hidd
 
 **Accounts:** passwords are never stored, only a salted scrypt hash. Signing in gives the app a random token, kept in the iPhone Keychain and sent with each request; the server stores only a hash of it.
 
-**Responder accounts** can see households during an emergency, so they aren't made through sign-up. Issue one from the `backend` folder:
+**First responder accounts.** People apply in the app (sign up with **I'm a first responder**, or Profile > **Are you a first responder?**). There's no government database to check IDs against, so a person reviews each application from the `backend` folder:
 
 ```bash
-python -m scripts.make_responder chief@example.com "a long password" "Alex Rivera"
+python -m scripts.review_responders              # list applications waiting, and reports about responders
+python -m scripts.review_responders approve 12   # approve account 12 (its ID photo is deleted)
+python -m scripts.review_responders reject 12
+python -m scripts.review_responders revoke 12    # take a responder's access away
 ```
+
+For test and demo accounts, `python -m scripts.make_responder chief@example.com "a long password" "Alex Rivera"` makes a verified responder directly.
 
 ## API
 
@@ -170,8 +182,9 @@ python -m scripts.make_responder chief@example.com "a long password" "Alex River
 | `GET` | `/health` | Is the server up? |
 | `GET` | `/incidents` | List incidents. Filters: `type`, `status`, `since_hours`. Sort: `priority` (default) or `recent` |
 | `GET` | `/incidents/{id}` | One incident with reports, media, AI results, timeline and priority breakdown |
-| `PATCH` | `/incidents/{id}/status` | Set `active`, `responding` or `resolved` |
-| `POST` | `/reports` | New report (form fields + optional photo/video). Merges into a nearby incident when it can |
+| `PATCH` | `/incidents/{id}/status` | A verified first responder sets `active`, `responding` or `resolved` (not for weather nobody can stop) |
+| `POST` | `/reports` | New report (form fields, a description of 10+ characters and a photo). Merges into a nearby incident when it can |
+| `GET` | `/hazards?refresh=true` | Live hazards. `refresh` asks the sources again right away (at most every 30 seconds) |
 | `GET` | `/media/...` | Uploaded files, thumbnails and AI-annotated images |
 | `POST` | `/households` | Register a household (Roll Call) |
 | `GET` `PUT` `DELETE` | `/households/{id}` | See, edit or delete a household, if the privacy rules allow it |
@@ -183,7 +196,15 @@ python -m scripts.make_responder chief@example.com "a long password" "Alex River
 | `GET` | `/buddy/residents`, `/buddy/neighbors`, `/buddy/requests` | A volunteer's lists |
 | `POST` | `/buddy/requests/community`, `/buddy/requests/address` | Offer to check on a neighbor, or someone by exact address |
 | `GET` `POST` | `/communities` | Search or create a community |
-| `GET` `PATCH` | `/communities/{id}` | Details. The admin allows or blocks outside buddies |
+| `GET` `PATCH` | `/communities/{id}` | Details, members (for members), the Weekly Recap (for everyone). The admin can rename it |
+| `PUT` | `/communities/{id}/photo` | The admin sets the community picture |
+| `POST` `DELETE` | `/communities/{id}/recap`, `/recap/{photo}/approve`, `/reject`, `/pin`, `/unpin` | Weekly Recap photos |
+| `PATCH` | `/me/profile` | Your name, bio, phone and "away from home" |
+| `PUT` `DELETE` | `/me/photo` | Your profile picture |
+| `GET` | `/people/{id}` | Someone's profile, if you're allowed to see it |
+| `POST` | `/me/responder-application` | Apply as a first responder (agency, role, badge, town, ID photo) |
+| `GET` | `/responders?city=` | Verified first responders |
+| `POST` | `/responders/{id}/report` | Report a responder as fake, abusive or reckless |
 | `POST` | `/communities/{id}/join`, `/leave`, `/requests/{user}/approve`, `/decline` | Joining and admin approval |
 
 Every Roll Call and Community request must be signed in (`Authorization: Bearer <token>`).
@@ -198,7 +219,7 @@ Every photo or video is analyzed in the background right after upload, so the ap
 
 1. **Low-light check.** The average brightness is measured. If the picture is dark, its contrast is boosted with CLAHE before detection, and that is recorded.
 2. **People.** YOLOv8n, a small pretrained neural network, finds people. It runs on a normal laptop CPU.
-3. **Fire and smoke.** If a trained model exists at `backend/models/fire.pt`, it is used. Otherwise a hand-written OpenCV rule (the **basic detector**) looks for deeply saturated, red-dominant, unevenly lit flame patches and, in video, flicker. Flame-colored patches that sit on a detected person are ignored, because firefighters' yellow jackets and helmets are flame colored. Smoke is a large, smooth, grayish area in the upper part of the picture.
+3. **Fire and smoke.** A trained YOLOv8n model ([rabahdev/fire-smoke-yolov8n](https://huggingface.co/rabahdev/fire-smoke-yolov8n), trained on D-Fire, a public set of 21,000+ real fire and smoke photos, AGPL-3.0) is used when it's at `backend/models/fire.pt`. Download it once with `python -m scripts.download_fire_model`. It only counts a detection at 45% confidence or more. Without it, a hand-written OpenCV rule (the **basic detector**) looks for deeply saturated, red-dominant, unevenly lit flame patches and, in video, flicker. Flame-colored patches that sit on a detected person are ignored, because firefighters' yellow jackets and helmets are flame colored. The basic detector only reports smoke next to flames it found, because a gray wall looks like smoke to a color rule.
 4. **Who might need help.** People lying down ("may be down") and people close to the flames are flagged from YOLO's boxes (`backend/app/ai/scene.py`).
 5. **Video.** About one frame per second is checked (up to 30 seconds). Fire or smoke must appear in at least 2 frames, and the clearest frame is saved with its boxes drawn on.
 
@@ -231,7 +252,9 @@ The −20 only applies to types the AI can check. It looks for flames, smoke and
 
 - The app logs one intermittent SwiftUI layout warning ("Invalid frame dimension") while using the address search in the report form. It doesn't affect how anything works, and its source is still being tracked down.
 - "May be down" is a hint, not a diagnosis: someone resting on the ground looks the same, and a camera angle can make distances look shorter than they are.
-- The basic fire detector was tuned on a small set of photos. In testing it mistook a yellow "Water over road" sign for fire, a gray indoor wall and a hazy overcast sky for smoke, and missed a distant smoke plume and some small flames. A trained model at `models/fire.pt` fixes most of this.
+- The basic fire detector was tuned on a small set of photos. In testing it mistook a yellow "Water over road" sign for fire and missed some small flames. It no longer reports smoke without flames. The trained model (`python -m scripts.download_fire_model`) fixes most of this.
+- Report photos must carry a camera's name and a date from the last 2 days. That blocks screenshots, most saved images and old photos, but someone could still edit that information on purpose.
+- First responder IDs are checked by a person, not against a government database.
 - The AI cannot recognize tornadoes, floods, storms or ice. For those reports it can still count people in the photo, but the weather itself is confirmed by how many people report it.
 
 ## Credits

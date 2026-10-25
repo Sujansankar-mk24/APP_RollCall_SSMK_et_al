@@ -92,7 +92,7 @@ private struct PersonRow: View {
                 HStack(spacing: Spacing.m) {
                     Avatar(url: photoURL, name: name, size: 44)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(verbatim: name).sheetEntryStyle().lineLimit(1)
+                        Text(verbatim: name).sheetEntryStyle().lineLimit(2)
                         if let detail {
                             Text(verbatim: detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                         }

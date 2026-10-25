@@ -50,13 +50,15 @@ struct AboutView: View {
             sectionTitle("What's in the app")
             SheetCard {
                 infoRow("map.fill", "Map",
-                        "See emergencies near you and report one with a photo or video. Reports close together merge into one incident, and AI checks the photos for fire, smoke and people.")
+                        "Live fires and storm warnings from NASA and the National Weather Service, and a warning when you're close to one. Report an emergency with a photo you just took. Reports close together merge into one incident, and AI checks the photos for fire, smoke and people.")
                 infoRow("list.bullet.rectangle.fill", "Incidents",
                         "On the Map, the Incidents button (top left) opens every incident sorted by priority, with a \"Why this priority?\" breakdown anyone can check.")
                 infoRow("person.crop.circle.badge.checkmark", "Roll Call",
-                        "Households sign up ahead of time (or choose \"Not now\"). When an emergency hits, everyone in the area is asked if they're safe, a volunteer buddy checks on anyone who doesn't answer, and responders see who still needs help.")
+                        "Households sign up ahead of time (or choose \"Not now\"). When an emergency hits, everyone in the area is asked if they're safe, a volunteer buddy checks on anyone who doesn't answer, and responders see who still needs help. You can call or text your buddy, and \"They need help\" calls 911 with everything the dispatcher needs.")
                 infoRow("house.and.flag.fill", "Community",
-                        "Join your neighborhood. The admin approves who joins, and neighbors in the same community can be buddies for each other.")
+                        "Join your neighborhood and see its Weekly Recap of photos. The admin approves who joins and which photos go in. Neighbors are buddies for each other, and you can see the first responders in your town.")
+                infoRow("checkmark.seal.fill", "First responders",
+                        "Firefighters, EMS, police and emergency managers apply with their ID, and a person checks it. Only they can mark an incident responding or resolved. Anyone can report a responder who seems fake or reckless.")
                 infoRow("gearshape.fill", "Settings",
                         "The gear at the top of every tab has your profile, this page, and light or dark mode. You sign out from your profile.")
             }

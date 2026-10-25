@@ -203,16 +203,16 @@ struct SheetTabs<Value: Hashable>: View {
     @Namespace private var fill
 
     var body: some View {
-        HStack(spacing: Spacing.s) {
+        HStack(spacing: 6) {
             ForEach(Array(options.enumerated()), id: \.element.value) { index, option in
                 let isSelected = selection == option.value
                 Button { selection = option.value } label: {
                     Text(option.title)
-                        .font(.headline)
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(isSelected ? Color.paper : Color.primary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .padding(.horizontal, Spacing.m)
+                        .minimumScaleFactor(0.7)
+                        .padding(.horizontal, Spacing.s)
                         .frame(maxWidth: .infinity, minHeight: minimumTapSize)
                         .background {
                             if isSelected {

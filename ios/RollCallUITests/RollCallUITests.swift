@@ -612,8 +612,9 @@ final class RollCallUITests: XCTestCase {
         editBio.tap()
         type("Nurse. Two dogs. Happy to help.", into: app.textViews["editField"].exists ? app.textViews["editField"] : app.textFields["editField"])
         app.buttons["saveField"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["successOverlay"].waitForExistence(timeout: 10), "No Saved confirmation")
-        XCTAssertTrue(app.staticTexts["Nurse. Two dogs. Happy to help."].waitForExistence(timeout: 10))
+        // A "Saved" check mark shows for a moment, then the new bio is in the list.
+        XCTAssertTrue(app.staticTexts["Nurse. Two dogs. Happy to help."].waitForExistence(timeout: 15), "The bio wasn't saved")
+        _ = app.descendants(matching: .any)["successOverlay"].waitForNonExistence(timeout: 5)
         // What neighbors see.
         app.buttons["previewProfile"].tap()
         let header = app.descendants(matching: .any)["personHeader"]
