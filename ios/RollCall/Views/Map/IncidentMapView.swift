@@ -57,6 +57,11 @@ struct IncidentMapView: View {
     @State private var cameraDistance: Double = 0
     /// A nearby-danger warning the user closed (it comes back for a different hazard).
     @State private var dismissedDangerID: String?
+    /// "My community": your neighbors' homes, with their pictures in bubbles.
+    @State private var showsCommunity = false
+    @State private var homes: [CommunityHome] = []
+    @State private var openPerson: Int?
+    @Environment(AuthStore.self) private var auth
     /// Lets the compass sit with the other map buttons.
     @Namespace private var mapScope
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -82,6 +87,18 @@ struct IncidentMapView: View {
                     .buttonStyle(.plain)
                 }
                 .annotationTitles(.hidden)
+            }
+
+            // My community: a small house for each neighbor, and up close a
+            // bubble with their picture above it.
+            if showsCommunity {
+                ForEach(homes) { home in
+                    Annotation(home.name, coordinate: CLLocationCoordinate2D(latitude: home.latitude, longitude: home.longitude),
+                               anchor: .bottom) {
+                        CommunityHomeMarker(home: home, showsBubble: isZoomedInClose) { openPerson = home.userId }
+                    }
+                    .annotationTitles(.hidden)
+                }
             }
 
             // You are here: the blue dot, with a cone showing which way you face.
@@ -113,7 +130,11 @@ struct IncidentMapView: View {
         }
         // While following, keep the map on you as you move (and turned the
         // way you face, in compass mode).
-        .onChange(of: live.location) { if tracking.follows { moveCameraToUser(animated: true) } }
+        .onChange(of: live.location) {
+            if tracking.follows { moveCameraToUser(animated: true) }
+            reportSurroundings()
+        }
+        .onChange(of: viewModel.hazardFeed?.updatedAt) { reportSurroundings() }
         .onChange(of: live.heading) { if tracking == .compass { moveCameraToUser(animated: false) } }
         .onMapCameraChange(frequency: .onEnd) { context in
             visibleRegion = context.region
@@ -182,6 +203,7 @@ struct IncidentMapView: View {
         .task(id: lastReport) {
             await followLastReport()
         }
+        .sheet(item: $openPerson) { id in PersonProfileView(personID: id).sheetBrand() }
         .alert(item: $locationProblem) { problem in
             problem.alert
         }
@@ -354,6 +376,7 @@ struct IncidentMapView: View {
             MapFilterBar(filters: $viewModel.filters)
             SettingsButton()
                 .padding(.trailing, Spacing.l)
+                .environment(\.brand, Color.themeAccent)
         }
         .padding(.top, Spacing.xs)
     }
@@ -375,6 +398,7 @@ struct IncidentMapView: View {
                     openLiveData()
                 }
                 myLocationButton
+                if auth.me?.community?.status == .member { communityButton }
             }
             Spacer()
             MapLegend()
@@ -389,7 +413,9 @@ struct IncidentMapView: View {
     private var incidentsPanel: some View {
         if showsIncidents {
             IncidentsPanel(store: viewModel.store,
+                           hazards: viewModel.visibleHazards,
                            onSelect: { show($0) },
+                           onSelectHazard: { hazard in setIncidents(open: false); select(hazard) },
                            onClose: { setIncidents(open: false) })
                 // Most of the screen's top left. It starts over the status
                 // pills and stops just above Report incident, so the right
@@ -433,7 +459,7 @@ struct IncidentMapView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, Spacing.xl)
                 .frame(minHeight: 52)
-                .background(Color.accentColor, in: Capsule())
+                .background(Color.themeAccent, in: Capsule())
                 .shadow(color: .black.opacity(0.2), radius: 10, y: 4)
                 .contentShape(Capsule())
         }
@@ -462,7 +488,7 @@ struct IncidentMapView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(Color.accentColor)
+        .foregroundStyle(Color.themeAccent)
         .accessibilityLabel(label)
         .accessibilityIdentifier(factor < 1 ? "zoomInButton" : "zoomOutButton")
     }
@@ -477,6 +503,51 @@ struct IncidentMapView: View {
         withAnimation(.easeInOut(duration: 0.35)) {
             cameraPosition = .region(region)
         }
+    }
+
+    /// About a quarter mile around a home: close enough for the picture bubbles.
+    private var isZoomedInClose: Bool { visibleRegion.span.latitudeDelta < 0.012 }
+
+    /// Shows or hides your community's homes on the map.
+    private var communityButton: some View {
+        Button {
+            Task { await toggleCommunity() }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "house.and.flag.fill")
+                Text(showsCommunity ? "Hide my community" : "My community")
+            }
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(showsCommunity ? Color.white : Color.themeAccent)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 28)
+            .background { if showsCommunity { Capsule().fill(Color.themeAccent) } }
+            .floatingSurface(cornerRadius: 14)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.vertical, -8)
+        .accessibilityHint("Shows where your neighbors live")
+        .accessibilityIdentifier("myCommunityOnMap")
+    }
+
+    private func toggleCommunity() async {
+        if showsCommunity {
+            withAnimation { showsCommunity = false }
+            return
+        }
+        guard let id = auth.me?.community?.id else { return }
+        homes = (try? await APIClient.shared.fetchCommunityHomes(communityID: id)) ?? []
+        withAnimation { showsCommunity = true }
+        // Fit everyone's home on screen.
+        guard !homes.isEmpty else { return }
+        let lats = homes.map(\.latitude), lons = homes.map(\.longitude)
+        let center = CLLocationCoordinate2D(latitude: (lats.min()! + lats.max()!) / 2,
+                                            longitude: (lons.min()! + lons.max()!) / 2)
+        let span = MKCoordinateSpan(latitudeDelta: max((lats.max()! - lats.min()!) * 1.6, 0.01),
+                                    longitudeDelta: max((lons.max()! - lons.min()!) * 1.6, 0.01))
+        withAnimation(.easeInOut(duration: 0.6)) { cameraPosition = .region(MKCoordinateRegion(center: center, span: span)) }
     }
 
     /// "Use my location", like the location button in Google Maps:
@@ -495,11 +566,11 @@ struct IncidentMapView: View {
                 Text(tracking.title)
             }
             .font(.footnote.weight(.semibold))
-            .foregroundStyle(tracking == .off ? Color.accentColor : Color.white)
+            .foregroundStyle(tracking == .off ? Color.themeAccent : Color.white)
             .padding(.horizontal, 10)
             .frame(minHeight: 28)
             .background {
-                if tracking != .off { Capsule().fill(Color.accentColor) }
+                if tracking != .off { Capsule().fill(Color.themeAccent) }
             }
             .floatingSurface(cornerRadius: 14)
             .padding(.vertical, 8)   // a 44 pt tap area without a bigger pill
@@ -554,7 +625,7 @@ struct IncidentMapView: View {
                 .rotationEffect(.degrees(viewModel.isRefreshingAll ? 360 : 0))
                 .animation(viewModel.isRefreshingAll ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default,
                            value: viewModel.isRefreshingAll)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Color.themeAccent)
                 .frame(width: 28, height: 28)
                 .floatingSurface(cornerRadius: 14)
                 .padding(8)
@@ -593,6 +664,13 @@ struct IncidentMapView: View {
         }
     }
 
+    /// Tells notifications and the Lock Screen status what's around you.
+    private func reportSurroundings() {
+        guard tracking != .off, live.location != nil else { return }
+        AlertsManager.shared.update(danger: nearbyDanger,
+                                    place: auth.me?.community?.city ?? String(localized: "North Texas"))
+    }
+
     private var recenterButton: some View {
         Button {
             withAnimation(.easeInOut(duration: 0.6)) {
@@ -605,7 +683,7 @@ struct IncidentMapView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(Color.accentColor)
+        .foregroundStyle(Color.themeAccent)
         .floatingSurface(cornerRadius: 24)
         .accessibilityLabel("Recenter map")
         .accessibilityHint("Shows all of North Texas")
@@ -618,7 +696,7 @@ struct IncidentMapView: View {
         switch viewModel.loadState {
         case .loading:
             HStack(spacing: Spacing.s) {
-                ProgressView()
+                LoadingLogo(size: 32)
                 Text("Loading incidents…")
                     .font(.subheadline.weight(.medium))
             }

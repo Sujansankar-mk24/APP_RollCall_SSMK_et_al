@@ -31,9 +31,10 @@ The total is kept between 0 and 100.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Sequence
+from typing import Optional, Sequence
 from zoneinfo import ZoneInfo
 
+from app.ai.verify import confirms_report
 from app.config import LOCAL_TIMEZONE
 from app.models import AnalysisStatus, Incident, IncidentType, Media
 
@@ -92,13 +93,15 @@ def is_night(moment_utc: datetime) -> bool:
     return local.hour >= NIGHT_START_HOUR or local.hour < NIGHT_END_HOUR
 
 
-def is_verified(media: Sequence[Media]) -> bool:
-    """An incident is verified once the AI finds fire, smoke, or a person in any of its media."""
-    return any(
-        m.analysis_status == AnalysisStatus.done
-        and (m.fire_detected or m.smoke_detected or m.people_count > 0)
-        for m in media
-    )
+def is_verified(media: Sequence[Media], incident_type: Optional[IncidentType] = None) -> bool:
+    """
+    Verified once a photo shows what was reported (see app/ai/verify.py).
+    People alone never verify a fire or a storm.
+    """
+    done = [m for m in media if m.analysis_status == AnalysisStatus.done]
+    if incident_type is None:
+        return any(m.fire_detected or m.smoke_detected for m in done)
+    return any(confirms_report(m, incident_type) for m in done)
 
 
 def compute_priority(incident: Incident, report_count: int, media: Sequence[Media]) -> PriorityResult:
@@ -116,17 +119,23 @@ def compute_priority(incident: Incident, report_count: int, media: Sequence[Medi
         factors.append(PriorityFactor("Smoke confirmed by AI", SMOKE_POINTS))
 
     # Use the single photo/video with the most people (not the sum), because
-    # several photos of one scene usually show the same people.
-    most_people = max((m.people_count for m in analyzed), default=0)
+    # several photos of one scene usually show the same people. People only
+    # count once the photo shows the emergency itself (a few people in a
+    # living room don't make a winter storm urgent).
+    verdicts = [confirms_report(m, incident.type) for m in analyzed]
+    verified = any(v is True for v in verdicts)
+    can_tell = any(v is not None for v in verdicts)   # older photos without scene labels can't be checked
+    counts_people = verified or not can_tell
+    most_people = max((m.people_count for m in analyzed), default=0) if counts_people else 0
     if most_people > 0:
         points = min(most_people * POINTS_PER_PERSON, MAX_PEOPLE_POINTS)
         noun = "person" if most_people == 1 else "people"
         factors.append(PriorityFactor(f"{most_people} {noun} detected by AI", points))
 
     # People who may need help first.
-    if any(m.people_down for m in analyzed):
+    if counts_people and any(m.people_down for m in analyzed):
         factors.append(PriorityFactor("Someone may be down (lying on the ground)", PERSON_DOWN_POINTS))
-    if any(m.people_near_fire for m in analyzed):
+    if counts_people and any(m.people_near_fire for m in analyzed):
         factors.append(PriorityFactor("People close to the flames", NEAR_FIRE_POINTS))
 
     # 3. More independent reports = more likely real and probably bigger.
@@ -142,7 +151,9 @@ def compute_priority(incident: Incident, report_count: int, media: Sequence[Medi
 
     # 5. No visual evidence yet for a type the AI can check: could be a false
     #    alarm, so rank it lower.
-    if incident.type in AI_VERIFIABLE_TYPES and not is_verified(media):
+    # (Fire, smoke and injury reports can always be checked by YOLO; weather
+    # can only be checked when the photo came with scene labels.)
+    if not verified and (can_tell or (incident.type in AI_VERIFIABLE_TYPES and not analyzed)):
         factors.append(PriorityFactor("Not yet verified by AI", UNVERIFIED_POINTS))
 
     total = sum(f.points for f in factors)

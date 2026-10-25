@@ -56,7 +56,7 @@ def test_unconfirmed_report_stays_off_the_map_until_a_responder_reviews_it():
     assert client.get("/incidents").json() == []                        # nobody is alerted
     detail = client.get(f"/incidents/{incident_id}").json()
     assert detail["under_review"] is True
-    assert "couldn't find" in detail["timeline"][-1]["message"]
+    assert "couldn't see fire or smoke" in detail["timeline"][-1]["message"]
     assert client.post(f"/incidents/{incident_id}/review", json={"real": True},
                        headers=sign_up()).status_code == 403             # residents can't
     confirmed = client.post(f"/incidents/{incident_id}/review", json={"real": True}, headers=responder()).json()
@@ -71,17 +71,36 @@ def test_dismissed_report_is_closed():
     assert client.get("/incidents").json() == []
 
 
-def test_weather_reports_go_straight_on_the_map():
-    # The AI can't recognize a flood, so those aren't held back.
-    report(type="flood", description="Water over the road")
-    assert len(client.get("/incidents").json()) == 1
+def winter_storm(scene: str):
+    return client.post("/reports", data={"type": "winter_storm", "description": "Ice on every road here",
+                                         "scene_labels": scene, **GREENVILLE}, files=photo()).json()
+
+
+def test_a_winter_storm_photo_must_show_snow_or_ice():
+    # The phone's scene check saw snow: confirmed, and on the map.
+    snowy = winter_storm("snow:0.81,sky:0.4")
+    detail = client.get(f"/incidents/{snowy['incident_id']}").json()
+    assert detail["under_review"] is False
+    assert "shows snow" in detail["timeline"][-1]["message"]
+
+
+def test_people_in_a_room_dont_make_a_winter_storm():
+    # A photo of a bedroom: never confirmed, never on the map.
+    indoors = winter_storm("bedroom:0.7,interior_room:0.6,people:0.5")
+    detail = client.get(f"/incidents/{indoors['incident_id']}").json()
+    assert detail["under_review"] is True
+    assert "indoors" in detail["timeline"][-1]["message"]
+    assert client.get("/incidents").json() == []
+    # And people alone add no priority points.
+    assert not any("people" in f["label"] or "person" in f["label"] for f in detail["priority"]["factors"])
 
 
 def test_filters():
     report()
     report(type="flood")
-    assert [i["type"] for i in client.get("/incidents", params={"type": "flood"}).json()] == ["flood"]
-    assert client.get("/incidents", params={"status": "resolved"}).json() == []
+    chief = responder()   # sees reports under review too
+    assert [i["type"] for i in client.get("/incidents", params={"type": "flood"}, headers=chief).json()] == ["flood"]
+    assert client.get("/incidents", params={"status": "resolved"}, headers=chief).json() == []
 
 
 def test_detail_has_reports_timeline_and_priority_breakdown():

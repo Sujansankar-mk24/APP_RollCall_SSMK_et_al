@@ -99,6 +99,14 @@ final class CommunityViewModel {
         }
     }
 
+    func react(_ photo: RecapPhoto, with emoji: String, in community: CommunityDetail) async {
+        do {
+            detail = .loaded(try await api.reactToRecapPhoto(communityID: community.id, photoID: photo.id, emoji: emoji))
+        } catch {
+            actionError = error
+        }
+    }
+
     func remove(_ photo: RecapPhoto, in community: CommunityDetail) async {
         do throws(APIError) {
             try await api.deleteRecapPhoto(communityID: community.id, photoID: photo.id)

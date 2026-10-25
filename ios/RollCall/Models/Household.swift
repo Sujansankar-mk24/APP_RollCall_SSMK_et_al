@@ -90,6 +90,9 @@ struct Household: Codable, Identifiable, Hashable {
     let emergencyContactName: String
     let emergencyContactPhone: String
     let wantsBuddy: Bool
+    /// The latest check-in: "safe", "needs_help", or "" (none yet).
+    var checkIn: String = ""
+    var checkedInAt: Date? = nil
     let buddy: Buddy?
     let isDemo: Bool
     let createdAt: Date

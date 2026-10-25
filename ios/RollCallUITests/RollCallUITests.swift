@@ -141,8 +141,14 @@ final class RollCallUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-RCSignOut", "YES", "-RSResetIntro", "YES", "-RCServerURL", "http://localhost:8000"]
         app.launch()
+        // First the Welcome screen, with the rescue photo and two ways in.
+        let getStarted = app.buttons["welcomeGetStarted"]
+        XCTAssertTrue(getStarted.waitForExistence(timeout: 15), "No Welcome screen on first launch")
+        XCTAssertTrue(app.buttons["welcomeSignIn"].exists)
+        snapshot(app, "welcome")
+        getStarted.tap()
         let next = app.buttons["introNext"]
-        XCTAssertTrue(next.waitForExistence(timeout: 15), "No intro on first launch")
+        XCTAssertTrue(next.waitForExistence(timeout: 15), "No intro after Get started")
         XCTAssertTrue(app.staticTexts["Know who's safe"].exists)
         snapshot(app, "intro 1")
         next.tap()
@@ -314,7 +320,9 @@ final class RollCallUITests: XCTestCase {
         app.swipeUp()
         app.swipeUp()
         type("Grass fire spreading toward the road", into: description)
-        app.buttons["Done"].firstMatch.tap()
+        // Close the keyboard: the Done key if it's on screen, or Return.
+        let done = app.buttons["Done"].firstMatch
+        if done.exists && done.isHittable { done.tap() } else { description.typeText("\n") }
     }
 
     @MainActor
@@ -790,6 +798,66 @@ final class RollCallUITests: XCTestCase {
         snapshot(app, "connections selected")
         name.tap()
         XCTAssertTrue(app.descendants(matching: .any)["personHeader"].waitForExistence(timeout: 10))
+    }
+
+    @MainActor
+    func testCheckingInTellsYourBuddy() throws {
+        let resident = try newAccount("Rosa Tester")
+        let address = try registerHousehold(for: resident)
+        let volunteer = try newAccount("Victor Volunteer")
+        server("me/volunteer", "PUT", ["city": "Greenville"], token: volunteer.token)
+        server("buddy/requests/address", "POST", address, token: volunteer.token)
+        let request = try XCTUnwrap(serverList("me/buddy-requests", token: resident.token).first?["id"] as? Int)
+        server("me/buddy-requests/\(request)/accept", "POST", token: resident.token)
+
+        var app = launchSignedIn(resident, tab: "rollCall")
+        let help = app.buttons["checkInHelp"]
+        XCTAssertTrue(help.waitForExistence(timeout: 15), "No check-in buttons")
+        help.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["successOverlay"].waitForExistence(timeout: 10))
+        app.terminate()
+        // The buddy sees it.
+        app = launchSignedIn(volunteer, tab: "rollCall")
+        app.buttons["section_buddy"].tap()
+        XCTAssertTrue(text("Needs help", in: app).waitForExistence(timeout: 15), "The buddy doesn't see the check-in")
+    }
+
+    @MainActor
+    func testRecapStickersAndMapCommunity() throws {
+        let admin = try newAccount("Ada Admin")
+        let member = try newAccount("Mo Member")
+        _ = try community(admin: admin, with: member)
+        var app = launchSignedIn(admin, tab: "community")
+        XCTAssertTrue(app.descendants(matching: .any)["weeklyRecapEmpty"].waitForExistence(timeout: 15))
+        try choosePhoto(from: app.buttons["addRecapPhoto"].firstMatch, in: app)
+        type("Cleanup day\n", into: app.textFields["recapCaption"])
+        app.buttons["sendRecapPhoto"].tap()
+        let stickers = app.descendants(matching: .any)["recapStickers"]
+        XCTAssertTrue(stickers.waitForExistence(timeout: 20), "No sticker bar under the recap")
+        stickers.buttons.firstMatch.tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'React with' AND value == '1'")).firstMatch
+            .waitForExistence(timeout: 10), "The sticker didn't count")
+        snapshot(app, "recap deck")
+        app.terminate()
+        // The Map shows the community's homes.
+        _ = try registerHousehold(for: member)
+        app = launchSignedIn(admin, tab: "map")
+        let toggle = app.buttons["myCommunityOnMap"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 15))
+        toggle.tap()
+        XCTAssertTrue(app.buttons["home_\(member.id)"].waitForExistence(timeout: 15), "No homes on the map")
+        snapshot(app, "map community")
+    }
+
+    @MainActor
+    func testIncidentLogShowsLiveData() {
+        let app = launchApp()
+        app.buttons["incidentsButton"].tap()
+        let live = app.buttons["logSource_live"]
+        XCTAssertTrue(live.waitForExistence(timeout: 15))
+        live.tap()
+        let row = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'hazardRow_'")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 15), "No live data in the incident log")
     }
 
     /// Tap a photo button (camera or library), choose the library, and pick

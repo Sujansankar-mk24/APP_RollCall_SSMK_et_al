@@ -26,7 +26,7 @@ struct PersonProfileView: View {
             ScrollView {
                 switch state {
                 case .loading:
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 300)
+                    LoadingView()
                 case .failed(let error):
                     SheetMessage(error: error, action: { Task { await load() } }).padding(Spacing.l)
                 case .loaded(let person):

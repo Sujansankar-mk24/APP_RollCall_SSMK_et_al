@@ -14,6 +14,7 @@ struct MapFilterBar: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Spacing.s) {
+                sourceMenu
                 typeMenu
                 statusMenu
                 timeMenu
@@ -21,13 +22,37 @@ struct MapFilterBar: View {
                     clearButton
                 }
             }
-            .padding(.horizontal, Spacing.l)
+            .padding(.horizontal, Spacing.m)
             .padding(.vertical, Spacing.xs)  // room for the chips' shadows
+        }
+        // Chips fade out at the edges instead of being cut off next to the
+        // Incidents button and the gear.
+        .mask {
+            HStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing).frame(width: Spacing.m)
+                Color.black
+                LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing).frame(width: Spacing.l)
+            }
         }
         .animation(.easeOut(duration: 0.2), value: filters.isDefault)
     }
 
     // MARK: - Chips
+
+    /// Community reports, live data (NASA, NOAA, the Weather Service), or both.
+    private var sourceMenu: some View {
+        Menu {
+            Picker("Source", selection: $filters.source) {
+                ForEach(MapSource.allCases) { source in
+                    Label(source.title, systemImage: source.symbol).tag(source)
+                }
+            }
+        } label: {
+            FilterChipLabel(title: filters.source == .all ? String(localized: "Source") : filters.source.title,
+                            systemImage: filters.source.symbol, isActive: filters.source != .all)
+        }
+        .accessibilityIdentifier("sourceFilter")
+    }
 
     private var typeMenu: some View {
         Menu {
@@ -153,12 +178,12 @@ struct FilterChipLabel: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .foregroundStyle(isActive ? Color.accentColor : Color.primary)
+        .foregroundStyle(isActive ? Color.themeAccent : Color.primary)
         .padding(.horizontal, Spacing.m)
         .frame(minHeight: 38)
         .background {
             if isActive {
-                Capsule().fill(Color.accentColor.opacity(0.14))
+                Capsule().fill(Color.themeAccent.opacity(0.14))
             }
         }
         .floatingSurface(cornerRadius: 19)

@@ -71,6 +71,7 @@ struct APIClient {
         form.addField("longitude", String(report.coordinate.longitude))
         form.addField("description", report.description)
         form.addField("location_name", report.locationName)
+        form.addField("scene_labels", report.sceneLabels)
 
         switch report.attachment {
         case .photo(let jpeg, _):
@@ -238,6 +239,11 @@ struct APIClient {
         try await send(request("communities/\(communityID)/requests/\(userID)/\(approve ? "approve" : "decline")", method: "POST"))
     }
 
+    /// Where everyone in your community lives (only members can see this).
+    func fetchCommunityHomes(communityID: Int) async throws(APIError) -> [CommunityHome] {
+        try await send(request("communities/\(communityID)/homes"))
+    }
+
     /// The admin sets the community's picture.
     func setCommunityPhoto(communityID: Int, jpeg: Data) async throws(APIError) -> CommunityDetail {
         try await send(upload("communities/\(communityID)/photo", method: "PUT", jpeg: jpeg))
@@ -255,6 +261,11 @@ struct APIClient {
     /// The admin approves, rejects, pins or unpins a photo.
     func changeRecapPhoto(communityID: Int, photoID: Int, _ action: RecapAction) async throws(APIError) -> CommunityDetail {
         try await send(request("communities/\(communityID)/recap/\(photoID)/\(action.rawValue)", method: "POST"))
+    }
+
+    /// Put an emoji sticker on a photo (the same one again takes it off).
+    func reactToRecapPhoto(communityID: Int, photoID: Int, emoji: String) async throws(APIError) -> CommunityDetail {
+        try await send(request("communities/\(communityID)/recap/\(photoID)/react", method: "POST", body: ["emoji": emoji]))
     }
 
     func deleteRecapPhoto(communityID: Int, photoID: Int) async throws(APIError) {
@@ -280,6 +291,11 @@ struct APIClient {
 
     func removeProfilePhoto() async throws(APIError) -> Me {
         try await send(request("me/photo", method: "DELETE"))
+    }
+
+    /// "I'm safe" or "I need help": your buddy sees it right away.
+    func checkIn(safe: Bool) async throws(APIError) -> Household {
+        try await send(request("me/check-in", method: "POST", body: ["status": safe ? "safe" : "needs_help"]))
     }
 
     /// Someone's profile (only people you're allowed to see).

@@ -369,6 +369,8 @@ class HouseholdOut(BaseModel):
     emergency_contact_name: str
     emergency_contact_phone: str
     wants_buddy: bool
+    check_in: str                       # "safe", "needs_help", or "" (no check-in yet)
+    checked_in_at: Optional[datetime]
     buddy: Optional[BuddyOut]
     is_demo: bool
     created_at: datetime
@@ -451,8 +453,15 @@ class MemberOut(BaseModel):
     photo_url: Optional[str]
     away_from_home: bool
     has_buddy: bool           # someone checks on them (or they check on someone)
-    is_volunteer: bool
+    is_volunteer: bool        # signed up to volunteer (maybe nobody to check on yet)
+    checks_on: int            # how many neighbors they actually check on
     wants_buddy: bool         # asked for a buddy and doesn't have one yet
+
+
+class ReactionOut(BaseModel):
+    emoji: str
+    count: int
+    mine: bool   # did the person looking add this one?
 
 
 class RecapPhotoOut(BaseModel):
@@ -461,11 +470,27 @@ class RecapPhotoOut(BaseModel):
     id: int
     url: str
     caption: str
+    uploader_id: int
     uploader_name: str
+    uploader_photo_url: Optional[str]
+    reactions: list[ReactionOut] = []
     status: PhotoStatus
     pinned: bool
     created_at: datetime
     expires_at: Optional[datetime]   # None when pinned
+
+
+class HomeOut(BaseModel):
+    """A community member's home on the map (only members of the same community see these)."""
+
+    user_id: int
+    name: str
+    photo_url: Optional[str]
+    latitude: float
+    longitude: float
+    address: str
+    has_buddy: bool
+    away_from_home: bool
 
 
 class BuddyPairOut(BaseModel):
@@ -481,6 +506,21 @@ class CommunityDetailOut(CommunityOut):
     join_requests: list[MemberOut]      # only shown to admins
     recap: list[RecapPhotoOut]          # approved photos: anyone can see them
     pending_photos: list[RecapPhotoOut] # only shown to admins
+
+
+class CheckInIn(BaseModel):
+    status: str   # "safe" or "needs_help"
+
+    @field_validator("status")
+    @classmethod
+    def known_status(cls, value: str) -> str:
+        if value not in ("safe", "needs_help"):
+            raise ValueError("status must be safe or needs_help")
+        return value
+
+
+class ReactionIn(BaseModel):
+    emoji: str
 
 
 class CommunityPatch(BaseModel):

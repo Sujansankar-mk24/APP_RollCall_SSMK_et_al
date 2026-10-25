@@ -141,3 +141,41 @@ def test_members_see_who_checks_on_whom():
     assert pairs == [{"volunteer_id": me(admin)["id"], "resident_id": me(resident)["id"]}]
     # People outside the community don't see who checks on whom.
     assert client.get(f"/communities/{community_id}", headers=outsider).json()["buddy_pairs"] == []
+
+
+def test_members_react_to_recap_photos_with_stickers():
+    admin, member = sign_up("Ana Admin"), sign_up("Mo Member")
+    community_id = community(admin, "Pecan Hollow", member)
+    photo_id = client.post(f"/communities/{community_id}/recap", files=photo(), headers=admin).json()["recap"][0]["id"]
+    after = client.post(f"/communities/{community_id}/recap/{photo_id}/react", json={"emoji": "❤️"}, headers=member).json()
+    assert after["recap"][0]["reactions"] == [{"emoji": "❤️", "count": 1, "mine": True}]
+    assert after["recap"][0]["uploader_name"] == "Ana Admin"
+    # The same sticker again takes it off; others aren't allowed.
+    again = client.post(f"/communities/{community_id}/recap/{photo_id}/react", json={"emoji": "❤️"}, headers=member).json()
+    assert again["recap"][0]["reactions"] == []
+    assert client.post(f"/communities/{community_id}/recap/{photo_id}/react", json={"emoji": "💩"},
+                       headers=member).status_code == 422
+
+
+def test_only_members_see_where_neighbors_live():
+    admin, member, stranger = sign_up("Ana Admin"), sign_up("Mo Member"), sign_up("Sam Stranger")
+    community_id = community(admin, "Pecan Hollow", member)
+    register(member, address="12 Oak St", city="Greenville")
+    homes = client.get(f"/communities/{community_id}/homes", headers=admin).json()
+    assert [(h["name"], h["address"]) for h in homes] == [("Mo Member", "12 Oak St, Greenville")]
+    assert client.get(f"/communities/{community_id}/homes", headers=stranger).status_code == 403
+
+
+def test_checking_in_tells_your_buddy():
+    resident, buddy = sign_up(), sign_up()
+    register(resident)
+    volunteer(buddy)
+    client.post("/buddy/requests/address", json=ADDRESS_OF(), headers=buddy)
+    request = client.get("/me/buddy-requests", headers=resident).json()[0]
+    client.post(f"/me/buddy-requests/{request['id']}/accept", headers=resident)
+    checked = client.post("/me/check-in", json={"status": "needs_help"}, headers=resident).json()
+    assert checked["check_in"] == "needs_help" and checked["checked_in_at"] is not None
+    seen = client.get("/buddy/residents", headers=buddy).json()[0]
+    assert seen["check_in"] == "needs_help"
+    assert client.post("/me/check-in", json={"status": "maybe"}, headers=resident).status_code == 422
+    assert client.post("/me/check-in", json={"status": "safe"}, headers=sign_up()).status_code == 400

@@ -46,16 +46,16 @@ struct TypePickerGrid: View {
                     .lineLimit(2)
                     .minimumScaleFactor(0.85)
             }
-            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+            .foregroundStyle(isSelected ? Color.themeAccent : Color.primary)
             .frame(maxWidth: .infinity, minHeight: 76)
             .padding(.horizontal, Spacing.xs)
             .background(
                 RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.14) : Color(.secondarySystemGroupedBackground))
+                    .fill(isSelected ? Color.themeAccent.opacity(0.14) : Color(.secondarySystemGroupedBackground))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                    .strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+                    .strokeBorder(isSelected ? Color.themeAccent : Color.clear, lineWidth: 2)
             )
             .contentShape(Rectangle())
         }

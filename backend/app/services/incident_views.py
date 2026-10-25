@@ -88,7 +88,7 @@ def to_summary(incident: Incident, reports: list[Report], media: list[Media]) ->
             factors=[PriorityFactorOut(label=f.label, points=f.points) for f in priority.factors],
         ),
         ai=AISummaryOut(
-            verified=is_verified(media),
+            verified=is_verified(media, incident.type),
             analyzing=any(m.analysis_status in (AnalysisStatus.pending, AnalysisStatus.processing) for m in media),
             fire_detected=any(m.fire_detected for m in analyzed),
             smoke_detected=any(m.smoke_detected for m in analyzed),

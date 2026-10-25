@@ -128,6 +128,8 @@ RESPONDER_REPORT_REASONS = ["fake", "abuse", "reckless", "other"]
 
 # Weekly Recap: approved photos disappear after this many days unless pinned.
 RECAP_DAYS = 7
+# The emoji stickers people can put on a recap photo.
+RECAP_REACTIONS = ["❤️", "🙏", "👏", "😂", "😮", "💪"]
 
 # ---------------------------------------------------------------------------
 # Live hazard data (Map tab)

@@ -2,13 +2,13 @@
 //  BrandMark.swift
 //  RollCall
 //
-//  The RollCall logo: neighbors joined in a circle around a shield with a
-//  check mark (Assets > Logo, with its background removed so it sits on
-//  light and dark pages alike). The app icon is in Assets > AppIcon, with
-//  a light, a dark and a tinted version.
+//  The RollCall logo: neighbors joined in a circle around the name.
+//  (Assets > Logo, with its background removed. In dark mode the middle
+//  turns white with black letters, so it doesn't sink into the dark page.)
+//  The app icon is in Assets > AppIcon, with light, dark and tinted versions.
 //
-//  With `animatesCheck`, the shield starts empty and the check mark draws
-//  itself in, like ticking a name on a roll call (used on the splash screen).
+//  LoadingLogo is the same logo as a loading animation: the ring of people
+//  spins once around the middle, rests for a moment, and goes again.
 //
 
 import SwiftUI
@@ -17,29 +17,13 @@ struct BrandMark: View {
     var size: CGFloat = 88
     /// Not used anymore. Kept so older calls still work.
     var showsLines = true
+    /// Spin the ring of people, like a loading animation.
     var animatesCheck = false
-
-    @State private var drawn: CGFloat = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
             if animatesCheck {
-                Image("LogoNoCheck")
-                    .resizable()
-                    .scaledToFit()
-                    .overlay {
-                        CheckMark()
-                            .trim(from: 0, to: drawn)
-                            .stroke(.white, style: StrokeStyle(lineWidth: size * 0.048, lineCap: .round, lineJoin: .round))
-                    }
-                    .onAppear {
-                        if reduceMotion {
-                            drawn = 1
-                        } else {
-                            withAnimation(.easeOut(duration: 0.55).delay(0.35)) { drawn = 1 }
-                        }
-                    }
+                LoadingLogo(size: size)
             } else {
                 Image("Logo").resizable().scaledToFit()
             }
@@ -47,23 +31,56 @@ struct BrandMark: View {
         .frame(width: size, height: size)
         .accessibilityHidden(true)
     }
+}
 
-    /// The logo's check mark, as a path: down to the bottom, then up to the
-    /// right. The points match where it sits in the logo image.
-    private struct CheckMark: Shape {
-        nonisolated func path(in rect: CGRect) -> Path {
-            var path = Path()
-            path.move(to: CGPoint(x: rect.width * 0.398, y: rect.height * 0.456))
-            path.addLine(to: CGPoint(x: rect.width * 0.456, y: rect.height * 0.560))
-            path.addLine(to: CGPoint(x: rect.width * 0.597, y: rect.height * 0.404))
-            return path
+/// The logo with its ring of people spinning around the middle, then
+/// resting, over and over. Used on the splash screen and while things load.
+struct LoadingLogo: View {
+    var size: CGFloat = 64
+    @State private var turns: Double = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The middle of the circle in the image (it's a little off the image's center).
+    private static let pivot = UnitPoint(x: 0.507, y: 0.498)
+
+    var body: some View {
+        ZStack {
+            Image("LogoRing").resizable().scaledToFit()
+                .rotationEffect(.degrees(turns * 360), anchor: Self.pivot)
+            Image("LogoCenter").resizable().scaledToFit()
         }
+        .frame(width: size, height: size)
+        .task {
+            guard !reduceMotion else { return }
+            while !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 1.1)) { turns += 1 }   // spin once...
+                try? await Task.sleep(for: .seconds(2.1))                 // ...then rest a second
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Loading")
+        .accessibilityAddTraits(.updatesFrequently)
+    }
+}
+
+/// A screen-sized "loading" state: the spinning logo, and an optional line.
+struct LoadingView: View {
+    var text: LocalizedStringKey? = nil
+
+    var body: some View {
+        VStack(spacing: Spacing.m) {
+            LoadingLogo(size: 64)
+            if let text {
+                Text(text).font(.callout).foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 220)
     }
 }
 
 #Preview {
-    VStack {
-        BrandMark(size: 200, animatesCheck: true)
+    VStack(spacing: 40) {
+        LoadingLogo(size: 200)
         BrandMark(size: 80)
     }
     .padding(40)

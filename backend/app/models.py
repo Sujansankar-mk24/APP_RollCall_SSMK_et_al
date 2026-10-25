@@ -157,6 +157,9 @@ class Media(SQLModel, table=True):
     brightness: Optional[float] = None  # 0 (black) to 255 (white)
     fire_detector: Optional[str] = None  # which fire detector ran ("basic detector" or a model)
     frames_analyzed: int = 0       # 1 for photos, ~1 per second for videos
+    # What the phone's on-device scene check (Apple Vision) saw, e.g.
+    # "snow:0.82,blizzard:0.41". See app/ai/verify.py.
+    scene_labels: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -258,6 +261,11 @@ class Household(SQLModel, table=True):
     emergency_contact_phone: str = ""
 
     wants_buddy: bool = False               # asked for a volunteer to check on them
+
+    # The latest check-in: "safe" or "needs_help" (from the app, a
+    # notification button, or the Lock Screen), and when.
+    check_in: str = ""
+    checked_in_at: Optional[datetime] = None
     is_demo: bool = False                   # fictional demo household (never a real person)
 
     created_at: datetime = Field(default_factory=utc_now)
@@ -368,6 +376,16 @@ class CommunityPhoto(SQLModel, table=True):
     approved_at: Optional[datetime] = None
 
 
+class RecapReaction(SQLModel, table=True):
+    """An emoji sticker someone put on a Weekly Recap photo (one per person per photo)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    photo_id: int = Field(foreign_key="communityphoto.id", index=True)
+    user_id: int = Field(foreign_key="user.id")
+    emoji: str
+    created_at: datetime = Field(default_factory=utc_now)
+
+
 # ---------------------------------------------------------------------------
 # Timeline (shared)
 # ---------------------------------------------------------------------------
@@ -381,6 +399,7 @@ class TimelineKind(str, Enum):
     profile = "profile"
     buddy = "buddy"
     community = "community"
+    check_in = "check_in"
 
 
 class TimelineEvent(SQLModel, table=True):

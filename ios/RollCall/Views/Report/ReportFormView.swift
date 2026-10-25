@@ -175,7 +175,7 @@ struct ReportFormView: View {
                     .frame(width: minimumTapSize, height: minimumTapSize)
                     .contentShape(Rectangle())
                 }
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Color.themeAccent)
                 .floatingSurface(cornerRadius: Radius.control)
                 .padding(Spacing.s)
                 .disabled(viewModel.isLocating)
@@ -315,7 +315,7 @@ struct ReportFormView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(Color.themeAccent)
 
             Text(CameraCapture.isAvailable
                  ? "A clear photo from the last 2 days. Screenshots and saved images can't be used. The AI checks it for fire, smoke and people."
@@ -457,7 +457,7 @@ private struct AttachmentChoiceLabel: View {
         .frame(maxWidth: .infinity, minHeight: 100)
         .background(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(Color.accentColor.opacity(0.5), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                .strokeBorder(Color.themeAccent.opacity(0.5), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
         )
         .contentShape(Rectangle())
     }

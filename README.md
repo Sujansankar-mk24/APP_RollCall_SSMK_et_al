@@ -13,15 +13,15 @@ Make sure no one gets left behind. RollCall is a community emergency app for Nor
 
 | Tab | What it's for |
 |---|---|
-| **Map** | Live hazards (diamonds) and community reports (circles) with their danger zones. Tap one for details. **Incidents** (top left) unrolls the incident log: key numbers and every incident sorted by priority, with "Why this priority?". **Report incident** needs a recent photo you took and a short description. **Use my location** works like Google Maps: a blue dot with a cone for the way you face, follow and compass modes, and an always-on compass. A warning appears when you're near an active fire, storm or flood, and **↻** asks NASA, NOAA and the Weather Service for new data right away. |
-| **Roll Call** | **My household**: join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, call or text your buddy, privacy and Delete my data. **I check on**: the neighbors you check on, with Call, Text, Directions and **They need help**, which calls 911 and shows everything the dispatcher will ask for. Responders see their own view. |
-| **Community** | The **Weekly Recap** (neighborhood photos you swipe through, approved by the admin, gone after a week unless pinned, pinned ones first), **See connections** (everyone as floating Liquid Glass bubbles with lines for who checks on whom: drag them, tap one for the name, tap the name for the profile), members split by who has a buddy, **Away from home**, first responders in your town, and other communities to browse. Start one and be its admin. |
+| **Map** | Live hazards (diamonds) and community reports (circles) with their danger zones. Tap one for details. **Incidents** (top left) unrolls the incident log: key numbers and every incident sorted by priority, with "Why this priority?". **Report incident** needs a recent photo you took and a short description. **Use my location** works like Google Maps: a blue dot with a cone for the way you face, follow and compass modes, and an always-on compass. A warning appears when you're near an active fire, storm or flood, and **↻** asks NASA, NOAA and the Weather Service for new data right away. The **Source** chip shows everything, only community reports, or only live data. **My community** shows where your community's members live, as small house markers with each person's picture floating above (only when zoomed in closer than about a quarter mile). Tap a house for the profile, or tap a picture bubble to pop it (it comes back after 5 seconds). |
+| **Roll Call** | **My household**: a **How are you?** card with **I'm safe** and **I need help** (your buddy sees it right away), join the roll call (or choose **Not now**), type your address, accept or decline buddy offers, call or text your buddy, privacy and Delete my data. **I check on**: the neighbors you check on, with Call, Text, Directions and **They need help**, which calls 911 and shows everything the dispatcher will ask for. Responders see their own view. |
+| **Community** | The **Weekly Recap**, a stacked photo deck like Locket: swipe or tap through neighborhood photos, each with the poster's name in bold above their caption, and add emoji stickers (❤️ 🙏 👏 😂 😮 💪). Photos are approved by the admin and gone after a week unless pinned, and pinned ones come first. **Connections** shows a small preview of the web, and **View connections** opens it full screen: everyone as floating Liquid Glass bubbles with lines for who checks on whom. Rings mark who has no buddy yet (orange), the admin (yellow), new members (blue, joined in the last hour for the demo) and people away from home (dashed). Drag bubbles, tap one for the name and profile, or press and hold to pop it (it comes back after 5 seconds). Member tags say **Checks on 2** or **Ready to help** only for people who really signed up as volunteers. Also: members split by who has a buddy, **Away from home**, first responders in your town, and other communities to browse. Start one and be its admin. |
 
 The **gear** at the top of every tab opens **Your profile** (your picture, bio, phone, badges, the first responder application, and **Sign out**), **About RollCall** (what the app does, who can see your information, credits) and **Display** (light, dark or match the iPhone, each with a preview, plus six color themes shown with their colors). The pill in the tab bar turns green on the Map, red on Roll Call and orange on Community.
 
-**The logo** is in `Assets.xcassets/Logo` (background removed, so it works in light and dark mode). The app icon has light, dark and tinted versions, so it matches the iPhone's home screen style. The splash screen follows the phone's theme, and the logo's check mark draws itself in. All text uses the iPhone's system font, SF Pro (SF Pro Text at small sizes and SF Pro Display at large sizes, chosen automatically). It isn't bundled into the app, because iOS already has it and Apple's license doesn't allow copying it.
+**The logo** is a circle with "RollCall" in the middle and a ring of people around it (`Assets.xcassets/Logo`). In dark mode the center swaps black and white. The app icon uses the same logo, with light, dark and tinted versions. While something loads, the ring of people spins once around the center, settles, pauses about a second and goes again (`LoadingLogo` in `Views/Components/BrandMark.swift`). The very first launch opens on **Welcome to RollCall**, with a photo of a real Hurricane Harvey rescue, then three short intro pages, then sign-up. All text uses the iPhone's system font, SF Pro (SF Pro Text at small sizes and SF Pro Display at large sizes, chosen automatically). It isn't bundled into the app, because iOS already has it and Apple's license doesn't allow copying it.
 
-**The look**, inspired by Phantom and WHOOP: dark first (a near-black page in dark mode, soft gray in light mode), big bold titles, small uppercase labels with wide letter spacing, full-width pill buttons, related rows grouped on rounded cards, capsule chips, a big "Saved ✓" confirmation, a splash screen, and three intro pages on first launch. Nothing uses see-through glass except the connections bubbles, where Liquid Glass makes them feel like real bubbles. Color only appears on status badges (green safe, red needs help, amber waiting), always next to a word. Text never goes below 15 pt. The pieces live in `ios/RollCall/Design/Sheet.swift` and `Design/Kit.swift`, and the logo is a placeholder in `Views/Components/BrandMark.swift`.
+**The look**, inspired by Phantom and WHOOP: dark first (a near-black page in dark mode, soft gray in light mode), big bold titles, small uppercase labels with wide letter spacing, full-width pill buttons, related rows grouped on rounded cards, capsule chips, a big "Saved ✓" confirmation, a splash screen, and three intro pages on first launch. Nothing uses see-through glass except the connections bubbles, where Liquid Glass makes them feel like real bubbles. Color only appears on status badges (green safe, red needs help, amber waiting), always next to a word. Text never goes below 15 pt. The color theme you pick in Display applies everywhere, the Map's buttons included. The pieces live in `ios/RollCall/Design/Sheet.swift`, `Design/Kit.swift` and `Design/Appearance.swift`.
 
 You sign in once, and the app remembers you until you sign out. There are no placeholder people or communities: everything in Roll Call and Community comes from real accounts made in the app.
 
@@ -35,6 +35,15 @@ You sign in once, and the app remembers you until you sign out. There are no pla
 - **Communities and buddies:** neighborhoods with admin approval, a community picture, the Weekly Recap, and buddy offers from community neighbors (or, for people not in a community, by exact address), always accepted or declined by the resident.
 - *(Coming next)* Emergency events from National Weather Service alerts, responder-drawn zones, and demo events.
 - *(Coming)* The roll call check-in in English and Spanish, escalation to buddies and responders, the responder roll-call dashboard with risk scores and routes, and buddy matching.
+
+## Notifications and the Lock Screen
+
+Settings (the gear) > **Notifications** has two switches, both off until you turn them on:
+
+- **Danger near me** sends a notification when a fire, storm or flood comes close to you, with **I'm safe** and **I need help** buttons right on it.
+- **Live status on the Lock Screen** keeps a live status on the Lock Screen and in the Dynamic Island, the way live sports scores work: "All clear near you" or what's nearby and how far, with the same two buttons. It uses ActivityKit (a Live Activity) and lives in the `RollCallWidgets` extension.
+
+A check-in from any of these goes to `POST /me/check-in`, shows on your household, and your buddy sees **Safe** or **Needs help** next to your name.
 
 ## Project layout
 
@@ -203,6 +212,9 @@ For test and demo accounts, `python -m scripts.make_responder chief@example.com 
 | `GET` `PATCH` | `/communities/{id}` | Details, members (for members), the Weekly Recap (for everyone). The admin can rename it |
 | `PUT` | `/communities/{id}/photo` | The admin sets the community picture |
 | `POST` `DELETE` | `/communities/{id}/recap`, `/recap/{photo}/approve`, `/reject`, `/pin`, `/unpin` | Weekly Recap photos |
+| `POST` | `/me/check-in` | "I'm safe" or "I need help" (`status: safe` or `needs_help`), from the app, a notification or the Lock Screen |
+| `POST` | `/communities/{id}/recap/{photo}/react` | Add, change or remove your emoji sticker on a recap photo |
+| `GET` | `/communities/{id}/homes` | Where members live, for **My community** on the map (members only, and only people who joined the roll call) |
 | `PATCH` | `/me/profile` | Your name, bio, phone and "away from home" |
 | `PUT` `DELETE` | `/me/photo` | Your profile picture |
 | `GET` | `/people/{id}` | Someone's profile, if you're allowed to see it |
@@ -215,7 +227,13 @@ Every Roll Call and Community request must be signed in (`Authorization: Bearer 
 
 ## Reports under review
 
-A new fire, smoke or injury report doesn't go on the map right away. The AI checks the photo first (a few seconds). If it finds what was reported (flames or smoke for a fire, a person for an injury), the incident appears on the map and nearby people are warned. If it doesn't, the report stays **under review**: it's hidden from the map and nobody is alerted, and verified first responders see it in the incident log marked **Needs review**, with **It's real, show it** and **Not real**. Weather reports (tornado, flood, storm) go straight on the map, because the AI can't recognize weather.
+No new report goes on the map right away. The AI checks the photo first (a few seconds), and it has to see **the disaster that was reported**, not just people. Seeing people is never enough: a selfie in a bedroom labeled "winter storm" stays off the map. The rules are in `backend/app/ai/verify.py`:
+
+- **Fire or smoke:** the trained fire model finds flames or smoke, or the iPhone's scene check sees fire or smoke outdoors. A fireplace, candle or grill doesn't count.
+- **Weather** (tornado, flood, storm, winter storm, heavy rain): the iPhone's scene check (Apple's Vision framework, run on the phone) has to see it, for example snow or ice for a winter storm and water over the ground for a flood. A photo taken indoors never confirms weather.
+- **Injury:** a person, and not a normal indoor room.
+
+If the AI confirms it, the incident appears on the map and nearby people are warned. If it doesn't, the report stays **under review**: hidden from the map, nobody alerted, and the person who sent it is told why ("The AI couldn't see snow or ice in the photo"). Verified first responders see it in the incident log marked **Needs review**, with **It's real, show it** and **Not real**. A report that joins an incident already on the map stays with it.
 
 ## How report merging works
 
@@ -228,8 +246,9 @@ Every photo or video is analyzed in the background right after upload, so the ap
 1. **Low-light check.** The average brightness is measured. If the picture is dark, its contrast is boosted with CLAHE before detection, and that is recorded.
 2. **People.** YOLOv8n, a small pretrained neural network, finds people. It runs on a normal laptop CPU.
 3. **Fire and smoke.** A trained YOLOv8n model ([rabahdev/fire-smoke-yolov8n](https://huggingface.co/rabahdev/fire-smoke-yolov8n), trained on D-Fire, a public set of 21,000+ real fire and smoke photos, AGPL-3.0) is used when it's at `backend/models/fire.pt`. Download it once with `python -m scripts.download_fire_model`. It only counts a detection at 45% confidence or more. Without it, a hand-written OpenCV rule (the **basic detector**) looks for deeply saturated, red-dominant, unevenly lit flame patches and, in video, flicker. Flame-colored patches that sit on a detected person are ignored, because firefighters' yellow jackets and helmets are flame colored. The basic detector only reports smoke next to flames it found, because a gray wall looks like smoke to a color rule.
-4. **Who might need help.** People lying down ("may be down") and people close to the flames are flagged from YOLO's boxes (`backend/app/ai/scene.py`).
-5. **Video.** About one frame per second is checked (up to 30 seconds). Fire or smoke must appear in at least 2 frames, and the clearest frame is saved with its boxes drawn on.
+4. **Scene check.** Before the photo is sent, the iPhone labels the scene on the device with Apple's Vision framework (snow, water, fire, indoor room, and so on). Only the labels are sent with the report, and `verify.py` uses them to confirm weather (see Reports under review).
+5. **Who might need help.** People lying down ("may be down") and people close to the flames are flagged from YOLO's boxes (`backend/app/ai/scene.py`).
+6. **Video.** About one frame per second is checked (up to 30 seconds). Fire or smoke must appear in at least 2 frames, and the clearest frame is saved with its boxes drawn on.
 
 ## How incident priority works
 
@@ -263,8 +282,9 @@ The −20 only applies to types the AI can check. It looks for flames, smoke and
 - The basic fire detector was tuned on a small set of photos. In testing it mistook a yellow "Water over road" sign for fire and missed some small flames. It no longer reports smoke without flames. The trained model (`python -m scripts.download_fire_model`) fixes most of this.
 - Report photos must carry a camera's name and a date from the last 2 days. That blocks screenshots, most saved images and old photos, but someone could still edit that information on purpose.
 - First responder IDs are checked by a person, not against a government database.
-- The AI cannot recognize tornadoes, floods, storms or ice. For those reports it can still count people in the photo, but the weather itself is confirmed by how many people report it.
+- The scene check recognizes snow, water, storms and fire from general labels, not a model trained on disasters. It can miss a real one (the report then waits for a responder) and could be fooled by a photo of a snowy picture on a screen, which the recent-camera-photo rule mostly blocks.
+- Notifications and the Lock Screen status only update while RollCall is open or was used recently. Waking a closed app needs push messages from a server, which this project doesn't have.
 
 ## Credits
 
-Demo photos and video come from Wikimedia Commons (public domain and Creative Commons). Authors and licenses are listed in [backend/sample_media/CREDITS.md](backend/sample_media/CREDITS.md).
+The Welcome screen photo is "Support during Hurricane Harvey" (South Carolina National Guard rescuing residents in Port Arthur, Texas, 2017), public domain, from Wikimedia Commons. About > Sources lists every map, data source and model the app uses, with links. Demo photos and video come from Wikimedia Commons (public domain and Creative Commons). Authors and licenses are listed in [backend/sample_media/CREDITS.md](backend/sample_media/CREDITS.md).

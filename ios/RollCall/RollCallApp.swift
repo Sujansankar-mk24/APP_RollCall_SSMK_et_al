@@ -16,6 +16,7 @@ struct RollCallApp: App {
 
     init() {
         DebugLaunchOptions.resetIntroIfRequested()   // debug builds only (UI tests)
+        AlertsManager.shared.setUp()                   // notification buttons ("I'm safe", "I need help")
     }
 
     var body: some Scene {

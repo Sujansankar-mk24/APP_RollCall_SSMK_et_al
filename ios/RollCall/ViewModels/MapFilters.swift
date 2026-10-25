@@ -35,7 +35,32 @@ enum TimeWindow: String, CaseIterable, Identifiable {
     }
 }
 
+/// Where an incident on the map came from.
+enum MapSource: String, CaseIterable, Identifiable {
+    case all, community, live
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .all: String(localized: "All sources")
+        case .community: String(localized: "Community reports")
+        case .live: String(localized: "Live data")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .all: "square.stack.3d.up"
+        case .community: "person.3.fill"
+        case .live: "antenna.radiowaves.left.and.right"
+        }
+    }
+}
+
 struct MapFilters: Equatable {
+    /// Community reports (verified by the AI or a responder), live data, or both.
+    var source: MapSource = .all
     var types: Set<IncidentType> = Set(IncidentType.allCases)
     var statuses: Set<IncidentStatus> = Set(IncidentStatus.allCases)
     var timeWindow: TimeWindow = .week
@@ -47,7 +72,8 @@ struct MapFilters: Equatable {
 
     /// Should this incident be shown? It must match every filter.
     func matches(_ incident: IncidentSummary, now: Date = .now) -> Bool {
-        types.contains(incident.type)
+        source != .live
+            && types.contains(incident.type)
             && statuses.contains(incident.status)
             && now.timeIntervalSince(incident.lastReportAt) <= timeWindow.duration
     }
@@ -55,7 +81,7 @@ struct MapFilters: Equatable {
     /// Should this live hazard be shown? Live hazards are happening now, so
     /// only the Type filter (and the live-data switch) applies.
     func matches(_ hazard: Hazard) -> Bool {
-        showsLiveData && types.contains(hazard.kind.filterType) && statuses.contains(.active)
+        source != .community && showsLiveData && types.contains(hazard.kind.filterType) && statuses.contains(.active)
     }
 
     // MARK: Chip labels

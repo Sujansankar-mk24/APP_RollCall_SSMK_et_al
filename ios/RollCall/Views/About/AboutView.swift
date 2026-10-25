@@ -19,6 +19,7 @@ struct AboutView: View {
                     tabsSection
                     privacySection
                     projectSection
+                    sourcesSection
                 }
                 .padding(Spacing.l)
             }
@@ -85,6 +86,57 @@ struct AboutView: View {
     }
 
     // MARK: - About the project
+
+    /// Where everything in the app comes from, with links.
+    private var sourcesSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            sectionTitle("Sources and credits")
+            SheetCard {
+                sourceRow("map.fill", "Maps", "Apple Maps (MapKit) and Apple's map data", "https://www.apple.com/legal/internet-services/maps/")
+                sourceRow("exclamationmark.triangle.fill", "Weather warnings",
+                          "National Weather Service, api.weather.gov (official alerts and their areas, like Tornado Warnings)",
+                          "https://www.weather.gov/documentation/services-web-api")
+                sourceRow("flame.fill", "Satellite fires", "NASA FIRMS, fires seen by the VIIRS satellites",
+                          "https://firms.modaps.eosdis.nasa.gov")
+                sourceRow("globe.americas.fill", "Natural events",
+                          "NASA EONET (wildfires, storms, floods, earthquakes and more)", "https://eonet.gsfc.nasa.gov")
+                sourceRow("tornado", "Storm reports", "NOAA Storm Prediction Center, today's tornado, wind and hail reports",
+                          "https://www.spc.noaa.gov/climo/reports/")
+                sourceRow("hurricane", "Hurricanes", "National Hurricane Center, active storms", "https://www.nhc.noaa.gov")
+                sourceRow("viewfinder", "Photo AI",
+                          "YOLOv8 by Ultralytics (AGPL-3.0), a fire and smoke model trained on the D-Fire dataset, OpenCV, and Apple's Vision framework on the phone",
+                          "https://github.com/ultralytics/ultralytics")
+                sourceRow("photo.fill", "Photos",
+                          "Demo incident photos and video from Wikimedia Commons (public domain and Creative Commons). Welcome photo: South Carolina National Guard, Port Arthur, Texas, 2017, public domain.",
+                          "https://commons.wikimedia.org/wiki/File:Support_during_Hurricane_Harvey_(TX)_(19).jpg")
+                sourceRow("textformat", "Type and icons", "SF Pro and SF Symbols by Apple", "https://developer.apple.com/sf-symbols/")
+            }
+        }
+    }
+
+    private func sourceRow(_ symbol: String, _ title: LocalizedStringKey, _ detail: LocalizedStringKey,
+                           _ link: String) -> some View {
+        Link(destination: URL(string: link)!) {
+            HStack(alignment: .top, spacing: Spacing.m) {
+                Image(systemName: symbol)
+                    .font(.title3.weight(.semibold))
+                    .frame(width: 32)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.headline).foregroundStyle(Color.primary)
+                    Text(detail)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.up.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .sheetRow()
+        }
+        .accessibilityHint("Opens the source's website")
+    }
 
     private var projectSection: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {

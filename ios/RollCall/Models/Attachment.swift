@@ -37,6 +37,8 @@ struct ReportSubmission {
     let description: String
     let locationName: String
     let attachment: Attachment?
+    /// What the phone's scene check saw in the photo (see SceneCheck.swift).
+    var sceneLabels: String = ""
 }
 
 /// The server's answer after a report is saved.

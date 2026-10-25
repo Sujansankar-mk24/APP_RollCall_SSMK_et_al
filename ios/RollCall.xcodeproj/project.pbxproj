@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A1B2C3D4E5F6000000000040 /* RollCallWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000031 /* RollCallWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		A1B2C3D4E5F6000000000027 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -14,12 +18,35 @@
 			remoteGlobalIDString = A1B2C3D4E5F6000000000006;
 			remoteInfo = RollCall;
 		};
+		A1B2C3D4E5F6000000000041 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A1B2C3D4E5F600000000000A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1B2C3D4E5F6000000000034;
+			remoteInfo = RollCallWidgetsExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A1B2C3D4E5F6000000000043 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A1B2C3D4E5F6000000000040 /* RollCallWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A1B2C3D4E5F6000000000001 /* RollCall.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RollCall.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D4E5F6000000000010 /* RollCall-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RollCall-Info.plist"; sourceTree = "<group>"; };
 		A1B2C3D4E5F6000000000020 /* RollCallUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RollCallUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D4E5F6000000000031 /* RollCallWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RollCallWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D4E5F6000000000032 /* RollCallWidgets-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "RollCallWidgets-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +58,16 @@
 		A1B2C3D4E5F6000000000021 /* RollCallUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = RollCallUITests;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6000000000030 /* RollCallWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RollCallWidgets;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F6000000000033 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -50,6 +87,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1B2C3D4E5F6000000000035 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -58,7 +102,10 @@
 			children = (
 				A1B2C3D4E5F6000000000002 /* RollCall */,
 				A1B2C3D4E5F6000000000021 /* RollCallUITests */,
+				A1B2C3D4E5F6000000000030 /* RollCallWidgets */,
+				A1B2C3D4E5F6000000000033 /* Shared */,
 				A1B2C3D4E5F6000000000010 /* RollCall-Info.plist */,
+				A1B2C3D4E5F6000000000032 /* RollCallWidgets-Info.plist */,
 				A1B2C3D4E5F6000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -68,6 +115,7 @@
 			children = (
 				A1B2C3D4E5F6000000000001 /* RollCall.app */,
 				A1B2C3D4E5F6000000000020 /* RollCallUITests.xctest */,
+				A1B2C3D4E5F6000000000031 /* RollCallWidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -82,13 +130,16 @@
 				A1B2C3D4E5F6000000000007 /* Sources */,
 				A1B2C3D4E5F6000000000003 /* Frameworks */,
 				A1B2C3D4E5F6000000000008 /* Resources */,
+				A1B2C3D4E5F6000000000043 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A1B2C3D4E5F6000000000042 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				A1B2C3D4E5F6000000000002 /* RollCall */,
+				A1B2C3D4E5F6000000000033 /* Shared */,
 			);
 			name = RollCall;
 			packageProductDependencies = (
@@ -120,6 +171,29 @@
 			productReference = A1B2C3D4E5F6000000000020 /* RollCallUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		A1B2C3D4E5F6000000000034 /* RollCallWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C3D4E5F6000000000039 /* Build configuration list for PBXNativeTarget "RollCallWidgetsExtension" */;
+			buildPhases = (
+				A1B2C3D4E5F6000000000036 /* Sources */,
+				A1B2C3D4E5F6000000000035 /* Frameworks */,
+				A1B2C3D4E5F6000000000037 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A1B2C3D4E5F6000000000030 /* RollCallWidgets */,
+				A1B2C3D4E5F6000000000033 /* Shared */,
+			);
+			name = RollCallWidgetsExtension;
+			packageProductDependencies = (
+			);
+			productName = RollCallWidgetsExtension;
+			productReference = A1B2C3D4E5F6000000000031 /* RollCallWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -136,6 +210,9 @@
 					A1B2C3D4E5F6000000000025 = {
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = A1B2C3D4E5F6000000000006;
+					};
+					A1B2C3D4E5F6000000000034 = {
+						CreatedOnToolsVersion = 27.0;
 					};
 				};
 			};
@@ -156,6 +233,7 @@
 			targets = (
 				A1B2C3D4E5F6000000000006 /* RollCall */,
 				A1B2C3D4E5F6000000000025 /* RollCallUITests */,
+				A1B2C3D4E5F6000000000034 /* RollCallWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -169,6 +247,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A1B2C3D4E5F6000000000024 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D4E5F6000000000037 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -192,6 +277,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1B2C3D4E5F6000000000036 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -199,6 +291,11 @@
 			isa = PBXTargetDependency;
 			target = A1B2C3D4E5F6000000000006 /* RollCall */;
 			targetProxy = A1B2C3D4E5F6000000000027 /* PBXContainerItemProxy */;
+		};
+		A1B2C3D4E5F6000000000042 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1B2C3D4E5F6000000000034 /* RollCallWidgetsExtension */;
+			targetProxy = A1B2C3D4E5F6000000000041 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -364,6 +461,58 @@
 			};
 			name = Release;
 		};
+		A1B2C3D4E5F600000000003A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = P5GAPWDBL3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "RollCallWidgets-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = RollCall;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sujansankar.RollCall.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A1B2C3D4E5F600000000003B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = P5GAPWDBL3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "RollCallWidgets-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = RollCall;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sujansankar.RollCall.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -390,6 +539,15 @@
 			buildConfigurations = (
 				A1B2C3D4E5F6000000000029 /* Debug */,
 				A1B2C3D4E5F600000000002A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1B2C3D4E5F6000000000039 /* Build configuration list for PBXNativeTarget "RollCallWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3D4E5F600000000003A /* Debug */,
+				A1B2C3D4E5F600000000003B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

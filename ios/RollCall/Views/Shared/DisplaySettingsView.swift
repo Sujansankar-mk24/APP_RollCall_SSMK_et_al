@@ -11,7 +11,7 @@ import SwiftUI
 
 struct DisplaySettingsView: View {
     @AppStorage(AppearanceMode.storageKey) private var mode: AppearanceMode = .system
-    @AppStorage(AppTheme.storageKey) private var theme: AppTheme = .classic
+    private var theme: AppTheme { ThemeStore.shared.theme }
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -113,7 +113,7 @@ struct DisplaySettingsView: View {
     }
 
     private func themeRow(_ option: AppTheme) -> some View {
-        Button { theme = option } label: {
+        Button { ThemeStore.shared.theme = option } label: {
             HStack(spacing: Spacing.m) {
                 // The theme's color, right next to its name.
                 Circle()

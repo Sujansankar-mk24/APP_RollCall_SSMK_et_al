@@ -54,7 +54,7 @@ struct BuddyHomeView: View {
     private var content: some View {
         switch viewModel.state {
         case .loading:
-            ProgressView("Loading your neighbors…").frame(maxWidth: .infinity, minHeight: 240)
+            LoadingView(text: "Loading your neighbors…")
         case .failed(let error):
             SheetMessage(error: error, action: { Task { await viewModel.retry() } })
         case .loaded(let residents):
@@ -148,6 +148,11 @@ struct BuddyHomeView: View {
                         Text(verbatim: "\(resident.address), \(resident.city)").font(.subheadline).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 0)
+                    if resident.checkIn == "needs_help" {
+                        Stamp(text: String(localized: "Needs help"), systemImage: "exclamationmark.triangle.fill", color: Color(.systemRed))
+                    } else if resident.checkIn == "safe" {
+                        Stamp(text: String(localized: "Safe"), systemImage: "checkmark", color: Color(.systemGreen))
+                    }
                     if resident.language == .es { Stamp(text: "Español") }
                 }
                 .contentShape(Rectangle())

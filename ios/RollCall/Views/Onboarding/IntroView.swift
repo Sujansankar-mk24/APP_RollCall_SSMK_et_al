@@ -13,14 +13,14 @@
 import SwiftUI
 
 /// The logo on its own, like the first screen of WHOOP or Phantom. It
-/// follows the phone's light or dark mode, and the check mark draws itself in.
+/// follows the phone's light or dark mode, and the ring of people spins.
 struct SplashView: View {
     @State private var appeared = false
 
     var body: some View {
         ZStack {
             Color.paper.ignoresSafeArea()
-            BrandMark(size: 180, animatesCheck: true)
+            LoadingLogo(size: 200)
                 .scaleEffect(appeared ? 1 : 0.85)
                 .opacity(appeared ? 1 : 0)
         }

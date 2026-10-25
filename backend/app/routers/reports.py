@@ -21,7 +21,6 @@ from app.config import MAX_DESCRIPTION_LENGTH, MAX_UPLOAD_BYTES, MEDIA_DIR, MIN_
 from app.database import get_session
 from app.models import IncidentType, MediaKind
 from app.schemas import ReportCreatedOut
-from app.services.priority import AI_VERIFIABLE_TYPES
 from app.services.reports import attach_media, count_reports, create_report
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -66,6 +65,7 @@ async def submit_report(
     longitude: float = Form(..., ge=-180, le=180),
     description: str = Form("", max_length=MAX_DESCRIPTION_LENGTH),
     location_name: str = Form("", max_length=120),
+    scene_labels: str = Form("", max_length=600),   # from the phone's on-device scene check
     file: Optional[UploadFile] = File(None),
     session: Session = Depends(get_session),
 ):
@@ -85,14 +85,16 @@ async def submit_report(
     incident, report, merged = create_report(
         session, type, description.strip(), latitude, longitude, location_name.strip()
     )
-    # A brand-new fire, smoke or injury report waits for the AI to find what
-    # was reported before anyone is alerted (see app/ai/pipeline.py).
-    if not merged and type in AI_VERIFIABLE_TYPES:
+    # Every brand-new report waits for the AI to see what was reported in
+    # the photo before anyone is alerted (see app/ai/verify.py).
+    if not merged:
         incident.under_review = True
         session.add(incident)
     media = None
     if saved_path is not None:
         media = attach_media(session, incident, report, saved_path.relative_to(MEDIA_DIR).as_posix(), kind)
+        media.scene_labels = scene_labels.strip()[:600]
+        session.add(media)
     session.commit()
 
     # Start the AI after the response is sent, so the app isn't kept waiting.

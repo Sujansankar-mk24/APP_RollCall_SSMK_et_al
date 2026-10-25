@@ -41,6 +41,8 @@ final class ReportViewModel {
     private(set) var locationNote: String?
 
     private(set) var attachment: Attachment?
+    /// What the phone's scene check saw in the photo ("snow:0.82,...").
+    private(set) var sceneLabels = ""
     private(set) var isLoadingAttachment = false
     private(set) var attachmentError: String?
 
@@ -177,6 +179,7 @@ final class ReportViewModel {
             }
             guard let photo = Self.photoAttachment(from: image) else { throw CocoaError(.fileReadUnknown) }
             attachment = photo
+            sceneLabels = await SceneCheck.labels(for: image)
         } catch {
             attachmentError = String(localized: "Couldn't load that photo. Try a different one.")
         }
@@ -188,6 +191,7 @@ final class ReportViewModel {
         switch capture {
         case .photo(let image):
             attachment = Self.photoAttachment(from: image)
+            sceneLabels = await SceneCheck.labels(for: image)
         case .video(let url):
             attachment = .video(file: url, preview: await Self.firstFrame(of: url))
         }
@@ -243,6 +247,7 @@ final class ReportViewModel {
     func removeAttachment() {
         attachment = nil
         attachmentError = nil
+        sceneLabels = ""
     }
 
     private static func fittingSize(_ size: CGSize, maxSide: CGFloat) -> CGSize {
@@ -273,7 +278,8 @@ final class ReportViewModel {
             coordinate: coordinate,
             description: description.trimmingCharacters(in: .whitespacesAndNewlines),
             locationName: placeName ?? "",
-            attachment: attachment
+            attachment: attachment,
+            sceneLabels: sceneLabels
         )
         do {
             return try await api.submitReport(report)

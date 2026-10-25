@@ -110,12 +110,41 @@ extension EnvironmentValues {
     @Entry var onBrand: Color = .white
 }
 
+/// The chosen theme, shared by the whole app. It's @Observable, so every
+/// view that reads it redraws when the theme changes.
+@Observable
+final class ThemeStore {
+    static let shared = ThemeStore()
+
+    var theme: AppTheme {
+        didSet { UserDefaults.standard.set(theme.rawValue, forKey: AppTheme.storageKey) }
+    }
+
+    private init() {
+        theme = UserDefaults.standard.string(forKey: AppTheme.storageKey).flatMap(AppTheme.init) ?? .classic
+    }
+}
+
+extension AppTheme {
+    /// The color for the Map's buttons and highlights. Classic keeps the
+    /// map's own blue (black buttons would get lost on a map).
+    var mapColor: Color { self == .classic ? .accentColor : color }
+    /// A very light wash of the theme color for page backgrounds.
+    var pageWash: Color { self == .classic ? .clear : color.opacity(0.07) }
+    /// Small labels and headings take the theme color too (Classic stays gray).
+    var labelColor: Color { self == .classic ? .secondary : color }
+}
+
+extension Color {
+    /// The theme's color for the Map and the report form (blue for Classic).
+    static var themeAccent: Color { ThemeStore.shared.theme.mapColor }
+}
+
 /// Applies the chosen color theme to a whole screen.
 struct ThemeModifier: ViewModifier {
-    @AppStorage(AppTheme.storageKey) private var theme: AppTheme = .classic
-
     func body(content: Content) -> some View {
-        content
+        let theme = ThemeStore.shared.theme
+        return content
             .environment(\.brand, theme.color)
             .environment(\.onBrand, theme.onColor)
             .tint(theme.color)

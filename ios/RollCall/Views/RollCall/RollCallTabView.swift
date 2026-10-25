@@ -29,6 +29,7 @@ private struct MemberRollCallView: View {
     @State private var section: Section = .household
     @State private var isJoining = false
     @State private var isWorking = false
+    @State private var confirmsVolunteering = false
     @State private var actionError: APIError?
 
     enum Section: Hashable { case household, buddy }
@@ -153,16 +154,24 @@ private struct MemberRollCallView: View {
                 Text("Check on neighbors who might need help in an emergency, like seniors living alone. You only see someone's details after they accept you.")
                     .font(.body)
                     .fixedSize(horizontal: false, vertical: true)
-                Button("Become a volunteer buddy") {
-                    Task {
-                        isWorking = true
-                        defer { isWorking = false }
-                        do throws(APIError) { try await auth.setVolunteer(true, city: me.community?.city ?? "") } catch { actionError = error }
+                Button("Become a volunteer buddy") { confirmsVolunteering = true }
+                    .buttonStyle(InkButtonStyle())
+                    .disabled(isWorking)
+                    .accessibilityIdentifier("becomeVolunteer")
+                    // A real promise, so it asks first (nobody becomes one by accident).
+                    .confirmationDialog("Become a volunteer buddy?", isPresented: $confirmsVolunteering, titleVisibility: .visible) {
+                        Button("Yes, I can help") {
+                            Task {
+                                isWorking = true
+                                defer { isWorking = false }
+                                do throws(APIError) { try await auth.setVolunteer(true, city: me.community?.city ?? "") } catch { actionError = error }
+                            }
+                        }
+                        .accessibilityIdentifier("confirmVolunteer")
+                        Button("Not now", role: .cancel) {}
+                    } message: {
+                        Text("When an emergency hits, you'll check on the neighbors who accept you, by phone or in person. Only offer if you can get to them.")
                     }
-                }
-                .buttonStyle(InkButtonStyle())
-                .disabled(isWorking)
-                .accessibilityIdentifier("becomeVolunteer")
             }
         }
     }

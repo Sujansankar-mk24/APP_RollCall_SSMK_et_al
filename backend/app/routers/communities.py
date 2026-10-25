@@ -11,6 +11,7 @@ Community (neighborhood) endpoints:
   POST   /communities/{id}/requests/{user}/decline   admin: say no
   PATCH  /communities/{id}                    admin: rename it
   PUT    /communities/{id}/photo              admin: the community's picture
+  GET    /communities/{id}/homes              members: where everyone in the community lives (for the map)
 
 Weekly Recap (photos from the neighborhood, like a shared photo roll):
   POST   /communities/{id}/recap              a member adds a photo (the admin approves it)
@@ -18,6 +19,7 @@ Weekly Recap (photos from the neighborhood, like a shared photo roll):
   POST   /communities/{id}/recap/{photo}/reject     admin
   POST   /communities/{id}/recap/{photo}/pin        admin: keep it past the week
   POST   /communities/{id}/recap/{photo}/unpin      admin
+  POST   /communities/{id}/recap/{photo}/react      a member puts an emoji sticker on it
   DELETE /communities/{id}/recap/{photo}            admin, or whoever added it
 
 Each person belongs to (or is asking to join) one community at a time.
@@ -32,13 +34,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, Upl
 from sqlmodel import Session, delete, func, select
 
 from app.auth import current_user
-from app.config import PROFILES_DIR, RECAP_DAYS
+from app.config import PROFILES_DIR, RECAP_DAYS, RECAP_REACTIONS
 from app.database import get_session
 from app.models import (BuddyLink, BuddyStatus, Community, CommunityMember, CommunityPhoto, Household, MemberStatus,
-                        PhotoStatus, User, Volunteer)
+                        PhotoStatus, RecapReaction, User, Volunteer)
 from app.privacy import membership, volunteer_of
-from app.schemas import (BuddyPairOut, CommunityDetailOut, CommunityIn, CommunityOut, CommunityPatch, MemberOut,
-                         RecapPhotoOut)
+from app.schemas import (BuddyPairOut, CommunityDetailOut, CommunityIn, CommunityOut, CommunityPatch, HomeOut,
+                         MemberOut, ReactionIn, ReactionOut, RecapPhotoOut)
 from app.services.households import utc
 from app.services.incident_views import media_url
 from app.services.people import delete_media, has_active_buddy, household_of, media_name, save_picture
@@ -120,9 +122,9 @@ def details(community_id: int, user: User = Depends(current_user), session: Sess
         buddy_pairs=buddy_pairs(session, [u.id for m, u in rows if m.status == MemberStatus.member]) if is_member else [],
         join_requests=[member_out(session, m, u) for m, u in rows if m.status == MemberStatus.pending] if base.is_admin else [],
         # Pinned photos come first, then the newest.
-        recap=[recap_out(p, u) for p, u in sorted((pu for pu in photos if in_recap(pu[0])),
-                                                  key=lambda pu: not pu[0].pinned)],
-        pending_photos=[recap_out(p, u) for p, u in photos if p.status == PhotoStatus.pending] if base.is_admin else [],
+        recap=[recap_out(session, p, u, user) for p, u in sorted((pu for pu in photos if in_recap(pu[0])),
+                                                                key=lambda pu: not pu[0].pinned)],
+        pending_photos=[recap_out(session, p, u, user) for p, u in photos if p.status == PhotoStatus.pending] if base.is_admin else [],
     )
 
 
@@ -136,12 +138,22 @@ def buddy_pairs(session: Session, member_ids: list[int]) -> list[BuddyPairOut]:
     return [BuddyPairOut(volunteer_id=v, resident_id=r) for v, r in rows if v in members and r in members]
 
 
+def checks_on(session: Session, user: User) -> int:
+    """How many neighbors this person checks on (accepted matches only)."""
+    volunteer = volunteer_of(session, user)
+    if volunteer is None:
+        return 0
+    return session.exec(select(func.count()).select_from(BuddyLink).where(
+        BuddyLink.volunteer_id == volunteer.id, BuddyLink.status == BuddyStatus.active)).one()
+
+
 def member_out(session: Session, m: CommunityMember, u: User) -> MemberOut:
     household = household_of(session, u.id)
     has_buddy = has_active_buddy(session, u.id)
     return MemberOut(user_id=u.id, name=u.name, is_admin=m.is_admin, since=utc(m.created_at),
                      photo_url=media_url(u.photo_path), away_from_home=u.away_from_home,
                      has_buddy=has_buddy, is_volunteer=volunteer_of(session, u) is not None,
+                     checks_on=checks_on(session, u),
                      wants_buddy=bool(household and household.wants_buddy and not has_buddy))
 
 
@@ -163,9 +175,15 @@ def in_recap(photo: CommunityPhoto) -> bool:
     return ends is None or ends > datetime.now(timezone.utc)
 
 
-def recap_out(photo: CommunityPhoto, uploader: User) -> RecapPhotoOut:
+def recap_out(session: Session, photo: CommunityPhoto, uploader: User, viewer: User) -> RecapPhotoOut:
+    rows = session.exec(select(RecapReaction).where(RecapReaction.photo_id == photo.id)).all()
+    reactions = [ReactionOut(emoji=e, count=sum(1 for x in rows if x.emoji == e),
+                             mine=any(x.emoji == e and x.user_id == viewer.id for x in rows))
+                 for e in RECAP_REACTIONS if any(x.emoji == e for x in rows)]
     return RecapPhotoOut(id=photo.id, url=media_url(photo.path), caption=photo.caption,
-                         uploader_name=uploader.name, status=photo.status, pinned=photo.pinned,
+                         uploader_id=uploader.id, uploader_name=uploader.name,
+                         uploader_photo_url=media_url(uploader.photo_path), reactions=reactions,
+                         status=photo.status, pinned=photo.pinned,
                          created_at=utc(photo.created_at), expires_at=expires_at(photo))
 
 
@@ -244,6 +262,28 @@ def unpin_photo(community_id: int, photo_id: int, user: User = Depends(current_u
     return admin_photo_action(community_id, photo_id, user, session, change)
 
 
+@router.post("/{community_id}/recap/{photo_id}/react", response_model=CommunityDetailOut)
+def react(community_id: int, photo_id: int, data: ReactionIn, user: User = Depends(current_user),
+          session: Session = Depends(get_session)):
+    """Put an emoji sticker on a photo. The same emoji again takes it off; a different one replaces it."""
+    community = get_or_404(session, community_id)
+    require_member(session, community, user)
+    photo = photo_or_404(session, community, photo_id)
+    if data.emoji not in RECAP_REACTIONS:
+        raise HTTPException(status_code=422, detail="Pick one of the stickers.")
+    mine = session.exec(select(RecapReaction).where(RecapReaction.photo_id == photo.id,
+                                                    RecapReaction.user_id == user.id)).first()
+    if mine is not None and mine.emoji == data.emoji:
+        session.delete(mine)
+    elif mine is not None:
+        mine.emoji = data.emoji
+        session.add(mine)
+    else:
+        session.add(RecapReaction(photo_id=photo.id, user_id=user.id, emoji=data.emoji))
+    session.commit()
+    return details(community_id, user, session)
+
+
 @router.delete("/{community_id}/recap/{photo_id}", status_code=204)
 def delete_recap_photo(community_id: int, photo_id: int, user: User = Depends(current_user),
                        session: Session = Depends(get_session)):
@@ -254,6 +294,7 @@ def delete_recap_photo(community_id: int, photo_id: int, user: User = Depends(cu
     if photo.uploader_id != user.id and not is_admin:
         raise HTTPException(status_code=403, detail="Only the admin or whoever added it can remove a photo.")
     delete_media(photo.path)
+    session.exec(delete(RecapReaction).where(RecapReaction.photo_id == photo.id))
     session.delete(photo)
     session.commit()
     return Response(status_code=204)
@@ -340,3 +381,18 @@ async def set_community_photo(community_id: int, file: UploadFile = File(...),
     session.add(community)
     session.commit()
     return details(community_id, user, session)
+
+
+@router.get("/{community_id}/homes", response_model=list[HomeOut])
+def homes(community_id: int, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """Members' homes, for the map's "My community" view. Only members see them."""
+    community = get_or_404(session, community_id)
+    require_member(session, community, user)
+    rows = session.exec(select(CommunityMember, User, Household)
+                        .join(User, User.id == CommunityMember.user_id)
+                        .join(Household, Household.owner_id == User.id)
+                        .where(CommunityMember.community_id == community.id,
+                               CommunityMember.status == MemberStatus.member)).all()
+    return [HomeOut(user_id=u.id, name=u.name, photo_url=media_url(u.photo_path), latitude=h.latitude,
+                    longitude=h.longitude, address=f"{h.address}, {h.city}", has_buddy=has_active_buddy(session, u.id),
+                    away_from_home=u.away_from_home) for m, u, h in rows]

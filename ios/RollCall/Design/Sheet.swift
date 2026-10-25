@@ -34,7 +34,7 @@ extension View {
     /// Page background, ink-colored buttons and controls, for a whole screen.
     func sheetPage() -> some View {
         self
-            .background(Color.paper.ignoresSafeArea())
+            .background(ZStack { Color.paper; ThemeStore.shared.theme.pageWash }.ignoresSafeArea())
             .modifier(ThemeModifier())
             // Scrolling down puts the keyboard away, so it never traps you.
             .scrollDismissesKeyboard(.interactively)
@@ -103,7 +103,7 @@ struct SheetTitle: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             if let kicker {
-                Text(kicker).sheetLabelStyle().foregroundStyle(.secondary)
+                Text(kicker).sheetLabelStyle().foregroundStyle(ThemeStore.shared.theme.labelColor)
             }
             title
                 .font(.sheetDisplay)
@@ -124,7 +124,7 @@ struct SectionLabel: View {
     var body: some View {
         Text(text)
             .sheetLabelStyle()
-            .foregroundStyle(.secondary)
+            .foregroundStyle(ThemeStore.shared.theme.labelColor)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, Spacing.s)
             .padding(.leading, Spacing.xs)

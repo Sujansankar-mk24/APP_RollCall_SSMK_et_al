@@ -55,6 +55,8 @@ def to_out(session: Session, household: Household) -> HouseholdOut:
         emergency_contact_name=household.emergency_contact_name,
         emergency_contact_phone=household.emergency_contact_phone,
         wants_buddy=household.wants_buddy,
+        check_in=household.check_in,
+        checked_in_at=utc(household.checked_in_at) if household.checked_in_at else None,
         buddy=buddy_of(session, household.id),
         is_demo=household.is_demo,
         created_at=utc(household.created_at),

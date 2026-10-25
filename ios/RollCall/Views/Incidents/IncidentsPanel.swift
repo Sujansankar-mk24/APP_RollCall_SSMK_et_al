@@ -75,7 +75,7 @@ struct IncidentsButton: View {
                     .scaleEffect(x: 1, y: isOpen ? -1 : 1)
             }
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(Color.themeAccent)
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: minimumTapSize)
             .floatingSurface(cornerRadius: minimumTapSize / 2)
@@ -92,11 +92,20 @@ struct IncidentsButton: View {
 struct IncidentsPanel: View {
     let onSelect: (IncidentSummary) -> Void
     let onClose: () -> Void
+    /// Live alerts, fires and storms (NASA, NOAA, the Weather Service).
+    var hazards: [Hazard] = []
+    var onSelectHazard: ((Hazard) -> Void)? = nil
     @State private var viewModel: IncidentsViewModel
+    @State private var source: Source = .community
 
-    init(store: IncidentStore, onSelect: @escaping (IncidentSummary) -> Void, onClose: @escaping () -> Void) {
+    enum Source: Hashable { case community, live }
+
+    init(store: IncidentStore, hazards: [Hazard] = [], onSelect: @escaping (IncidentSummary) -> Void,
+         onSelectHazard: ((Hazard) -> Void)? = nil, onClose: @escaping () -> Void) {
         _viewModel = State(initialValue: IncidentsViewModel(store: store))
+        self.hazards = hazards
         self.onSelect = onSelect
+        self.onSelectHazard = onSelectHazard
         self.onClose = onClose
     }
 
@@ -140,14 +149,22 @@ struct IncidentsPanel: View {
     private var content: some View {
         switch viewModel.loadState {
         case .loading:
-            ProgressView("Loading incidents…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            LoadingView(text: "Loading incidents…").frame(maxHeight: .infinity)
         case .failed(let error):
             ScrollView {
                 SheetMessage(error: error, action: { Task { await viewModel.retry() } })
                     .padding(Spacing.l)
             }
         case .loaded:
-            list
+            VStack(spacing: 0) {
+                SheetTabs(selection: $source, options: [
+                    (value: Source.community, title: String(localized: "Community (\(viewModel.count(for: .open)))")),
+                    (value: .live, title: String(localized: "Live data (\(hazards.count))")),
+                ], identifiers: ["logSource_community", "logSource_live"])
+                .padding(.horizontal, Spacing.l)
+                .padding(.top, Spacing.m)
+                if source == .community { list } else { liveList }
+            }
         }
     }
 
@@ -182,6 +199,44 @@ struct IncidentsPanel: View {
             .padding(Spacing.l)
         }
         .refreshable { await viewModel.load() }   // pull down to refresh
+    }
+
+    /// Live data, most serious first: what the Weather Service, NASA and NOAA report.
+    private var liveList: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                if hazards.isEmpty {
+                    SheetMessage("No live alerts right now", message: "Nothing from the Weather Service, NASA or NOAA near North Texas.",
+                                 systemImage: "checkmark.shield")
+                }
+                ForEach(hazards.sorted { $0.level.rank > $1.level.rank }) { hazard in
+                    if hazard.id != hazards.sorted(by: { $0.level.rank > $1.level.rank }).first?.id { RuleLine() }
+                    Button { onSelectHazard?(hazard) } label: {
+                        HStack(spacing: Spacing.m) {
+                            Image(systemName: hazard.kind.symbol)
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .frame(width: 40, height: 40)
+                                .background(hazard.kind.color, in: Circle())
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(verbatim: hazard.title).font(.headline).lineLimit(2)
+                                Text(verbatim: "\(hazard.level.title) · \(hazard.sourceLabel)")
+                                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                            if hazard.isDemo { Stamp(text: "Demo", color: Color(.systemPurple)) }
+                        }
+                        .sheetRow()
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("hazardRow_\(hazard.id)")
+                }
+            }
+            .padding(.horizontal, Spacing.m)
+            .paperCard()
+            .padding(Spacing.l)
+        }
     }
 
     /// "Updated 12 sec ago", or a warning if the last refresh failed.

@@ -22,8 +22,13 @@ struct RootView: View {
     @Environment(AuthStore.self) private var auth
     /// The intro pages show once, the first time the app is opened.
     @AppStorage("hasSeenIntro") private var hasSeenIntro = DebugLaunchOptions.skipsIntro
-    /// The splash stays up long enough to see the check mark draw itself in.
+    /// The splash stays up long enough to see the logo spin once.
     @State private var showsSplash = !DebugLaunchOptions.skipsIntro
+    /// After "Get started" on the Welcome screen, the short intro pages come next.
+    @State private var showsIntroPages = false
+    /// Right after "Get started", the sign-in screen opens on Create account.
+    /// Only for that first time: after signing out it opens on Sign in.
+    @State private var startsWithCreate = false
 
     var body: some View {
         Group {
@@ -35,10 +40,21 @@ struct RootView: View {
                 SplashView()
             case .signedOut:
                 if hasSeenIntro {
-                    SignInView()
+                    SignInView(startsWithCreate: startsWithCreate)
+                } else if showsIntroPages {
+                    IntroView {
+                        startsWithCreate = true
+                        withAnimation(.easeInOut) { hasSeenIntro = true }
+                    }
+                    .transition(.opacity)
                 } else {
-                    IntroView { withAnimation(.easeInOut) { hasSeenIntro = true } }
-                        .transition(.opacity)
+                    // The first time only: Welcome to RollCall.
+                    WelcomeView(onGetStarted: { withAnimation(.easeInOut) { showsIntroPages = true } },
+                                onSignIn: {
+                                    startsWithCreate = false
+                                    withAnimation(.easeInOut) { hasSeenIntro = true }
+                                })
+                    .transition(.opacity)
                 }
             case .offline(let error):
                 // There's a saved account, but the server can't be reached.
@@ -59,7 +75,7 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.35), value: showsSplash)
         .task { await auth.restore() }
         .task {
-            try? await Task.sleep(for: .seconds(1.3))
+            try? await Task.sleep(for: .seconds(1.9))
             showsSplash = false
         }
     }
@@ -137,9 +153,9 @@ private extension View {
         self
             .toolbar(.hidden, for: .tabBar)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                // The bar's height, plus a little extra so the last button on
-                // a page can always be scrolled clear of it.
-                Color.clear.frame(height: SlidingTabBar<MainTabView.RootTab>.height + Spacing.l)
+                // The bar's height, plus extra room so the last button on a
+                // page (like Leave community) scrolls well clear of it.
+                Color.clear.frame(height: SlidingTabBar<MainTabView.RootTab>.height + 72)
             }
     }
 }

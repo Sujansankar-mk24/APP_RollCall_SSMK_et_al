@@ -4,6 +4,8 @@ Profiles and first responders:
   PATCH  /me/profile                   your name, bio, phone, "away from home"
   PUT    /me/photo                     your profile picture (a photo upload)
   DELETE /me/photo                     remove it
+  POST   /me/check-in                  "I'm safe" or "I need help" (from the app, a
+                                       notification, or the Lock Screen)
   GET    /people/{user_id}             someone's profile (see app/services/people.py
                                        for who can see what)
   POST   /me/responder-application     apply as a first responder: agency, role,
@@ -26,9 +28,12 @@ from app.auth import current_user
 from app.config import ID_PHOTOS_DIR, MAX_TEXT_LENGTH
 from app.database import get_session
 from app.models import ResponderReport, ResponderStatus, User
-from app.schemas import MeOut, PersonOut, ProfilePatch, ResponderReportIn
+from app.models import TimelineKind, utc_now
+from app.schemas import CheckInIn, HouseholdOut, MeOut, PersonOut, ProfilePatch, ResponderReportIn
+from app.services.households import to_out
+from app.services.timeline import add_household_event
 from app.services.accounts import me_out
-from app.services.people import (can_view_person, delete_media, is_verified_responder, person_out,
+from app.services.people import (can_view_person, delete_media, household_of, is_verified_responder, person_out,
                                  save_picture, save_profile_picture)
 
 router = APIRouter(tags=["people"])
@@ -67,6 +72,21 @@ def remove_photo(user: User = Depends(current_user), session: Session = Depends(
     session.add(user)
     session.commit()
     return me_out(session, user)
+
+
+@router.post("/me/check-in", response_model=HouseholdOut)
+def check_in(data: CheckInIn, user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """Tell your buddy (and, in an emergency, responders) that you're safe or need help."""
+    household = household_of(session, user.id)
+    if household is None:
+        raise HTTPException(status_code=400, detail="Join the roll call first, so there's a household to check in.")
+    household.check_in, household.checked_in_at = data.status, utc_now()
+    session.add(household)
+    add_household_event(session, household.id, TimelineKind.check_in,
+                        "Checked in: safe" if data.status == "safe" else "Checked in: needs help")
+    session.commit()
+    session.refresh(household)
+    return to_out(session, household)
 
 
 @router.get("/people/{user_id}", response_model=PersonOut)

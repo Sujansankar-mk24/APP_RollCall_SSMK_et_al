@@ -11,6 +11,8 @@ import SwiftUI
 struct SignInView: View {
     @Environment(AuthStore.self) private var auth
     @State private var viewModel = SignInViewModel()
+    /// Open on "Create account" (after Get started on the Welcome screen).
+    var startsWithCreate = false
     @State private var choosesServer = false
     @State private var showsPassword = false
     @FocusState private var focused: Field?
@@ -32,6 +34,7 @@ struct SignInView: View {
         .scrollDismissesKeyboard(.interactively)
         .sheetPage()
         .task { await viewModel.checkServer() }
+        .onAppear { if startsWithCreate { viewModel.mode = .createAccount } }
         .sheet(isPresented: $choosesServer, onDismiss: {
             Task { await viewModel.checkServer() }
         }) {

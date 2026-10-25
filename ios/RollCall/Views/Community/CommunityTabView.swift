@@ -312,7 +312,7 @@ private struct MyCommunityView: View {
         Group {
             switch viewModel.detail {
             case .loading:
-                ProgressView().frame(maxWidth: .infinity, minHeight: 200)
+                LoadingView()
             case .failed(let error):
                 SheetMessage(error: error, action: { Task { await viewModel.loadDetail(id: communityID) } })
             case .loaded(let community):
@@ -412,7 +412,7 @@ private struct MyCommunityView: View {
                 }
                 .accessibilityIdentifier("addRecapPhoto")
             }
-            RecapCarousel(photos: community.recap, isAdmin: community.isAdmin) { photo, action in
+            RecapCarousel(photos: community.recap, isAdmin: community.isAdmin, canReact: true, onAction: { photo, action in
                 Task {
                     switch action {
                     case .pin: await viewModel.change(photo, .pin, in: community)
@@ -420,9 +420,11 @@ private struct MyCommunityView: View {
                     case .remove: await viewModel.remove(photo, in: community)
                     }
                 }
-            }
+            }, onReact: { photo, emoji in
+                Task { await viewModel.react(photo, with: emoji, in: community) }
+            })
             Text(community.isAdmin
-                 ? "Photos stay for a week. Press and hold one to pin it so it stays."
+                 ? "Photos stay for a week. Use ... on a photo to pin it so it stays."
                  : "Photos stay for a week. The admin approves new ones first.")
                 .font(.footnote).foregroundStyle(.secondary)
                 .padding(.leading, Spacing.xs)
@@ -480,27 +482,39 @@ private struct MyCommunityView: View {
         }
     }
 
-    /// Opens the web of bubbles: everyone, with lines for who checks on whom.
+    /// A small, look-only preview of the connections web, and the button
+    /// that opens the full one (where you can drag, tap and pop bubbles).
     private func connectionsButton(_ community: CommunityDetail) -> some View {
-        Button { showsConnections = true } label: {
-            HStack(spacing: Spacing.m) {
-                Image(systemName: "point.3.filled.connected.trianglepath.dotted")
-                    .font(.title2)
-                    .frame(width: 44, height: 44)
-                    .background(Color.primary.opacity(0.08), in: Circle())
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("See connections").font(.headline)
-                    Text("\(community.buddyPairs.count) buddy pairs · \(community.members.filter { !$0.hasBuddy }.count) without a buddy")
-                        .font(.footnote).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            SectionLabel("Connections")
+            VStack(spacing: 0) {
+                ConnectionsWeb(members: community.members, pairs: community.buddyPairs,
+                               interactive: false, bubbleSize: 44)
+                    .frame(height: 210)
+                    .clipped()
+                    .accessibilityHidden(true)
+                Button { showsConnections = true } label: {
+                    HStack(spacing: Spacing.m) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("View connections").font(.headline)
+                            Text("\(community.buddyPairs.count) buddy pairs · \(community.members.filter { !$0.hasBuddy }.count) without a buddy")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.headline)
+                            .frame(width: 40, height: 40)
+                            .background(Color.primary.opacity(0.08), in: Circle())
+                    }
+                    .padding(Spacing.l)
+                    .contentShape(Rectangle())
                 }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("seeConnections")
             }
-            .sheetBox(padding: Spacing.l)
-            .contentShape(Rectangle())
+            .paperCard()
+            .clipShape(RoundedRectangle(cornerRadius: Radius.paperCard, style: .continuous))
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("seeConnections")
     }
 
     /// "I'm away from home": shows next to your name, so neighbors don't go
@@ -573,7 +587,11 @@ private struct MyCommunityView: View {
         if person.isAdmin { tags.append((String(localized: "Admin"), .secondary)) }
         if person.awayFromHome { tags.append((String(localized: "Away from home"), Color(.systemOrange))) }
         if person.wantsBuddy { tags.append((String(localized: "Looking for a buddy"), Color(.systemOrange))) }
-        if person.isVolunteer { tags.append((String(localized: "Volunteer"), Color(.systemTeal))) }
+        if person.checksOn > 0 {
+            tags.append((String(localized: "Checks on \(person.checksOn)"), Color(.systemTeal)))
+        } else if person.isVolunteer {
+            tags.append((String(localized: "Ready to help"), .secondary))
+        }
         return tags
     }
 }
@@ -627,7 +645,7 @@ struct CommunityPageView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     switch state {
-                    case .loading: ProgressView().frame(maxWidth: .infinity, minHeight: 240)
+                    case .loading: LoadingView()
                     case .failed(let error): SheetMessage(error: error, action: { Task { await load() } })
                     case .loaded(let community): content(community)
                     }

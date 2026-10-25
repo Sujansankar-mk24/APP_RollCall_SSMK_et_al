@@ -16,11 +16,11 @@ Run from the backend folder:
 
 from sqlmodel import Session, col, delete, select
 
-from app.config import ANNOTATED_DIR, THUMBS_DIR, UPLOADS_DIR
+from app.config import ANNOTATED_DIR, MEDIA_DIR, THUMBS_DIR, UPLOADS_DIR
 from app.database import engine
 from app.models import (
-    AuthToken, BuddyLink, Community, CommunityMember, Household, Incident,
-    Media, Report, TimelineEvent, User, Volunteer,
+    AuthToken, BuddyLink, Community, CommunityMember, CommunityPhoto, Household, Incident,
+    Media, RecapReaction, Report, ResponderReport, TimelineEvent, User, Volunteer,
 )
 from scripts.seed_incidents import seed_incidents
 
@@ -42,6 +42,20 @@ def clear_test_accounts(session: Session) -> int:
     session.exec(delete(BuddyLink).where(
         col(BuddyLink.volunteer_id).in_(volunteers) | col(BuddyLink.household_id).in_(households)))
     session.exec(delete(TimelineEvent).where(col(TimelineEvent.household_id).in_(households)))
+    # Weekly Recap photos in their communities (or posted by them), and the
+    # stickers on those photos or added by them. Without this, a new community
+    # that gets the same id would show an old test photo.
+    photos = session.exec(select(CommunityPhoto).where(
+        col(CommunityPhoto.community_id).in_(communities) | col(CommunityPhoto.uploader_id).in_(user_ids))).all()
+    photo_ids = [p.id for p in photos]
+    session.exec(delete(RecapReaction).where(
+        col(RecapReaction.photo_id).in_(photo_ids) | col(RecapReaction.user_id).in_(user_ids)))
+    for photo in photos:
+        if photo.path:
+            (MEDIA_DIR / photo.path).unlink(missing_ok=True)
+        session.delete(photo)
+    session.exec(delete(ResponderReport).where(
+        col(ResponderReport.responder_id).in_(user_ids) | col(ResponderReport.reporter_id).in_(user_ids)))
     session.exec(delete(CommunityMember).where(
         col(CommunityMember.user_id).in_(user_ids) | col(CommunityMember.community_id).in_(communities)))
     session.exec(delete(Community).where(col(Community.id).in_(communities)))

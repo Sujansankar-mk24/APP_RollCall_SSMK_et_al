@@ -12,88 +12,82 @@
 //    * a soft pull toward the middle keeps the group on screen
 //    * a little drift makes them float, and friction calms them down
 //  Drag a bubble and its buddies follow, then everything settles. Tap one
-//  to see the name, and tap the name to open their profile.
+//  to see the name (tap the name for their profile). Press and hold one to
+//  pop it; it comes back after 5 seconds.
 //
+//  Rings around a bubble:  orange = no buddy yet,  gold = community admin,
+//  blue with "NEW" = joined recently,  dashed gray = away from home.
+//
+//  ConnectionsWeb is the web itself. The Community tab shows a small,
+//  look-only preview of it; ConnectionsView is the full screen.
 //  The bubbles use Liquid Glass (iOS 26 and later), the only place in the
 //  app that does.
 //
 
 import SwiftUI
 
+/// How recently someone joined to count as "new". (A week in real use. For
+/// the demo, the last hour, so new members stand out right away.)
+let newMemberWindow: TimeInterval = 60 * 60
+
+enum ConnectionsFilter: Hashable, CaseIterable {
+    case everyone, needsBuddy, hasBuddy, volunteers, away, new
+
+    var title: String {
+        switch self {
+        case .everyone: String(localized: "Everyone")
+        case .needsBuddy: String(localized: "No buddy yet")
+        case .hasBuddy: String(localized: "Has a buddy")
+        case .volunteers: String(localized: "Volunteers")
+        case .away: String(localized: "Away")
+        case .new: String(localized: "New")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .everyone: "person.3.fill"
+        case .needsBuddy: "person.fill.questionmark"
+        case .hasBuddy: "person.2.fill"
+        case .volunteers: "hand.raised.fill"
+        case .away: "suitcase.fill"
+        case .new: "sparkles"
+        }
+    }
+
+    func matches(_ member: CommunityMember) -> Bool {
+        switch self {
+        case .everyone: true
+        case .needsBuddy: !member.hasBuddy
+        case .hasBuddy: member.hasBuddy
+        case .volunteers: member.checksOn > 0
+        case .away: member.awayFromHome
+        case .new: member.isNew
+        }
+    }
+}
+
+extension CommunityMember {
+    var isNew: Bool { Date.now.timeIntervalSince(since) < newMemberWindow }
+}
+
+// MARK: - The full screen
+
 struct ConnectionsView: View {
     let members: [CommunityMember]
     let pairs: [BuddyPair]
-    @State private var simulation: BubbleSimulation
-    @State private var filter: Filter = .everyone
-    @State private var selected: Int?
+    @State private var filter: ConnectionsFilter = .everyone
     @State private var openPerson: Int?
-    @State private var canvasSize: CGSize = .zero
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.brand) private var brand
     @Environment(\.onBrand) private var onBrand
-    @Environment(\.dismiss) private var dismiss
-
-    enum Filter: Hashable, CaseIterable {
-        case everyone, needsBuddy, hasBuddy, volunteers, away
-
-        var title: String {
-            switch self {
-            case .everyone: String(localized: "Everyone")
-            case .needsBuddy: String(localized: "No buddy yet")
-            case .hasBuddy: String(localized: "Has a buddy")
-            case .volunteers: String(localized: "Volunteers")
-            case .away: String(localized: "Away")
-            }
-        }
-
-        var symbol: String {
-            switch self {
-            case .everyone: "person.3.fill"
-            case .needsBuddy: "person.fill.questionmark"
-            case .hasBuddy: "person.2.fill"
-            case .volunteers: "hand.raised.fill"
-            case .away: "suitcase.fill"
-            }
-        }
-
-        func matches(_ member: CommunityMember) -> Bool {
-            switch self {
-            case .everyone: true
-            case .needsBuddy: !member.hasBuddy
-            case .hasBuddy: member.hasBuddy
-            case .volunteers: member.isVolunteer
-            case .away: member.awayFromHome
-            }
-        }
-    }
-
-    init(members: [CommunityMember], pairs: [BuddyPair]) {
-        self.members = members
-        self.pairs = pairs
-        _simulation = State(initialValue: BubbleSimulation(ids: members.map(\.userId),
-                                                           links: pairs.map { ($0.volunteerId, $0.residentId) }))
-    }
-
-    private static let bubbleSize: CGFloat = 78
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 filterBar
-                ZStack {
-                    links
-                    ForEach(members) { member in bubble(member) }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture { withAnimation(.snappy) { selected = nil } }
-                .onGeometryChange(for: CGSize.self) { $0.size } action: { canvasSize = $0 }
-                // About 60 small steps a second move the bubbles.
-                .task {
-                    while !Task.isCancelled {
-                        simulation.step(to: .now, in: canvasSize)
-                        try? await Task.sleep(for: .milliseconds(16))
-                    }
-                }
+                ConnectionsWeb(members: members, pairs: pairs, filter: filter, interactive: true,
+                               bubbleSize: 78, onOpenProfile: { openPerson = $0 })
                 legend
             }
             .sheetPage()
@@ -109,13 +103,11 @@ struct ConnectionsView: View {
         }
     }
 
-    // MARK: - Pieces
-
     /// Chips like the map's filters: highlight part of the community.
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Spacing.s) {
-                ForEach(Filter.allCases, id: \.self) { option in
+                ForEach(ConnectionsFilter.allCases, id: \.self) { option in
                     let isOn = filter == option
                     let count = members.filter(option.matches).count
                     Button {
@@ -137,12 +129,88 @@ struct ConnectionsView: View {
         }
     }
 
+    private var legend: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack(spacing: Spacing.l) {
+                legendItem(Capsule().fill(Color(.systemGreen)).frame(width: 22, height: 3), "Checks on")
+                legendItem(ring(Color(.systemOrange)), "No buddy")
+                legendItem(ring(Color(.systemYellow)), "Admin")
+            }
+            HStack(spacing: Spacing.l) {
+                legendItem(ring(Color(.systemBlue)), "New")
+                legendItem(Circle().strokeBorder(Color.secondary, style: StrokeStyle(lineWidth: 2, dash: [3, 2]))
+                    .frame(width: 14, height: 14), "Away")
+                Spacer()
+                Text("Hold a bubble to pop it").font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, Spacing.l)
+        .padding(.vertical, Spacing.m)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func ring(_ color: Color) -> some View {
+        Circle().strokeBorder(color, lineWidth: 2.5).frame(width: 14, height: 14)
+    }
+
+    private func legendItem(_ mark: some View, _ text: LocalizedStringKey) -> some View {
+        HStack(spacing: 6) { mark; Text(text).font(.footnote) }
+    }
+}
+
+// MARK: - The web
+
+/// The bubbles and lines. With `interactive` off it's a look-only preview.
+struct ConnectionsWeb: View {
+    let members: [CommunityMember]
+    let pairs: [BuddyPair]
+    var filter: ConnectionsFilter = .everyone
+    var interactive = true
+    var bubbleSize: CGFloat = 78
+    var onOpenProfile: ((Int) -> Void)? = nil
+
+    @State private var simulation: BubbleSimulation
+    @State private var selected: Int?
+    @State private var popped: Set<Int> = []
+    @State private var canvasSize: CGSize = .zero
+
+    init(members: [CommunityMember], pairs: [BuddyPair], filter: ConnectionsFilter = .everyone,
+         interactive: Bool = true, bubbleSize: CGFloat = 78, onOpenProfile: ((Int) -> Void)? = nil) {
+        self.members = members
+        self.pairs = pairs
+        self.filter = filter
+        self.interactive = interactive
+        self.bubbleSize = bubbleSize
+        self.onOpenProfile = onOpenProfile
+        _simulation = State(initialValue: BubbleSimulation(ids: members.map(\.userId),
+                                                           links: pairs.map { ($0.volunteerId, $0.residentId) },
+                                                           scale: bubbleSize / 78))
+    }
+
+    var body: some View {
+        ZStack {
+            links
+            ForEach(members) { member in bubble(member) }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .onTapGesture { withAnimation(.snappy) { selected = nil } }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { canvasSize = $0 }
+        .task {
+            while !Task.isCancelled {
+                simulation.step(to: .now, in: canvasSize)
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+        }
+        .allowsHitTesting(interactive)
+    }
+
     /// The buddy lines, drawn under the bubbles. A small dot travels along
     /// each one, from the volunteer to the person they check on.
     private var links: some View {
         Canvas { context, _ in
             let time = simulation.time
-            for (from, to) in simulation.links {
+            for (from, to) in simulation.links where !popped.contains(from) && !popped.contains(to) {
                 guard let a = simulation.position(of: from), let b = simulation.position(of: to) else { continue }
                 let lit = isHighlighted(from) && isHighlighted(to)
                 var line = Path()
@@ -172,12 +240,16 @@ struct ConnectionsView: View {
         if let point = simulation.position(of: member.userId) {
             let lit = filter.matches(member)
             let isSelected = selected == member.userId
+            let isPopped = popped.contains(member.userId)
             VStack(spacing: Spacing.s) {
-                BubbleFace(member: member, size: Self.bubbleSize)
-                    .scaleEffect(isSelected ? 1.12 : (simulation.dragging == member.userId ? 1.08 : 1))
-                if isSelected {
-                    // The name: tap it to open their profile.
-                    Button { openPerson = member.userId } label: {
+                ZStack {
+                    BubbleFace(member: member, size: bubbleSize)
+                        .scaleEffect(isPopped ? 1.6 : isSelected ? 1.12 : (simulation.dragging == member.userId ? 1.08 : 1))
+                        .opacity(isPopped ? 0 : 1)
+                    if isPopped { PopBurst(size: bubbleSize) }
+                }
+                if isSelected && !isPopped {
+                    Button { onOpenProfile?(member.userId) } label: {
                         HStack(spacing: 6) {
                             Text(verbatim: member.name).font(.subheadline.weight(.semibold))
                             Image(systemName: "chevron.right").font(.caption.weight(.bold))
@@ -202,9 +274,12 @@ struct ConnectionsView: View {
                     .onEnded { value in simulation.release(member.userId, velocity: value.velocity) }
             )
             .simultaneousGesture(TapGesture().onEnded {
+                guard !isPopped else { return }
                 withAnimation(.snappy) { selected = selected == member.userId ? nil : member.userId }
             })
+            .simultaneousGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in pop(member.userId) })
             .sensoryFeedback(.selection, trigger: isSelected)
+            .sensoryFeedback(.impact(weight: .medium), trigger: isPopped)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(member.name)
             .accessibilityValue(member.hasBuddy ? "Has a buddy" : "No buddy yet")
@@ -214,57 +289,93 @@ struct ConnectionsView: View {
         }
     }
 
-    private var legend: some View {
-        HStack(spacing: Spacing.l) {
-            HStack(spacing: 6) {
-                Capsule().fill(Color(.systemGreen)).frame(width: 22, height: 3)
-                Text("Checks on").font(.footnote)
-            }
-            HStack(spacing: 6) {
-                Circle().strokeBorder(Color(.systemOrange), lineWidth: 2.5).frame(width: 14, height: 14)
-                Text("No buddy yet").font(.footnote)
-            }
-            Spacer()
-            Text("Drag the bubbles").font(.footnote).foregroundStyle(.secondary)
+    /// Pop a bubble. It floats back 5 seconds later.
+    private func pop(_ id: Int) {
+        if selected == id { selected = nil }
+        withAnimation(.easeOut(duration: 0.25)) { _ = popped.insert(id) }
+        Task {
+            try? await Task.sleep(for: .seconds(5))
+            withAnimation(.spring(duration: 0.5, bounce: 0.4)) { _ = popped.remove(id) }
         }
-        .padding(.horizontal, Spacing.l)
-        .padding(.vertical, Spacing.m)
-        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A few droplets flying out, where a bubble just popped.
+struct PopBurst: View {
+    let size: CGFloat
+    @State private var out = false
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<8, id: \.self) { index in
+                let angle = Double(index) / 8 * 2 * .pi
+                Circle()
+                    .fill(Color.primary.opacity(0.35))
+                    .frame(width: 7, height: 7)
+                    .offset(x: out ? cos(angle) * size * 0.75 : 0, y: out ? sin(angle) * size * 0.75 : 0)
+                    .opacity(out ? 0 : 1)
+            }
+        }
+        .onAppear { withAnimation(.easeOut(duration: 0.45)) { out = true } }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
 /// One bubble: the person's picture inside a glass sphere, with a little
-/// room around it so they look like they're inside the bubble.
-private struct BubbleFace: View {
+/// room around it so they look like they're inside, and rings for what
+/// stands out about them.
+struct BubbleFace: View {
     let member: CommunityMember
     let size: CGFloat
 
     var body: some View {
-        ZStack {
-            Avatar(url: member.photoURL, name: member.name, size: size - 12)
-        }
-        .frame(width: size, height: size)
-        .glassBubble()
-        .overlay {
-            // An orange ring for people nobody checks on yet.
-            if !member.hasBuddy {
-                Circle().strokeBorder(Color(.systemOrange).opacity(0.9), lineWidth: 2.5)
+        Avatar(url: member.photoURL, name: member.name, size: size - size * 0.15)
+            .frame(width: size, height: size)
+            .glassBubble()
+            .overlay { rings }
+            .overlay(alignment: .bottomTrailing) {
+                if member.checksOn > 0 {
+                    Image(systemName: "hand.raised.fill")
+                        .font(.system(size: size * 0.14, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: size * 0.28, height: size * 0.28)
+                        .background(Color(.systemTeal), in: Circle())
+                        .offset(x: 2, y: 2)
+                }
             }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if member.isVolunteer {
-                Image(systemName: "hand.raised.fill")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 22, height: 22)
-                    .background(Color(.systemTeal), in: Circle())
-                    .offset(x: 2, y: 2)
+            .overlay(alignment: .top) {
+                if member.isNew {
+                    Text("NEW")
+                        .font(.system(size: max(9, size * 0.12), weight: .heavy))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5).padding(.vertical, 2)
+                        .background(Color(.systemBlue), in: Capsule())
+                        .offset(y: -size * 0.08)
+                }
+            }
+    }
+
+    /// Rings stack outward: no buddy, admin, new, away.
+    private var rings: some View {
+        let colors: [(Bool, Color, Bool)] = [
+            (!member.hasBuddy, Color(.systemOrange), false),
+            (member.isAdmin, Color(.systemYellow), false),
+            (member.isNew, Color(.systemBlue), false),
+            (member.awayFromHome, Color.secondary, true),
+        ]
+        let shown = colors.filter(\.0)
+        return ZStack {
+            ForEach(Array(shown.enumerated()), id: \.offset) { index, ring in
+                Circle()
+                    .strokeBorder(ring.1.opacity(0.95), style: StrokeStyle(lineWidth: 2.5, dash: ring.2 ? [4, 3] : []))
+                    .padding(-CGFloat(index) * 4.5)
             }
         }
     }
 }
 
-private extension View {
+extension View {
     /// Liquid Glass on iOS 26 and later (it bends and shines as you touch
     /// it), a frosted look before that.
     @ViewBuilder
@@ -306,15 +417,17 @@ final class BubbleSimulation {
     @ObservationIgnored private var size: CGSize = .zero
 
     // The forces, tuned by feel.
-    private let repulsion: CGFloat = 9_000      // how hard bubbles push apart
-    private let springLength: CGFloat = 120     // a buddy line's relaxed length
+    private let scale: CGFloat                  // 1 for full-size bubbles, smaller for the preview
+    private var repulsion: CGFloat { 9_000 * scale * scale }   // how hard bubbles push apart
+    private var springLength: CGFloat { 120 * scale }          // a buddy line's relaxed length
     private let springStrength: CGFloat = 0.035
     private let centerPull: CGFloat = 0.008
     private let friction: CGFloat = 0.86        // each step keeps 86% of the speed
     private let drift: CGFloat = 0.12
 
-    init(ids: [Int], links: [(Int, Int)]) {
+    init(ids: [Int], links: [(Int, Int)], scale: CGFloat = 1) {
         self.links = links
+        self.scale = scale
         // Start in a loose circle; the forces sort them out from there.
         for (index, id) in ids.enumerated() {
             let angle = Double(index) / Double(max(ids.count, 1)) * 2 * .pi
@@ -370,7 +483,7 @@ final class BubbleSimulation {
         }
         // 3. Move everyone (except the bubble being dragged).
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let margin: CGFloat = 44
+        let margin: CGFloat = 44 * scale
         for id in ids where id != dragging {
             var node = nodes[id]!
             var f = force[id] ?? .zero

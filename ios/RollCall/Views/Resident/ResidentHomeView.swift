@@ -20,6 +20,7 @@ struct ResidentHomeView: View {
     @State private var confirmsEndingMatch = false
     @State private var openPerson: Int?
     @State private var buddyNeedsHelp: Buddy?
+    @State private var checkedIn = false
     @Environment(\.openURL) private var openURL
 
     init(householdID: Int) {
@@ -45,6 +46,7 @@ struct ResidentHomeView: View {
                 Text(viewModel.actionError?.message ?? "")
             }
             .sheet(item: $openPerson) { id in PersonProfileView(personID: id).sheetBrand() }
+            .successOverlay(isPresented: $checkedIn, text: "Sent to your buddy")
             .fullScreenCover(item: $buddyNeedsHelp) { buddy in
                 EmergencyHelpView(name: buddy.name, address: nil, facts: [], emergencyContact: nil).sheetBrand()
             }
@@ -59,7 +61,7 @@ struct ResidentHomeView: View {
     private var content: some View {
         switch viewModel.state {
         case .loading:
-            ProgressView("Loading your household…").frame(maxWidth: .infinity, minHeight: 240)
+            LoadingView(text: "Loading your household…")
         case .failed(.notFound):
             // The household no longer exists (for example, the demo data was reset).
             SheetMessage("This household no longer exists", message: "It may have been deleted, or the demo data was reset.",
@@ -72,8 +74,7 @@ struct ResidentHomeView: View {
                 ForEach(viewModel.buddyRequests) { request in
                     buddyRequestBox(request)
                 }
-                SheetNote(text: "No emergencies near you. If one starts, RollCall will ask if you're safe. Answering takes one tap.",
-                          systemImage: "shield.lefthalf.filled")
+                checkInCard(household)
                 homeSection(household)
                 needsSection(household)
                 buddySection(household)
@@ -112,6 +113,51 @@ struct ResidentHomeView: View {
         }
         .sheetBox()
         .accessibilityElement(children: .combine)
+    }
+
+    /// "How are you?": one tap tells your buddy you're safe, or that you need
+    /// help. (The same buttons are on the danger notification and the Lock Screen.)
+    private func checkInCard(_ household: Household) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            HStack {
+                Text("How are you?").font(.sheetHeading)
+                Spacer()
+                if let at = household.checkedInAt {
+                    Stamp(text: household.checkIn == "safe" ? String(localized: "Safe") : String(localized: "Needs help"),
+                          systemImage: household.checkIn == "safe" ? "checkmark" : "exclamationmark.triangle.fill",
+                          color: household.checkIn == "safe" ? Color(.systemGreen) : Color(.systemRed))
+                        .accessibilityLabel("Last check-in \(at.formatted(.relative(presentation: .named)))")
+                }
+            }
+            checkInLine(household)
+                .font(.callout).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: Spacing.m) {
+                Button {
+                    Task { if await viewModel.checkIn(safe: true) { checkedIn = true } }
+                } label: { Label("I'm safe", systemImage: "checkmark.circle.fill") }
+                .buttonStyle(InkButtonStyle())
+                .accessibilityIdentifier("checkInSafe")
+                Button {
+                    Task { if await viewModel.checkIn(safe: false) { checkedIn = true } }
+                } label: { Label("I need help", systemImage: "exclamationmark.triangle.fill") }
+                .buttonStyle(InkButtonStyle(destructive: true))
+                .accessibilityIdentifier("checkInHelp")
+            }
+            .disabled(viewModel.isCheckingIn)
+            Text("In a life-threatening emergency, call 911.")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+        .sheetBox()
+        .accessibilityElement(children: .contain)
+    }
+
+    private func checkInLine(_ household: Household) -> Text {
+        guard let at = household.checkedInAt else {
+            return Text("If an emergency hits, tell your buddy how you are with one tap.")
+        }
+        let when = at.formatted(.relative(presentation: .named))
+        return Text("You checked in \(when). Tap again any time things change.")
     }
 
     /// "Daniel offered to check on you": the resident decides.

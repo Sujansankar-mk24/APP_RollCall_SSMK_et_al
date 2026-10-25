@@ -16,11 +16,13 @@ struct SettingsButton: View {
     @State private var showsProfile = false
     @State private var showsAbout = false
     @State private var showsDisplay = false
+    @State private var showsNotifications = false
 
     var body: some View {
         Menu {
             Button("Your profile", systemImage: "person.crop.circle") { showsProfile = true }
             Button("About RollCall", systemImage: "info.circle") { showsAbout = true }
+            Button("Notifications", systemImage: "bell.badge") { showsNotifications = true }
             Button("Display", systemImage: "paintpalette") { showsDisplay = true }
         } label: {
             Image(systemName: "gearshape.fill")
@@ -41,6 +43,9 @@ struct SettingsButton: View {
         }
         .sheet(isPresented: $showsDisplay) {
             DisplaySettingsView()
+        }
+        .sheet(isPresented: $showsNotifications) {
+            NotificationSettingsView()
         }
     }
 }

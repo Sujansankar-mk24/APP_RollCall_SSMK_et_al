@@ -70,7 +70,7 @@ struct ReportSentToast: View {
                 ProgressView().controlSize(.mini)
                 Text("AI is checking your photo or video…")
             }
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(Color.themeAccent)
         case .finished(let analysis):
             Label(finishedText(analysis), systemImage: "viewfinder")
                 .foregroundStyle(analysis.foundSomething ? Color.primary : Color.secondary)

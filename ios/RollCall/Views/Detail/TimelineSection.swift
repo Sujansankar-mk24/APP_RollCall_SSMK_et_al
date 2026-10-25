@@ -76,7 +76,7 @@ private struct TimelineRow: View {
 
     private var tint: Color {
         switch event.kind {
-        case .report: Color.accentColor
+        case .report: Color.themeAccent
         case .aiResult: Color(.systemIndigo)
         case .statusChange: Color(.systemGray)
         case .camera: Color(.systemTeal)

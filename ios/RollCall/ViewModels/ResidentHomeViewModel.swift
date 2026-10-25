@@ -82,4 +82,22 @@ final class ResidentHomeViewModel {
             return false
         }
     }
+
+    // MARK: - Check-in
+
+    private(set) var isCheckingIn = false
+
+    /// "I'm safe" or "I need help". Your buddy sees it right away.
+    func checkIn(safe: Bool) async -> Bool {
+        isCheckingIn = true
+        defer { isCheckingIn = false }
+        do {
+            replace(with: try await api.checkIn(safe: safe))
+            await AlertsManager.shared.didCheckIn(safe: safe, place: "")
+            return true
+        } catch {
+            actionError = error
+            return false
+        }
+    }
 }
