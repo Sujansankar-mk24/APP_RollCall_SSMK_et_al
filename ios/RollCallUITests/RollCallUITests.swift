@@ -966,6 +966,147 @@ final class RollCallUITests: XCTestCase {
         return id
     }
 
+    // MARK: - Demo video tour
+
+    /// Taps through the app for the demo video, one scene per part of the
+    /// script, and writes when each scene starts to a file so the recording
+    /// can be cut into the right parts (tools/record_demo.sh and
+    /// tools/make_demo_video.py). Skipped unless the recording script runs it.
+    @MainActor
+    func testDemoVideoTour() throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let token = env["RC_DEMO_TOKEN"], let eventsPath = env["RC_DEMO_EVENTS"] else {
+            throw XCTSkip("Only runs from tools/record_demo.sh")
+        }
+        FileManager.default.createFile(atPath: eventsPath, contents: nil)
+        let events = try FileHandle(forWritingTo: URL(fileURLWithPath: eventsPath))
+        func scene(_ name: String) {
+            let line = "{\"scene\": \"\(name)\", \"t\": \(Date().timeIntervalSince1970)}\n"
+            events.write(line.data(using: .utf8)!)
+        }
+        func pause(_ seconds: Double) {
+            _ = XCTWaiter.wait(for: [XCTestExpectation(description: "pause")], timeout: seconds)
+        }
+
+        XCUIDevice.shared.location = XCUILocation(location: greenville)
+        let app = XCUIApplication()
+        app.launchArguments = ["-RCSignOut", "YES", "-RSSkipIntro", "YES", "-RCToken", token,
+                               "-RCServerURL", "http://localhost:8000", "-RSAllowAnyPhoto", "YES", "-RSTab", "map"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["mainTabBar"].waitForExistence(timeout: 30))
+        pause(3)
+
+        // 1. The hook: the Welcome screen (the rescue photo), then the map with a warning.
+        openSettings("About RollCall", in: app)
+        app.buttons["replayIntro"].tap()
+        XCTAssertTrue(app.buttons["welcomeSignIn"].waitForExistence(timeout: 10))
+        scene("hook")
+        pause(10)
+        app.buttons["welcomeSignIn"].tap()          // "Close" when replayed
+        app.buttons["closeAbout"].tap()
+        pause(9)
+
+        // 2. The map: pan, open the Tornado Warning, turn on location.
+        scene("map")
+        let map = app.maps.firstMatch
+        map.swipeLeft(velocity: .slow)
+        map.swipeRight(velocity: .slow)
+        let warning = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Demo. Tornado Warning'")).firstMatch
+        if warning.waitForExistence(timeout: 5) { warning.tap() }
+        pause(5)
+        app.swipeDown()
+        pause(1)
+        app.buttons["useMyLocationOnMap"].tap()
+        pause(3)
+
+        // 3. Reporting: a photo you took and a description; the AI checks it.
+        scene("report")
+        app.buttons["reportIncidentButton"].tap()
+        pause(2)
+        app.buttons["Fire"].firstMatch.tap()
+        try fillPhotoAndDescription(in: app)
+        app.buttons["sendReportButton"].tap()
+        _ = app.descendants(matching: .any)["reportSentToast"].waitForExistence(timeout: 20)
+        pause(6)
+
+        // 4. The incident log and "Why this priority?".
+        scene("incidents")
+        app.buttons["incidentsButton"].tap()
+        pause(2)
+        let row = app.descendants(matching: .any)["incidentRow_1"]
+        if row.waitForExistence(timeout: 5) { row.tap() }
+        pause(2)
+        app.swipeUp()
+        pause(2)
+        scene("gap")
+
+        // 5. Roll Call: "I'm safe", then the Lock Screen status.
+        app.swipeDown(); app.swipeDown()
+        if app.buttons["closeIncidents"].exists { app.buttons["closeIncidents"].tap() }
+        scene("rollcall")
+        open(tab: "Roll Call", in: app)
+        pause(3)
+        let safe = app.buttons["checkInSafe"]
+        if safe.waitForExistence(timeout: 5) { safe.tap() }
+        pause(3)
+        openSettings("Notifications", in: app)
+        pause(6)
+        scene("gap")
+        app.buttons["closeNotifications"].tap()
+
+        // 6. Community: the recap deck, the connections web, "Be their buddy".
+        scene("community")
+        open(tab: "Community", in: app)
+        pause(2)
+        let deck = app.descendants(matching: .any)["weeklyRecap"]
+        if deck.waitForExistence(timeout: 5) {
+            deck.swipeLeft(); pause(1.2); deck.swipeLeft(); pause(1.2)
+        }
+        let web = app.buttons["seeConnections"]
+        scrollTo(web, in: app)
+        web.tap()
+        pause(4)
+        app.buttons["closeConnections"].tap()
+        let neighbor = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'Lena Park'")).firstMatch
+        scrollTo(neighbor, in: app)
+        if neighbor.exists { neighbor.tap() }
+        pause(2)
+        let offer = app.buttons["offerToBeBuddy"]
+        if offer.waitForExistence(timeout: 5) { scrollTo(offer, in: app); offer.tap(); pause(1); app.buttons["Send the offer"].firstMatch.tap() }
+        pause(3)
+        scene("gap")
+        app.buttons["closePerson"].tap()
+
+        // 8. How the AI works: an incident's AI analysis and priority, up close.
+        open(tab: "Map", in: app)
+        app.buttons["incidentsButton"].tap()
+        if row.waitForExistence(timeout: 5) { row.tap() }
+        pause(1)
+        scene("ai")
+        let sheet = app.otherElements.firstMatch
+        for _ in 0..<5 { pause(2.5); sheet.swipeUp(velocity: .slow) }
+        pause(3)
+        scene("gap")
+        app.swipeDown(); app.swipeDown()
+        if app.buttons["closeIncidents"].exists { app.buttons["closeIncidents"].tap() }
+
+        // 10. Privacy, then the spinning logo.
+        openSettings("About RollCall", in: app)
+        scene("privacy")
+        pause(2)
+        let privacy = app.staticTexts["Who can see your information"]
+        scrollTo(privacy, in: app)
+        app.swipeUp(velocity: .slow)
+        pause(6)
+        app.terminate()
+        // Without -RSSkipIntro, the app opens on the spinning logo first.
+        app.launchArguments = ["-RCSignOut", "YES", "-RCToken", token, "-RCServerURL", "http://localhost:8000", "-RSTab", "map"]
+        app.launch()
+        pause(5)
+        scene("end")
+        try events.close()
+    }
+
     // MARK: - Screenshot tour
 
     /// Opens every main screen in light and dark mode and keeps a picture of
