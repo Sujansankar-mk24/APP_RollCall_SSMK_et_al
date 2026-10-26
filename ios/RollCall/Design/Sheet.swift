@@ -311,19 +311,21 @@ struct Stamp: View {
     var systemImage: String? = nil
     var color: Color = .ink
     var tilt: Double = 0
+    /// A smaller pill, for tags under a name in a list.
+    var small = false
 
     var body: some View {
         // A soft, very rounded pill with the words in normal case, like the
         // offer pills in banking apps: "⚡ Increased at ...".
-        HStack(spacing: 6) {
-            if let systemImage { Image(systemName: systemImage).font(.subheadline.weight(.semibold)) }
-            Text(text).font(.heading(16, relativeTo: .subheadline))
+        HStack(spacing: small ? 4 : 6) {
+            if let systemImage { Image(systemName: systemImage).font((small ? Font.caption : .subheadline).weight(.semibold)) }
+            Text(text).font(.heading(small ? 14 : 16, relativeTo: small ? .caption : .subheadline))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
         .foregroundStyle(color)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 7)
+        .padding(.horizontal, small ? 10 : 14)
+        .padding(.vertical, small ? 4 : 7)
         .background(color.opacity(0.13), in: Capsule())
         .accessibilityElement(children: .combine)
     }

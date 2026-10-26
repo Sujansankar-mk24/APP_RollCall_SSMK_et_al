@@ -82,7 +82,7 @@ private struct PersonRow: View {
     let name: String
     let photoURL: URL?
     var detail: String? = nil
-    var tags: [(String, Color)] = []
+    var tags: [MemberTag] = []
     var trailing: AnyView? = nil
     let onOpen: () -> Void
 
@@ -97,13 +97,13 @@ private struct PersonRow: View {
                             Text(verbatim: detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                         }
                         if !tags.isEmpty {
-                            HStack(spacing: 6) {
-                                ForEach(tags, id: \.0) { tag in
-                                    Text(verbatim: tag.0)
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(tag.1)
+                            // Small rounded pills that wrap onto a second line if needed.
+                            FlowLayout(spacing: 6) {
+                                ForEach(tags, id: \.text) { tag in
+                                    Stamp(text: tag.text, systemImage: tag.symbol, color: tag.color, small: true)
                                 }
                             }
+                            .padding(.top, 2)
                         }
                     }
                     Spacer(minLength: 0)
@@ -589,15 +589,20 @@ private struct MyCommunityView: View {
         }
     }
 
-    private func tags(for person: CommunityMember) -> [(String, Color)] {
-        var tags: [(String, Color)] = []
-        if person.isAdmin { tags.append((String(localized: "Admin"), .secondary)) }
-        if person.awayFromHome { tags.append((String(localized: "Away from home"), Color(.systemOrange))) }
-        if person.wantsBuddy { tags.append((String(localized: "Looking for a buddy"), Color(.systemOrange))) }
+    private func tags(for person: CommunityMember) -> [MemberTag] {
+        var tags: [MemberTag] = []
+        if person.isAdmin { tags.append(MemberTag(text: String(localized: "Admin"), symbol: "star.fill", color: .secondary)) }
+        if person.awayFromHome {
+            tags.append(MemberTag(text: String(localized: "Away from home"), symbol: "suitcase.fill", color: Color(.systemOrange)))
+        }
+        if person.wantsBuddy {
+            tags.append(MemberTag(text: String(localized: "Looking for a buddy"), symbol: "magnifyingglass", color: Color(.systemOrange)))
+        }
         if person.checksOn > 0 {
-            tags.append((String(localized: "Checks on \(person.checksOn)"), Color(.systemTeal)))
+            tags.append(MemberTag(text: String(localized: "Checks on \(person.checksOn)"), symbol: "hand.raised.fill",
+                                  color: Color(.systemTeal)))
         } else if person.isVolunteer {
-            tags.append((String(localized: "Ready to help"), .secondary))
+            tags.append(MemberTag(text: String(localized: "Ready to help"), symbol: "hand.raised", color: .secondary))
         }
         return tags
     }
@@ -623,7 +628,7 @@ private struct RespondersSection: View {
                     ForEach(viewModel.responders) { person in
                         PersonRow(name: person.name, photoURL: person.photoURL,
                                   detail: person.responder.map { "\($0.role), \($0.agency)" },
-                                  tags: [(String(localized: "Verified"), Color(.systemBlue))]) {
+                                  tags: [MemberTag(text: String(localized: "Verified"), symbol: "checkmark.seal.fill", color: Color(.systemBlue))]) {
                             if let onOpen { onOpen(person.id) } else { openPerson = person.id }
                         }
                         .accessibilityIdentifier("responder_\(person.id)")
@@ -768,4 +773,11 @@ private struct PickedJPEG: Identifiable {
 
 extension Int: @retroactive Identifiable {
     public var id: Int { self }
+}
+
+/// One small pill under a member's name: "Admin", "Away from home", "Checks on 2".
+struct MemberTag {
+    let text: String
+    let symbol: String
+    let color: Color
 }

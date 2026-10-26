@@ -59,17 +59,17 @@ struct AboutView: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             sectionTitle("What's in the app")
             SheetCard {
-                infoRow("map.fill", "Map",
+                infoRow("AboutMap", "Map",
                         "Live fires and storm warnings from NASA and the National Weather Service, and a warning when you're close to one. Report an emergency with a photo you just took. Reports close together merge into one incident, and AI checks the photos for fire, smoke and people.")
-                infoRow("list.bullet.rectangle.fill", "Incidents",
+                infoRow("AboutIncidents", "Incidents",
                         "On the Map, the Incidents button (top left) opens every incident sorted by priority, with a \"Why this priority?\" breakdown anyone can check.")
-                infoRow("person.crop.circle.badge.checkmark", "Roll Call",
+                infoRow("AboutRollCall", "Roll Call",
                         "Households sign up ahead of time (or choose \"Not now\"). When an emergency hits, everyone in the area is asked if they're safe, a volunteer buddy checks on anyone who doesn't answer, and responders see who still needs help. You can call or text your buddy, and \"They need help\" calls 911 with everything the dispatcher needs.")
-                infoRow("house.and.flag.fill", "Community",
+                infoRow("AboutCommunity", "Community",
                         "Join your neighborhood and see its Weekly Recap of photos. The admin approves who joins and which photos go in. Neighbors are buddies for each other, and you can see the first responders in your town.")
-                infoRow("checkmark.seal.fill", "First responders",
+                infoRow("AboutResponders", "First responders",
                         "Firefighters, EMS, police and emergency managers apply with their ID, and a person checks it. Only they can mark an incident responding or resolved. Anyone can report a responder who seems fake or reckless.")
-                infoRow("gearshape.fill", "Settings",
+                infoRow("AboutSettings", "Settings",
                         "The gear at the top of every tab has your profile, this page, and light or dark mode. You sign out from your profile.")
             }
         }
@@ -169,11 +169,17 @@ struct AboutView: View {
             .accessibilityAddTraits(.isHeader)
     }
 
-    private func infoRow(_ symbol: String, _ title: LocalizedStringKey, _ detail: LocalizedStringKey) -> some View {
+    /// One part of the app, with a real screenshot of it (Assets: AboutMap,
+    /// AboutRollCall, ... taken in the simulator with made-up demo accounts).
+    private func infoRow(_ picture: String, _ title: LocalizedStringKey, _ detail: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: Spacing.m) {
-            Image(systemName: symbol)
-                .font(.title3.weight(.semibold))
-                .frame(width: 32)
+            Image(picture)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 72, height: 96)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
