@@ -17,3 +17,8 @@ Crature Demo by Wasabib Studio: a demo edition, which is normally for personal
 use only. Angelines Script: no license came with it. Both are NOT committed to
 git (see .gitignore). Copy Crature-Demo.ttf and AngelinesScript.otf into this
 folder to use them. Without them the app falls back to Animosa / the system font.
+
+The demo edition of Crature draws numbers, commas and periods as a placeholder
+circle. The copy in this folder has those characters removed (with fontTools),
+so iOS draws just those characters in the system font instead. Nothing from
+the paid version is added.

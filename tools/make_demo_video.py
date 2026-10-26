@@ -63,6 +63,36 @@ def font(name: str, size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype("/System/Library/Fonts/SFNS.ttf", size)
 
 
+# Crature's demo edition has no real numbers, commas or periods (it draws a
+# placeholder circle), so those characters are drawn in Animosa instead.
+NOT_IN_CRATURE = set("0123456789,.")
+
+
+def heading_runs(text: str, size: int):
+    """Split a heading into pieces, each with the font that can draw it."""
+    crature = font("heading", size)
+    animosa = ImageFont.truetype(str(FONTS / "Animosa-ExtraBold.otf"), size)
+    runs = []
+    for ch in text:
+        f = animosa if ch in NOT_IN_CRATURE else crature
+        if runs and runs[-1][1] is f:
+            runs[-1][0] += ch
+        else:
+            runs.append([ch, f])
+    return runs
+
+
+def heading_length(draw, text: str, size: int) -> float:
+    return sum(draw.textlength(t, font=f) for t, f in heading_runs(text, size))
+
+
+def draw_heading(draw, xy, text: str, size: int, fill) -> None:
+    x, y = xy
+    for t, f in heading_runs(text, size):
+        draw.text((x, y), t, font=f, fill=fill)
+        x += draw.textlength(t, font=f)
+
+
 # ---------------------------------------------------------------------------
 # The script: who says what, for how long, over which footage or slides
 # ---------------------------------------------------------------------------
@@ -114,7 +144,7 @@ PARTS = [
          "FastAPI and a SQLite database. Passwords are hashed with scrypt, and sign-ins are stored in the iPhone's "
          "Keychain.",
          [("slide", "architecture"), ("slide", "code")], [0.55, 0.45]),
-    Part("Prithu", 26, "The AI, the rules and the tests",
+    Part("Prithu", 26, "How the AI decides",
          "Our AI brightens dark photos with OpenCV. Then YOLOv8 finds people, and a YOLO model trained on D-Fire, a "
          "dataset of over 21,000 fire and smoke photos, finds flames. Reports within 300 meters of each other merge "
          "into one incident. Priority isn't a black box. It's simple rules anyone can check, like a confirmed fire "
@@ -126,7 +156,7 @@ PARTS = [
          "designed our logo in Canva, and followed Apple's design guidelines. That means dark mode, large text and "
          "VoiceOver support, and buttons big enough to tap under stress.",
          [("slide", "design"), ("slide", "lightdark")], [0.5, 0.5]),
-    Part("Somesh", 14, "Privacy, and what's next",
+    Part("Somesh", 14, "Privacy and what's next",
          "Privacy is built in. You opt in, your address is shown only to your community, your phone number only to "
          "your buddy, and deleting your account deletes everything. Next, we want to add text messages for people "
          "without smartphones and work with county emergency management. RollCall. Make sure no one gets left behind.",
@@ -172,10 +202,9 @@ def background(index: int, part: Part) -> Image.Image:
         draw.ellipse((x, 90, x + 18, 108), fill=fill)
 
     draw.text((PANEL_X, 140), f"{index + 1:02d}", font=font("body", 40), fill=MUTED)
-    title_font = font("heading", 92)
     y = 190
-    for line in wrap(draw, part.title, title_font, PANEL_W):
-        draw.text((PANEL_X, y), line, font=title_font, fill=INK)
+    for line in wrap(draw, part.title, font("heading", 92), PANEL_W):
+        draw_heading(draw, (PANEL_X, y), line, 92, INK)
         y += 104
 
     # The speaker, as a colored tag like the app's.
@@ -222,14 +251,14 @@ def rounded_mask(size: tuple[int, int], radius: int) -> Image.Image:
 def card(title: str) -> tuple[Image.Image, ImageDraw.ImageDraw]:
     image = Image.new("RGB", (CARD_W, PHONE_H), (26, 28, 33))
     draw = ImageDraw.Draw(image)
-    draw.text((40, 40), title, font=font("heading", 50), fill=INK)
+    draw_heading(draw, (40, 40), title, 50, INK)
     return image, draw
 
 
 def box(draw, xy, heading, items, color):
     x0, y0, x1, y1 = xy
     draw.rounded_rectangle(xy, radius=24, fill=(36, 38, 45), outline=color, width=3)
-    draw.text((x0 + 26, y0 + 20), heading, font=font("heading", 38), fill=INK)
+    draw_heading(draw, (x0 + 26, y0 + 20), heading, 38, INK)
     for i, item in enumerate(items):
         draw.text((x0 + 26, y0 + 76 + i * 40), item, font=font("body", 30), fill=(205, 205, 212))
 
@@ -264,7 +293,7 @@ def slide(name: str, shots: dict[str, Path], counts: dict[str, int]) -> Image.Im
         for i, (number, label) in enumerate([(counts["backend"], "backend tests (pytest)"),
                                              (counts["ui"], "UI tests that tap through the real app")]):
             y = 200 + i * 330
-            draw.text((40, y), str(number), font=font("heading", 170), fill=SPEAKERS["Prithu"])
+            draw_heading(draw, (40, y), str(number), 170, SPEAKERS["Prithu"])
             for j, line in enumerate(textwrap.wrap(label, 24)):
                 draw.text((40, y + 190 + j * 44), line, font=font("body", 38), fill=INK)
         return image
@@ -359,7 +388,7 @@ def build_part(index: int, part: Part, video: Path, windows: dict, shots: dict, 
 
 def join(parts: list[Path], out: Path, work: Path) -> None:
     listing = work / f"{out.stem}.txt"
-    listing.write_text("".join(f"file '{p}'\n" for p in parts))
+    listing.write_text("".join(f"file '{p.resolve()}'\n" for p in parts))
     run(["-f", "concat", "-safe", "0", "-i", str(listing), "-c", "copy", str(out)])
 
 

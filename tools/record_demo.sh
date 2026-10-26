@@ -83,7 +83,7 @@ curl -sf -XPOST "$API/communities/$COMMUNITY/recap/$PHOTO/react" -H "$(auth "$DA
 curl -sf -XPOST "$API/communities/$COMMUNITY/recap/$PHOTO/react" -H "$(auth "$LENA")" -H "$JSON" -d '{"emoji":"❤️"}' > /dev/null
 
 # The demo Tornado Warning, so a warning is on the map even on a clear day.
-curl -sf -XPOST "$API/demo/tornado-warning" > /dev/null
+curl -sf -XPOST "$API/demo/tornado-warning" -H "$(auth "$ROSA")" > /dev/null
 
 # A fire photo in the simulator's library, for the report scene.
 xcrun simctl boot "$DEVICE" 2> /dev/null || true
@@ -131,8 +131,10 @@ xcrun simctl ui "$DEVICE" appearance light
 # ---------------------------------------------------------------------------
 # 3. Build the video, 4. clean up
 # ---------------------------------------------------------------------------
-"$PY" "$ROOT/tools/make_demo_video.py" --video "$VIDEO" --events "$EVENTS" --start "$REC_START" --out "$OUT_DIR"
+BUILT=yes
+"$PY" "$ROOT/tools/make_demo_video.py" --video "$VIDEO" --events "$EVENTS" --start "$REC_START" --out "$OUT_DIR" || BUILT=no
 
-curl -sf -XDELETE "$API/demo/tornado-warning" > /dev/null || true
+curl -sf -XDELETE "$API/demo/tornado-warning" -H "$(auth "$ROSA")" > /dev/null || true
 (cd "$ROOT/backend" && "$PY" -m scripts.clear_test_data > /dev/null)
+[ "$BUILT" = yes ] || { echo "The video couldn't be built (see above). The demo accounts were removed."; exit 1; }
 echo "Done: $OUT_DIR/RollCall-demo.mp4 and $OUT_DIR/RollCall-demo-clean.mp4"

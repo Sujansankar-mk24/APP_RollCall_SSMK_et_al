@@ -987,6 +987,37 @@ final class RollCallUITests: XCTestCase {
         func pause(_ seconds: Double) {
             _ = XCTWaiter.wait(for: [XCTestExpectation(description: "pause")], timeout: seconds)
         }
+        /// Close the sheet on top of the map by dragging its handle down
+        /// (from half height, then from full height if it was pulled up).
+        func sheetIsOpen() -> Bool {
+            app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Zones are estimates' OR label == 'AI analysis' OR label == 'Why this priority?'"))
+                .firstMatch.exists
+        }
+        func closeSheet() {
+            for top in [0.495, 0.08] where sheetIsOpen() {
+                app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: top))
+                    .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)))
+                pause(1)
+            }
+        }
+        /// Open the incident log and the top incident's details. The rows sit
+        /// below the key numbers, so scroll the log to them first.
+        func openTopIncident() {
+            app.buttons["incidentsButton"].tap()
+            let kpis = app.descendants(matching: .any)["kpi_active"]
+            _ = kpis.waitForExistence(timeout: 8)
+            pause(1.5)
+            let row = app.descendants(matching: .any)["incidentRow_1"]
+            for _ in 0..<3 where !(row.exists && row.isHittable) { kpis.swipeUp(velocity: .slow) }
+            pause(1)
+            if row.exists { row.tap() }
+        }
+        /// Scroll a sheet's content up slowly, so the footage is easy to follow.
+        func slowScroll() {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+                .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)),
+                       withVelocity: .slow, thenHoldForDuration: 0.2)
+        }
 
         XCUIDevice.shared.location = XCUILocation(location: greenville)
         let app = XCUIApplication()
@@ -1014,16 +1045,17 @@ final class RollCallUITests: XCTestCase {
         let warning = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Demo. Tornado Warning'")).firstMatch
         if warning.waitForExistence(timeout: 5) { warning.tap() }
         pause(5)
-        app.swipeDown()
-        pause(1)
+        closeSheet()
         app.buttons["useMyLocationOnMap"].tap()
         pause(3)
 
         // 3. Reporting: a photo you took and a description; the AI checks it.
         scene("report")
         app.buttons["reportIncidentButton"].tap()
-        pause(2)
-        app.buttons["Fire"].firstMatch.tap()
+        let fire = app.buttons["Fire"].firstMatch
+        XCTAssertTrue(fire.waitForExistence(timeout: 10), "The report form didn't open")
+        pause(1)
+        fire.tap()
         try fillPhotoAndDescription(in: app)
         app.buttons["sendReportButton"].tap()
         _ = app.descendants(matching: .any)["reportSentToast"].waitForExistence(timeout: 20)
@@ -1031,17 +1063,15 @@ final class RollCallUITests: XCTestCase {
 
         // 4. The incident log and "Why this priority?".
         scene("incidents")
-        app.buttons["incidentsButton"].tap()
+        openTopIncident()
         pause(2)
-        let row = app.descendants(matching: .any)["incidentRow_1"]
-        if row.waitForExistence(timeout: 5) { row.tap() }
-        pause(2)
-        app.swipeUp()
+        slowScroll()
+        slowScroll()
         pause(2)
         scene("gap")
 
         // 5. Roll Call: "I'm safe", then the Lock Screen status.
-        app.swipeDown(); app.swipeDown()
+        closeSheet()
         if app.buttons["closeIncidents"].exists { app.buttons["closeIncidents"].tap() }
         scene("rollcall")
         open(tab: "Roll Call", in: app)
@@ -1079,15 +1109,13 @@ final class RollCallUITests: XCTestCase {
 
         // 8. How the AI works: an incident's AI analysis and priority, up close.
         open(tab: "Map", in: app)
-        app.buttons["incidentsButton"].tap()
-        if row.waitForExistence(timeout: 5) { row.tap() }
+        openTopIncident()
         pause(1)
         scene("ai")
-        let sheet = app.otherElements.firstMatch
-        for _ in 0..<5 { pause(2.5); sheet.swipeUp(velocity: .slow) }
+        for _ in 0..<5 { pause(2.5); slowScroll() }
         pause(3)
         scene("gap")
-        app.swipeDown(); app.swipeDown()
+        closeSheet()
         if app.buttons["closeIncidents"].exists { app.buttons["closeIncidents"].tap() }
 
         // 10. Privacy, then the spinning logo.
