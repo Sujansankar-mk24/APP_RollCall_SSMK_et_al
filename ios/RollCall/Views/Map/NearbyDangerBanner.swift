@@ -20,23 +20,23 @@ struct NearbyDangerBanner: View {
             Button(action: onOpen) {
                 HStack(spacing: Spacing.m) {
                     Image(systemName: danger.kind.symbol)
-                        .font(.title3.weight(.semibold))
+                        .font(.app(.title3).weight(.semibold))
                         .foregroundStyle(.white)
                         .frame(width: 40, height: 40)
                         .background(danger.kind.color, in: Circle())
                     VStack(alignment: .leading, spacing: 2) {
                         Text(danger.isInside ? "You're inside this area" : "\(danger.distanceText) from you")
-                            .font(.caption.weight(.bold))
+                            .font(.app(.caption).weight(.bold))
                             .textCase(.uppercase)
                             .tracking(0.6)
                             .foregroundStyle(danger.kind.color)
                         Text(verbatim: danger.title)
-                            .font(.subheadline.weight(.semibold))
+                            .font(.app(.subheadline).weight(.semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
                         Text("Tap for what to do")
-                            .font(.caption)
+                            .font(.app(.caption))
                             .foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 0)
@@ -47,7 +47,7 @@ struct NearbyDangerBanner: View {
 
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.footnote.weight(.bold))
+                    .font(.app(.footnote).weight(.bold))
                     .foregroundStyle(.secondary)
                     .frame(width: minimumTapSize, height: minimumTapSize)
             }

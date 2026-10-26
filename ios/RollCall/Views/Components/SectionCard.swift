@@ -25,11 +25,11 @@ struct SectionCard<Content: View>: View {
                 Spacer()
                 if let trailingNote {
                     Text(trailingNote)
-                        .font(.footnote)
+                        .font(.app(.footnote))
                         .foregroundStyle(.secondary)
                 }
             }
-            .font(.headline)
+            .font(.app(.headline))
             .accessibilityAddTraits(.isHeader)
             .padding(.horizontal, Spacing.xs)
 

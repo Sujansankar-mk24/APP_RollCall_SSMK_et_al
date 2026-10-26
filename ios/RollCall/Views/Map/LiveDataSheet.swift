@@ -30,15 +30,15 @@ struct LiveDataSheet: View {
                                 Image(systemName: source.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                                     .foregroundStyle(source.ok ? Color(.systemGreen) : Color(.systemOrange))
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(source.name).font(.body)
+                                    Text(source.name).font(.app(.body))
                                     Text(source.ok ? "\(source.count) right now" : "Not answering. Showing its last update.")
-                                        .font(.callout).foregroundStyle(.secondary)
+                                        .font(.app(.callout)).foregroundStyle(.secondary)
                                 }
                             }
                             .accessibilityElement(children: .combine)
                         }
                         Text("Updated \(feed.updatedAt.formatted(.relative(presentation: .named)))")
-                            .font(.callout).foregroundStyle(.secondary)
+                            .font(.app(.callout)).foregroundStyle(.secondary)
                     } else if let error = viewModel.hazardError {
                         Text(error.message).foregroundStyle(.secondary)
                     } else {
@@ -62,7 +62,7 @@ struct LiveDataSheet: View {
                 }
 
                 if let note = viewModel.hazardFeed?.note {
-                    Section { Text(note).font(.callout) }
+                    Section { Text(note).font(.app(.callout)) }
                 }
             }
             .navigationTitle("Live data")
@@ -89,7 +89,7 @@ struct LiveDataPill: View {
                 Text(feed.map { "Live · \($0.hazards.count)" } ?? "Live data")
                     .monospacedDigit()
             }
-            .font(.footnote.weight(.semibold))
+            .font(.app(.footnote).weight(.semibold))
             .padding(.horizontal, 10)
             .frame(minHeight: 28)
             .floatingSurface(cornerRadius: 14)

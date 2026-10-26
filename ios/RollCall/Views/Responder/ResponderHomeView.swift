@@ -25,7 +25,7 @@ struct ResponderHomeView: View {
                         Text("No active emergency")
                             .font(.sheetHeading)
                         Text("To protect residents' privacy, households appear only during an active emergency, and only the homes inside its zone.")
-                            .font(.body)
+                            .font(.app(.body))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .sheetBox(emphasis: true)

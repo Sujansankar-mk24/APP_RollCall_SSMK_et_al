@@ -18,20 +18,20 @@ struct HazardDetailView: View {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 header
                 Text(hazard.detail)
-                    .font(.body)
+                    .font(.app(.body))
                     .fixedSize(horizontal: false, vertical: true)
                 whatToDo
                 if let url = hazard.linkURL {
                     Link(destination: url) {
                         Label("Official details", systemImage: "arrow.up.right.square")
-                            .font(.body.weight(.semibold))
+                            .font(.app(.body).weight(.semibold))
                             .frame(maxWidth: .infinity, minHeight: 30)
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
                 }
                 Label(note, systemImage: "info.circle")
-                    .font(.callout)
+                    .font(.app(.callout))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -43,7 +43,7 @@ struct HazardDetailView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Image(systemName: hazard.kind.symbol)
-                .font(.title2.weight(.semibold))
+                .font(.app(.title2).weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 52, height: 52)
                 .background(hazard.kind.color, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
@@ -51,14 +51,14 @@ struct HazardDetailView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: Spacing.s) {
                     Text(hazard.title)
-                        .font(.title2.weight(.bold))
+                        .font(.app(.title2).weight(.bold))
                         .fixedSize(horizontal: false, vertical: true)
                     if hazard.isDemo {
                         Badge(text: "Demo", systemImage: "theatermasks.fill", color: .secondary)
                     }
                 }
                 Label(hazard.sourceLabel, systemImage: hazard.isDemo ? "theatermasks" : "dot.radiowaves.left.and.right")
-                    .font(.callout)
+                    .font(.app(.callout))
                     .foregroundStyle(.secondary)
                 timeLine
             }
@@ -73,7 +73,7 @@ struct HazardDetailView: View {
         let parts = [seen, ends].compactMap { $0 }
         if !parts.isEmpty {
             Text(parts.joined(separator: ", "))
-                .font(.callout)
+                .font(.app(.callout))
                 .foregroundStyle(.secondary)
         }
     }
@@ -86,7 +86,7 @@ struct HazardDetailView: View {
         } icon: {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(hazard.kind.color)
         }
-        .font(.body)
+        .font(.app(.body))
         .padding(Spacing.m)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(hazard.kind.color.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))

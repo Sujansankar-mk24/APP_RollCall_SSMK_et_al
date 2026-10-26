@@ -1,3 +1,9 @@
+Fonts in RollCall
+  Main headings: Crature (demo edition) by Wasabib Studio
+  Weekly Recap:  Angelines Script
+  Everything else: Quitars by Arliyan Creative
+  (Animosa is kept as a fallback for headings.)
+
 Animosa by Stefano Giliberti (brumale), https://www.behance.net/brumale
 "Free for personal and commercial use." (from the font's readme)
 
@@ -6,3 +12,8 @@ Quitars by Arliyan Creative, https://creativemarket.com/arliyancreative
 putting it in a public repo would mean giving the font away. Copy Quitars.otf
 into this folder to use it. Without it, the Weekly Recap falls back to the
 system font.
+
+Crature Demo by Wasabib Studio: a demo edition, which is normally for personal
+use only. Angelines Script: no license came with it. Both are NOT committed to
+git (see .gitignore). Copy Crature-Demo.ttf and AngelinesScript.otf into this
+folder to use them. Without them the app falls back to Animosa / the system font.

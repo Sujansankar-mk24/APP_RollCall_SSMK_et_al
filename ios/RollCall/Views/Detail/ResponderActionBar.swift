@@ -38,7 +38,7 @@ struct ResponderActionBar: View {
                         Image(systemName: IncidentStatus.resolved.symbol)
                             .foregroundStyle(Color(.systemGreen))
                     }
-                    .font(.subheadline.weight(.medium))
+                    .font(.app(.subheadline).weight(.medium))
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Button { onChange(.active) } label: {
@@ -75,7 +75,7 @@ struct ResponderActionBar: View {
     /// `expands`: stretch to fill the row (main action) or stay just big enough.
     private func buttonLabel(_ title: String, systemImage: String, expands: Bool = true) -> some View {
         Label(title, systemImage: systemImage)
-            .font(.body.weight(.semibold))
+            .font(.app(.body).weight(.semibold))
             .lineLimit(1)
             .frame(maxWidth: expands ? .infinity : nil, minHeight: 28)
     }

@@ -99,7 +99,7 @@ private struct SuccessBadge: View {
             }
             .frame(width: 110, height: 110)
             Text(text)
-                .font(.headline)
+                .font(.app(.headline))
                 .textCase(.uppercase)
                 .tracking(2)
                 .foregroundStyle(.white)

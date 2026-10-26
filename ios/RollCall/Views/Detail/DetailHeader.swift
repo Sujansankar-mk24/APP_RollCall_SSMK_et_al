@@ -15,7 +15,7 @@ struct DetailHeader: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             HStack(spacing: Spacing.m) {
                 Image(systemName: summary.type.symbol)
-                    .font(.title2.weight(.semibold))
+                    .font(.app(.title2).weight(.semibold))
                     .foregroundStyle(.white)
                     .frame(width: 52, height: 52)
                     .background(summary.status.color, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -23,9 +23,9 @@ struct DetailHeader: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(summary.type.title)
-                        .font(.title2.weight(.bold))
+                        .font(.app(.title2).weight(.bold))
                     Label(summary.locationName, systemImage: "mappin")
-                        .font(.subheadline)
+                        .font(.app(.subheadline))
                         .foregroundStyle(.secondary)
                         .labelStyle(.titleAndIcon)
                 }
@@ -62,12 +62,12 @@ struct DetailHeader: View {
     private func fact(value: String, label: String) -> some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.headline)
+                .font(.app(.headline))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(label)
-                .font(.caption)
+                .font(.app(.caption))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)

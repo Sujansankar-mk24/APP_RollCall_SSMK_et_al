@@ -86,7 +86,7 @@ struct DisplaySettingsView: View {
                 .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous)
                     .strokeBorder(selected ? theme.color : Color.primary.opacity(0.12), lineWidth: selected ? 3 : 1))
                 Label(option.title, systemImage: selected ? "checkmark.circle.fill" : option.symbol)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.app(.subheadline).weight(.semibold))
                     .labelStyle(.titleAndIcon)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -121,12 +121,12 @@ struct DisplaySettingsView: View {
                     .frame(width: 30, height: 30)
                     .overlay(Circle().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(option.title).font(.body.weight(.semibold))
-                    Text(option.subtitle).font(.footnote).foregroundStyle(.secondary)
+                    Text(option.title).font(.app(.body).weight(.semibold))
+                    Text(option.subtitle).font(.app(.footnote)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if theme == option {
-                    Image(systemName: "checkmark").font(.headline).foregroundStyle(option.color)
+                    Image(systemName: "checkmark").font(.app(.headline)).foregroundStyle(option.color)
                 }
             }
             .sheetRow()

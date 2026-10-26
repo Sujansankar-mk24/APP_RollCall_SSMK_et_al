@@ -48,7 +48,7 @@ struct AboutView: View {
             BrandMark(size: 44)
             SheetTitle(title: "About RollCall", kicker: String(localized: "Congressional App Challenge 2026"))
             Text("Make sure no one gets left behind.")
-                .font(.title3.weight(.medium))
+                .font(.app(.title3).weight(.medium))
         }
         .accessibilityElement(children: .combine)
     }
@@ -81,14 +81,14 @@ struct AboutView: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             sectionTitle("Who can see your information")
             SheetCard {
-                infoRow("person.fill", "You",
+                infoRow("PrivacyYou", "You",
                         "Always. You can edit your household or delete it completely at any time.")
-                infoRow("person.2.wave.2.fill", "Your volunteer buddy",
-                        "Only after you accept them. Volunteers outside your community can only ask by typing your exact address, if your community allows it.")
-                infoRow("cross.case.fill", "Responders",
+                infoRow("PrivacyBuddy", "Your volunteer buddy",
+                        "Only after you accept them, and then they see your household like this. Buddies always come from your own community.")
+                infoRow("PrivacyResponders", "Responders",
                         "Only during an active emergency, and only for homes inside the emergency zone.")
-                infoRow("eye.slash.fill", "Everyone else",
-                        "Never. Neighbors in your community see only your first name and street, and only if you asked for a buddy. Incident reports on the map don't show who sent them.")
+                infoRow("PrivacyEveryone", "Everyone else",
+                        "Never. Neighbors in your community see only your first name and street until you accept them as a buddy. Incident reports on the map don't show who sent them.")
             }
             SheetNote(text: "The server enforces these rules, so a changed copy of the app can't get around them.", systemImage: "lock.fill")
         }
@@ -128,19 +128,19 @@ struct AboutView: View {
         Link(destination: URL(string: link)!) {
             HStack(alignment: .top, spacing: Spacing.m) {
                 Image(systemName: symbol)
-                    .font(.title3.weight(.semibold))
+                    .font(.app(.title3).weight(.semibold))
                     .frame(width: 32)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.headline).foregroundStyle(Color.primary)
+                    Text(title).font(.app(.headline)).foregroundStyle(Color.primary)
                     Text(detail)
-                        .font(.callout)
+                        .font(.app(.callout))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "arrow.up.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                Image(systemName: "arrow.up.right").font(.app(.footnote).weight(.semibold)).foregroundStyle(.tertiary)
             }
             .sheetRow()
         }
@@ -151,12 +151,12 @@ struct AboutView: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             sectionTitle("About this project")
             SheetCard {
-                infoRow("building.columns.fill", "Congressional App Challenge 2026",
+                infoRow("ProjectChallenge", "Congressional App Challenge 2026",
                         "Built for Texas' 4th District by a high school student.")
-                infoRow("theatermasks.fill", "Demo incidents",
+                infoRow("ProjectDemo", "Demo incidents",
                         "The community reports already on the map are made-up examples. Their photos and videos are public domain or Creative Commons, from Wikimedia Commons. Live data (diamonds) is real.")
-                infoRow("cross.case.fill", "Not a 911 service",
-                        "RollCall helps neighbors and responders, but it doesn't contact 911 for you.")
+                infoRow("ProjectNot911", "Not a 911 service",
+                        "RollCall helps neighbors and responders check on each other, but it doesn't contact 911 for you.")
             }
         }
     }
@@ -182,9 +182,9 @@ struct AboutView: View {
                     .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
+                Text(title).font(.app(.headline))
                 Text(detail)
-                    .font(.callout)
+                    .font(.app(.callout))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

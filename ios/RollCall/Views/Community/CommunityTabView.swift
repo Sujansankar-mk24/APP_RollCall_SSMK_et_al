@@ -94,16 +94,21 @@ private struct PersonRow: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(verbatim: name).sheetEntryStyle().lineLimit(2)
                         if let detail {
-                            Text(verbatim: detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                            Text(verbatim: detail).font(.app(.subheadline)).foregroundStyle(.secondary).lineLimit(1)
                         }
                         if !tags.isEmpty {
-                            // Small rounded pills that wrap onto a second line if needed.
-                            FlowLayout(spacing: 6) {
-                                ForEach(tags, id: \.text) { tag in
+                            // Tags hang under the name, overlapping a little like
+                            // layered paper. The first is on top, and each one
+                            // still shows its words.
+                            HStack(spacing: -6) {
+                                ForEach(Array(tags.enumerated()), id: \.element.text) { index, tag in
                                     Stamp(text: tag.text, systemImage: tag.symbol, color: tag.color, small: true)
+                                        .zIndex(Double(tags.count - index))
+                                        .offset(y: CGFloat(index) * 2)
                                 }
                             }
                             .padding(.top, 2)
+                            .padding(.bottom, CGFloat(tags.count - 1) * 2)
                         }
                     }
                     Spacer(minLength: 0)
@@ -129,14 +134,14 @@ private struct FindCommunityView: View {
         VStack(alignment: .leading, spacing: Spacing.l) {
             SheetTitle(title: "Community", kicker: String(localized: "Find your neighborhood"))
             Text("Neighbors in the same community check on each other in an emergency, and share photos of what's going on. Search for yours, or start it if it's not here yet.")
-                .font(.body)
+                .font(.app(.body))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: Spacing.s) {
-                Image(systemName: "magnifyingglass").font(.title3).foregroundStyle(.secondary)
+                Image(systemName: "magnifyingglass").font(.app(.title3)).foregroundStyle(.secondary)
                 TextField("Neighborhood name", text: $viewModel.query)
-                    .font(.title3)
+                    .font(.app(.title3))
                     .autocorrectionDisabled()
                     .submitLabel(.search)
                     .accessibilityIdentifier("communitySearch")
@@ -188,7 +193,7 @@ private struct CommunityList: View {
             SectionLabel(title)
             if shown.isEmpty && !viewModel.isSearching {
                 Text(viewModel.query.trimmed.isEmpty ? "No communities yet." : "No community called \"\(viewModel.query.trimmed)\" yet.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.app(.callout)).foregroundStyle(.secondary)
                     .sheetBox(padding: Spacing.l)
             } else {
                 SheetCard {
@@ -200,7 +205,7 @@ private struct CommunityList: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(verbatim: community.name).sheetEntryStyle().lineLimit(1)
                                         Text("\(community.city) · \(memberCount(community.memberCount))")
-                                            .font(.subheadline).foregroundStyle(.secondary)
+                                            .font(.app(.subheadline)).foregroundStyle(.secondary)
                                     }
                                     Spacer(minLength: 0)
                                 }
@@ -236,7 +241,7 @@ private struct CreateCommunitySheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     Text("Use your neighborhood's name, like the one on the sign at its entrance. Neighbors will search for it to join.")
-                        .font(.body)
+                        .font(.app(.body))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     LabeledField(label: "Neighborhood name", prompt: "e.g. Pecan Hollow", text: $name,
@@ -282,7 +287,7 @@ private struct PendingCommunityView: View {
                     .font(.sheetHeading)
                     .accessibilityIdentifier("pendingCommunity")
                 Text("The community's admin will approve your request. Pull down to check again.")
-                    .font(.body)
+                    .font(.app(.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -361,7 +366,7 @@ private struct MyCommunityView: View {
             CommunityList(viewModel: viewModel, title: "Other communities", canJoin: false,
                           excluding: community.id) { openCommunity = $0 }
             Button("Leave community", role: .destructive) { confirmsLeaving = true }
-                .font(.callout.weight(.semibold))
+                .font(.app(.callout).weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: minimumTapSize)
         }
     }
@@ -374,7 +379,7 @@ private struct MyCommunityView: View {
                         CommunityPicture(url: community.photoURL, size: 64)
                             .overlay(alignment: .bottomTrailing) {
                                 Image(systemName: "pencil")
-                                    .font(.caption.weight(.bold))
+                                    .font(.app(.caption).weight(.bold))
                                     .foregroundStyle(Color.paper)
                                     .frame(width: 24, height: 24)
                                     .background(Color.ink, in: Circle())
@@ -412,7 +417,7 @@ private struct MyCommunityView: View {
                     .accessibilityAddTraits(.isHeader)
                 PhotoChooser(onPicked: { newPhoto = $0 }) {
                     Label("Add photo", systemImage: "plus")
-                        .font(.callout.weight(.semibold))
+                        .font(.app(.callout).weight(.semibold))
                         .padding(.horizontal, Spacing.m)
                         .frame(minHeight: 36)
                         .background(Color.paperRaised, in: Capsule())
@@ -433,7 +438,7 @@ private struct MyCommunityView: View {
             Text(community.isAdmin
                  ? "Photos stay for a week. Use ... on a photo to pin it so it stays."
                  : "Photos stay for a week. The admin approves new ones first.")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.app(.footnote)).foregroundStyle(.secondary)
                 .padding(.leading, Spacing.xs)
         }
     }
@@ -451,7 +456,7 @@ private struct MyCommunityView: View {
                             .frame(width: 170, height: 210)
                             .clipShape(RoundedRectangle(cornerRadius: Radius.paperCard, style: .continuous))
                             Text(verbatim: photo.caption.isEmpty ? photo.uploaderName : "\(photo.caption) · \(photo.uploaderName)")
-                                .font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                                .font(.app(.footnote)).foregroundStyle(.secondary).lineLimit(1)
                             HStack(spacing: Spacing.s) {
                                 Button("No") { Task { await viewModel.change(photo, .reject, in: community) } }
                                     .buttonStyle(SmallInkButtonStyle(prominent: false))
@@ -503,13 +508,13 @@ private struct MyCommunityView: View {
                 Button { showsConnections = true } label: {
                     HStack(spacing: Spacing.m) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("View connections").font(.headline)
+                            Text("View connections").font(.app(.headline))
                             Text("\(community.buddyPairs.count) buddy pairs · \(community.members.filter { !$0.hasBuddy }.count) without a buddy")
-                                .font(.footnote).foregroundStyle(.secondary)
+                                .font(.app(.footnote)).foregroundStyle(.secondary)
                         }
                         Spacer()
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
-                            .font(.headline)
+                            .font(.app(.headline))
                             .frame(width: 40, height: 40)
                             .background(Color.primary.opacity(0.08), in: Circle())
                     }
@@ -540,9 +545,9 @@ private struct MyCommunityView: View {
             }
         )) {
             VStack(alignment: .leading, spacing: 2) {
-                Label("I'm away from home", systemImage: "suitcase.fill").font(.headline)
+                Label("I'm away from home", systemImage: "suitcase.fill").font(.app(.headline))
                 Text("Neighbors see \"Away from home\" next to your name, so nobody goes looking for you there.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.app(.footnote)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -581,7 +586,7 @@ private struct MyCommunityView: View {
                     }
                 }
                 if let subtitle, people.contains(where: \.wantsBuddy) {
-                    Text(subtitle).font(.footnote).foregroundStyle(.secondary).padding(.leading, Spacing.xs)
+                    Text(subtitle).font(.app(.footnote)).foregroundStyle(.secondary).padding(.leading, Spacing.xs)
                 }
             }
             .accessibilityElement(children: .contain)
@@ -621,7 +626,7 @@ private struct RespondersSection: View {
             SectionLabel(city.map { "First responders in \($0)" } ?? "First responders")
             if viewModel.responders.isEmpty {
                 Text("No verified first responders here yet.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.app(.callout)).foregroundStyle(.secondary)
                     .sheetBox(padding: Spacing.l)
             } else {
                 SheetCard {

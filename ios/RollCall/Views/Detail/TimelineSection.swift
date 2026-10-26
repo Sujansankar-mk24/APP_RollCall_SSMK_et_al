@@ -17,7 +17,7 @@ struct TimelineSection: View {
         SectionCard(title: "Timeline", systemImage: "clock.arrow.circlepath") {
             if events.isEmpty {
                 Text("Nothing has happened yet.")
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                     .foregroundStyle(.secondary)
             } else {
                 VStack(alignment: .leading, spacing: 0) {
@@ -39,7 +39,7 @@ private struct TimelineRow: View {
             // Icon with a line running down to the next event.
             VStack(spacing: 0) {
                 Image(systemName: icon)
-                    .font(.caption.weight(.bold))
+                    .font(.app(.caption).weight(.bold))
                     .foregroundStyle(.white)
                     .frame(width: 28, height: 28)
                     .background(tint, in: Circle())
@@ -54,10 +54,10 @@ private struct TimelineRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.message)
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                     .fixedSize(horizontal: false, vertical: true)
                 Text(timeText)
-                    .font(.caption)
+                    .font(.app(.caption))
                     .foregroundStyle(.secondary)
             }
             .padding(.bottom, isLast ? 0 : Spacing.l)

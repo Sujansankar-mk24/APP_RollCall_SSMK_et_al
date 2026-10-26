@@ -19,7 +19,7 @@ struct IncidentRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .center, spacing: Spacing.s) {
                     Label(incident.type.title, systemImage: incident.type.symbol)
-                        .font(.title3.weight(.bold))
+                        .font(.app(.title3).weight(.bold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                     Spacer(minLength: Spacing.xs)
@@ -33,7 +33,7 @@ struct IncidentRow: View {
                     .fixedSize()
                 }
                 Text(incident.locationName)
-                    .font(.body)
+                    .font(.app(.body))
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 aiLine
@@ -60,15 +60,15 @@ struct IncidentRow: View {
                 ProgressView().controlSize(.mini)
                 Text("AI is analyzing…")
             }
-            .font(.callout.weight(.medium))
+            .font(.app(.callout).weight(.medium))
         } else if incident.ai.verified {
             Label(evidenceText, systemImage: "viewfinder")
-                .font(.callout.weight(.semibold))
+                .font(.app(.callout).weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         } else if incident.type.canBeVerifiedByAI {
             Label("Not verified by AI yet", systemImage: "questionmark.circle")
-                .font(.callout)
+                .font(.app(.callout))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)

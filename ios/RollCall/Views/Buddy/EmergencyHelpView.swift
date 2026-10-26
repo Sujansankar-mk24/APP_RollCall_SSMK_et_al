@@ -34,7 +34,7 @@ struct EmergencyHelpView: View {
 
                     Button { call("911") } label: {
                         Label("Call 911", systemImage: "phone.fill")
-                            .font(.title3.weight(.bold))
+                            .font(.app(.title3).weight(.bold))
                             .frame(maxWidth: .infinity, minHeight: 64)
                             .foregroundStyle(.white)
                             .background(Color(.systemRed), in: Capsule())
@@ -58,10 +58,10 @@ struct EmergencyHelpView: View {
                     if let contact = emergencyContact {
                         Button { call(contact.phone) } label: {
                             HStack(spacing: Spacing.m) {
-                                Image(systemName: "person.crop.circle.badge.exclamationmark").font(.title2)
+                                Image(systemName: "person.crop.circle.badge.exclamationmark").font(.app(.title2))
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Call their emergency contact").font(.headline)
-                                    Text(verbatim: "\(contact.name) · \(contact.phone)").font(.subheadline).foregroundStyle(.secondary)
+                                    Text("Call their emergency contact").font(.app(.headline))
+                                    Text(verbatim: "\(contact.name) · \(contact.phone)").font(.app(.subheadline)).foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 Image(systemName: "phone.fill")

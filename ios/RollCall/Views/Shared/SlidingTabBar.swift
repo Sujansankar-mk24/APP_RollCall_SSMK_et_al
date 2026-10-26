@@ -77,7 +77,7 @@ struct SlidingTabBar<Tab: Hashable>: View {
                     // A small count bubble on the corner, so it doesn't take up width.
                     if item.badge > 0 {
                         Text("\(item.badge)")
-                            .font(.caption2.weight(.bold))
+                            .font(.app(.caption2).weight(.bold))
                             .monospacedDigit()
                             .foregroundStyle(.white)
                             .padding(.horizontal, 4)

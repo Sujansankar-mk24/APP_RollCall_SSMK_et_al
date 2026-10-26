@@ -71,7 +71,7 @@ struct LoadingView: View {
         VStack(spacing: Spacing.m) {
             LoadingLogo(size: 64)
             if let text {
-                Text(text).font(.callout).foregroundStyle(.secondary)
+                Text(text).font(.app(.callout)).foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 220)

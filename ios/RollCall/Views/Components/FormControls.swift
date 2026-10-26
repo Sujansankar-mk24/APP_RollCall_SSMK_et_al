@@ -24,8 +24,8 @@ struct CounterRow: View {
         HStack(spacing: Spacing.m) {
             VStack(alignment: .leading, spacing: 2) {
                 Label { Text(title) } icon: { Image(systemName: systemImage) }
-                    .font(.title3.weight(.semibold))
-                Text(subtitle).font(.callout).foregroundStyle(.secondary)
+                    .font(.app(.title3).weight(.semibold))
+                Text(subtitle).font(.app(.callout)).foregroundStyle(.secondary)
             }
             Spacer(minLength: Spacing.s)
             stepButton("minus", enabled: value > range.lowerBound) { value -= 1 }
@@ -55,7 +55,7 @@ struct CounterRow: View {
     private func stepButton(_ symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.headline.weight(.bold))
+                .font(.app(.headline).weight(.bold))
                 .frame(width: minimumTapSize, height: minimumTapSize)
                 .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(enabled ? brand : Color.secondary.opacity(0.4), lineWidth: 1.5))
         }
@@ -85,7 +85,7 @@ struct ToggleTile: View {
                         .strokeBorder(brand, lineWidth: 1.5)
                     if isOn {
                         Image(systemName: "checkmark")
-                            .font(.headline.weight(.bold))
+                            .font(.app(.headline).weight(.bold))
                             .foregroundStyle(Color.paper)
                     }
                 }
@@ -94,7 +94,7 @@ struct ToggleTile: View {
                     Label { Text(title) } icon: { Image(systemName: systemImage) }
                         .font(.sheetHeading)
                     Text(subtitle)
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.app(.callout)).foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -125,7 +125,7 @@ struct SelectChip: View {
     var body: some View {
         Button(action: action) {
             Label { Text(title) } icon: { Image(systemName: isSelected ? "checkmark" : systemImage) }
-                .font(.callout.weight(.semibold))
+                .font(.app(.callout).weight(.semibold))
                 .padding(.horizontal, Spacing.m)
                 .frame(minHeight: minimumTapSize)
                 .foregroundStyle(isSelected ? Color.paper : Color.primary)
@@ -178,7 +178,7 @@ struct LabeledField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(label).sheetLabelStyle().foregroundStyle(.secondary)
-            TextField(text: $text, prompt: Text(prompt).font(.body)) { Text(label) }
+            TextField(text: $text, prompt: Text(prompt).font(.app(.body))) { Text(label) }
                 .font(handwritten ? .sheetEntry : .title3)
                 .foregroundStyle(Color.ink)
                 .textContentType(contentType)

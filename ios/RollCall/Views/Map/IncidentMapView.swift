@@ -455,7 +455,7 @@ struct IncidentMapView: View {
             isReporting = true
         } label: {
             Label("Report incident", systemImage: "exclamationmark.bubble.fill")
-                .font(.headline)
+                .font(.app(.headline))
                 .foregroundStyle(.white)
                 .padding(.horizontal, Spacing.xl)
                 .frame(minHeight: 52)
@@ -483,7 +483,7 @@ struct IncidentMapView: View {
             zoom(by: factor)
         } label: {
             Image(systemName: systemImage)
-                .font(.title3.weight(.medium))
+                .font(.app(.title3).weight(.medium))
                 .frame(width: 48, height: 48)
                 .contentShape(Rectangle())
         }
@@ -517,7 +517,7 @@ struct IncidentMapView: View {
                 Image(systemName: "house.and.flag.fill")
                 Text(showsCommunity ? "Hide my community" : "My community")
             }
-            .font(.footnote.weight(.semibold))
+            .font(.app(.footnote).weight(.semibold))
             .foregroundStyle(showsCommunity ? Color.white : Color.themeAccent)
             .padding(.horizontal, 10)
             .frame(minHeight: 28)
@@ -565,7 +565,7 @@ struct IncidentMapView: View {
                 }
                 Text(tracking.title)
             }
-            .font(.footnote.weight(.semibold))
+            .font(.app(.footnote).weight(.semibold))
             .foregroundStyle(tracking == .off ? Color.themeAccent : Color.white)
             .padding(.horizontal, 10)
             .frame(minHeight: 28)
@@ -621,7 +621,7 @@ struct IncidentMapView: View {
             Task { await viewModel.refreshEverything() }
         } label: {
             Image(systemName: "arrow.clockwise")
-                .font(.caption.weight(.bold))
+                .font(.app(.caption).weight(.bold))
                 .rotationEffect(.degrees(viewModel.isRefreshingAll ? 360 : 0))
                 .animation(viewModel.isRefreshingAll ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default,
                            value: viewModel.isRefreshingAll)
@@ -678,7 +678,7 @@ struct IncidentMapView: View {
             }
         } label: {
             Image(systemName: "scope")
-                .font(.title3.weight(.medium))
+                .font(.app(.title3).weight(.medium))
                 .frame(width: 48, height: 48)
                 .contentShape(Rectangle())
         }
@@ -698,7 +698,7 @@ struct IncidentMapView: View {
             HStack(spacing: Spacing.s) {
                 LoadingLogo(size: 32)
                 Text("Loading incidents…")
-                    .font(.subheadline.weight(.medium))
+                    .font(.app(.subheadline).weight(.medium))
             }
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.m)

@@ -25,7 +25,7 @@ struct PriorityBreakdownCard: View {
                             .foregroundStyle(factor.points < 0 ? Color(.systemRed) : .primary)
                             .monospacedDigit()
                     }
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                     .padding(.vertical, 8)
                     .accessibilityElement(children: .combine)
                     Divider()
@@ -39,13 +39,13 @@ struct PriorityBreakdownCard: View {
                         .fontWeight(.bold)
                         .monospacedDigit()
                 }
-                .font(.subheadline)
+                .font(.app(.subheadline))
                 .padding(.top, 10)
                 .accessibilityElement(children: .combine)
             }
 
             Text(note)
-                .font(.caption)
+                .font(.app(.caption))
                 .foregroundStyle(.secondary)
         }
     }

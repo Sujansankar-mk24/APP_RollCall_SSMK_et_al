@@ -36,7 +36,7 @@ struct Badge: View {
             text
                 .foregroundStyle(.primary)
         }
-        .font(.subheadline.weight(.semibold))
+        .font(.app(.subheadline).weight(.semibold))
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(color.opacity(0.15), in: Capsule())

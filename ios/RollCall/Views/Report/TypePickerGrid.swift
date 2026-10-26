@@ -18,7 +18,7 @@ struct TypePickerGrid: View {
             ForEach(IncidentCategory.allCases) { category in
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Text(category.title)
-                        .font(.footnote.weight(.semibold))
+                        .font(.app(.footnote).weight(.semibold))
                         .foregroundStyle(.secondary)
                         .accessibilityAddTraits(.isHeader)
                     LazyVGrid(columns: columns, spacing: Spacing.s) {
@@ -38,10 +38,10 @@ struct TypePickerGrid: View {
         } label: {
             VStack(spacing: 6) {
                 Image(systemName: type.symbol)
-                    .font(.title2)
+                    .font(.app(.title2))
                     .frame(height: 28)
                 Text(type.title)
-                    .font(.footnote.weight(.medium))
+                    .font(.app(.footnote).weight(.medium))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .minimumScaleFactor(0.85)

@@ -65,7 +65,7 @@ struct PrivacyView: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             SheetTitle(title: "Only what helps", kicker: String(localized: "Your privacy"))
             Text("RollCall shares your information only with the people who need it to reach you, and only when they need it.")
-                .font(.body)
+                .font(.app(.body))
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -74,14 +74,14 @@ struct PrivacyView: View {
                               what: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Image(systemName: symbol)
-                .font(.title3)
+                .font(.app(.title3))
                 .foregroundStyle(tint)
                 .frame(width: 32)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(who).font(.sheetHeading)
                 Text(when).sheetLabelStyle()
-                Text(what).font(.callout).foregroundStyle(.secondary)
+                Text(what).font(.app(.callout)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -104,8 +104,8 @@ struct PrivacyView: View {
 
     private func reason(_ what: LocalizedStringKey, _ why: LocalizedStringKey) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
-            Image(systemName: "checkmark").font(.body.weight(.semibold))
-            Text("\(Text(what).bold()) \(Text(why))").font(.body)
+            Image(systemName: "checkmark").font(.app(.body).weight(.semibold))
+            Text("\(Text(what).bold()) \(Text(why))").font(.app(.body))
         }
         .sheetRow()
     }

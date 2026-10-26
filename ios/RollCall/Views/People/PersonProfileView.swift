@@ -76,7 +76,7 @@ struct PersonProfileView: View {
                 Text(verbatim: person.name).font(.heading(30)).multilineTextAlignment(.center)
                 if !person.bio.isEmpty {
                     Text(verbatim: person.bio)
-                        .font(.body)
+                        .font(.app(.body))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
@@ -139,7 +139,7 @@ struct PersonProfileView: View {
                 .disabled(isOffering)
                 .accessibilityIdentifier("offerToBeBuddy")
                 Text("You'd check on \(person.firstName) in an emergency. They get your offer in Roll Call and decide. You only see their household details if they accept.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.app(.callout)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .confirmationDialog("Offer to be \(person.firstName)'s buddy?", isPresented: $confirmsOffer,
@@ -184,7 +184,7 @@ struct PersonProfileView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .accessibilityIdentifier("personConnections")
             Text(connectionsSummary(person))
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.app(.footnote)).foregroundStyle(.secondary)
                 .padding(.leading, Spacing.xs)
         }
     }
@@ -221,7 +221,7 @@ struct PersonProfileView: View {
                 Button { open("maps://?daddr=\(address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") } label: {
                     HStack(spacing: Spacing.m) {
                         Image(systemName: "house.fill").foregroundStyle(.secondary)
-                        Text(verbatim: address).font(.body.weight(.medium)).multilineTextAlignment(.leading)
+                        Text(verbatim: address).font(.app(.body).weight(.medium)).multilineTextAlignment(.leading)
                         Spacer()
                         Image(systemName: "arrow.triangle.turn.up.right.diamond.fill").foregroundStyle(.secondary)
                     }
@@ -236,9 +236,9 @@ struct PersonProfileView: View {
     private func infoRow(_ symbol: String, _ title: LocalizedStringKey, _ value: String) -> some View {
         HStack(spacing: Spacing.m) {
             Image(systemName: symbol).foregroundStyle(.secondary).frame(width: 24)
-            Text(title).font(.body)
+            Text(title).font(.app(.body))
             Spacer(minLength: Spacing.s)
-            Text(verbatim: value).font(.body).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
+            Text(verbatim: value).font(.app(.body)).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
         }
         .sheetRow()
         .accessibilityElement(children: .combine)
@@ -301,7 +301,7 @@ private struct ReportResponderSheet: View {
                         ForEach(ResponderReportReason.allCases) { option in
                             Button { reason = option } label: {
                                 HStack {
-                                    Text(option.title).font(.body)
+                                    Text(option.title).font(.app(.body))
                                     Spacer()
                                     Image(systemName: reason == option ? "largecircle.fill.circle" : "circle")
                                         .foregroundStyle(reason == option ? Color.primary : Color.secondary)
@@ -316,7 +316,7 @@ private struct ReportResponderSheet: View {
                     LabeledField(label: "What happened? (optional)", prompt: "A few words help the review",
                                  text: $details, handwritten: false)
                     if let error {
-                        Text(error.message).font(.callout).foregroundStyle(Color(.systemRed))
+                        Text(error.message).font(.app(.callout)).foregroundStyle(Color(.systemRed))
                     }
                     Button {
                         Task { await send() }

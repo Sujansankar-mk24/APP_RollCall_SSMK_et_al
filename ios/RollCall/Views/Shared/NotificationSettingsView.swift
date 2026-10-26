@@ -35,7 +35,7 @@ struct NotificationSettingsView: View {
                     if alerts.permissionDenied {
                         VStack(alignment: .leading, spacing: Spacing.s) {
                             Text("Notifications are turned off for RollCall in the iPhone's Settings.")
-                                .font(.callout).foregroundStyle(.secondary)
+                                .font(.app(.callout)).foregroundStyle(.secondary)
                             Button("Open Settings") {
                                 if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
                             }
@@ -71,13 +71,13 @@ struct NotificationSettingsView: View {
         Toggle(isOn: isOn) {
             HStack(alignment: .top, spacing: Spacing.m) {
                 Image(systemName: symbol)
-                    .font(.headline)
+                    .font(.app(.headline))
                     .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
                     .background(color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.headline)
-                    Text(text).font(.footnote).foregroundStyle(.secondary)
+                    Text(title).font(.app(.headline))
+                    Text(text).font(.app(.footnote)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -91,26 +91,26 @@ struct NotificationSettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
                 Image(systemName: "flame.fill")
-                    .font(.title3.weight(.semibold)).foregroundStyle(.white)
+                    .font(.app(.title3).weight(.semibold)).foregroundStyle(.white)
                     .frame(width: 40, height: 40)
                     .background(Color(.systemOrange), in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("ROLLCALL · GREENVILLE").font(.caption2.weight(.bold)).tracking(1).foregroundStyle(.white.opacity(0.7))
-                    Text("Grass fire, 2.1 mi away").font(.headline).foregroundStyle(.white)
-                    Text("Open RollCall for what to do.").font(.caption).foregroundStyle(.white.opacity(0.8))
+                    Text("ROLLCALL · GREENVILLE").font(.app(.caption2).weight(.bold)).tracking(1).foregroundStyle(.white.opacity(0.7))
+                    Text("Grass fire, 2.1 mi away").font(.app(.headline)).foregroundStyle(.white)
+                    Text("Open RollCall for what to do.").font(.app(.caption)).foregroundStyle(.white.opacity(0.8))
                 }
             }
             HStack(spacing: 8) {
                 Text("I'm safe").frame(maxWidth: .infinity, minHeight: 34).background(Color(.systemGreen), in: Capsule())
                 Text("I need help").frame(maxWidth: .infinity, minHeight: 34).background(Color(.systemRed), in: Capsule())
             }
-            .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+            .font(.app(.subheadline).weight(.semibold)).foregroundStyle(.white)
         }
         .padding(14)
         .background(Color.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .accessibilityHidden(true)
         .overlay(alignment: .topTrailing) {
-            Text("Preview").font(.caption2.weight(.bold)).foregroundStyle(.white.opacity(0.6)).padding(10)
+            Text("Preview").font(.app(.caption2).weight(.bold)).foregroundStyle(.white.opacity(0.6)).padding(10)
         }
     }
 }

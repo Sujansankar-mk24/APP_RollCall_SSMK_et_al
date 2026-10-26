@@ -39,3 +39,6 @@ demo_video/
 
 # Quitars is free for personal use only, so it is not shared in the public repo
 ios/RollCall/Fonts/Quitars.otf
+# Crature (demo edition) and Angelines Script: personal-use fonts, not shared publicly
+ios/RollCall/Fonts/Crature-Demo.ttf
+ios/RollCall/Fonts/AngelinesScript.otf

@@ -116,9 +116,11 @@ struct ResidentHomeView: View {
                     .minimumScaleFactor(0.7)
             }
             Spacer(minLength: 0)
-            Stamp(text: String(localized: "On the roll call"), systemImage: "checkmark", color: Color(.systemGreen))
         }
+        .padding(.top, Spacing.m)   // room under the hanging tag
         .sheetBox()
+        // "On the roll call" hangs from the top edge of the card.
+        .hangingTag(Stamp(text: String(localized: "On the roll call"), systemImage: "checkmark", color: Color(.systemGreen)))
         .accessibilityElement(children: .combine)
     }
 
@@ -145,7 +147,7 @@ struct ResidentHomeView: View {
     private var checkInTitle: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("How are you?").font(.heading(19, relativeTo: .headline))
-            Text("Tells your buddy").font(.footnote).foregroundStyle(.secondary)
+            Text("Tells your buddy").font(.app(.footnote)).foregroundStyle(.secondary)
         }
     }
 
@@ -167,7 +169,7 @@ struct ResidentHomeView: View {
             }
         } label: {
             Label(title, systemImage: symbol)
-                .font(.callout.weight(.semibold))
+                .font(.app(.callout).weight(.semibold))
                 .lineLimit(1)
                 .padding(.horizontal, Spacing.m)
                 .frame(minHeight: minimumTapSize)
@@ -191,10 +193,10 @@ struct ResidentHomeView: View {
             Text(request.sameCommunity
                  ? String(localized: "A volunteer from your community.")
                  : String(localized: "A volunteer from \(request.volunteerCity). They're not in your community."))
-                .font(.body)
+                .font(.app(.body))
                 .fixedSize(horizontal: false, vertical: true)
             Text("If you accept, they'll see your name, address, phone and needs, and check on you if you don't answer during an emergency.")
-                .font(.callout).foregroundStyle(.secondary)
+                .font(.app(.callout)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: Spacing.m) {
                 Button("Not now") { Task { await viewModel.answer(request, accept: false) } }
@@ -271,7 +273,7 @@ struct ResidentHomeView: View {
             }
             if !buddies.isEmpty {
                 Text("More neighbors can offer to check on you too. Each one shows up here once you accept.")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.app(.footnote)).foregroundStyle(.secondary)
                     .padding(.leading, Spacing.xs)
             }
         }
@@ -286,7 +288,7 @@ struct ResidentHomeView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(verbatim: buddy.name).sheetEntryStyle()
                             Text("Checks on you if you don't answer during an emergency.")
-                                .font(.callout).foregroundStyle(.secondary)
+                                .font(.app(.callout)).foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -301,28 +303,28 @@ struct ResidentHomeView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.title3.weight(.bold))
+                        .font(.app(.title3).weight(.bold))
                         .frame(width: minimumTapSize, height: minimumTapSize)
                 }
                 .accessibilityLabel("Options for \(buddy.name)")
             }
-            HStack(spacing: Spacing.s) {
-                if let digits = PersonProfileView.digits(buddy.phone) {
+            // Call and Text side by side, "They need help" on its own line,
+            // so the row never gets wider than the phone.
+            if let digits = PersonProfileView.digits(buddy.phone) {
+                HStack(spacing: Spacing.s) {
                     Button { open("tel:\(digits)") } label: { Label("Call", systemImage: "phone.fill") }
-                        .buttonStyle(SmallInkButtonStyle())
+                        .buttonStyle(InkButtonStyle())
                         .accessibilityIdentifier("callBuddy")
                     Button { open("sms:\(digits)") } label: { Label("Text", systemImage: "message.fill") }
-                        .buttonStyle(SmallInkButtonStyle(prominent: false))
+                        .buttonStyle(InkButtonStyle(prominent: false))
                         .accessibilityIdentifier("textBuddy")
                 }
-                Spacer(minLength: 0)
-                Button { buddyNeedsHelp = buddy } label: {
-                    Label("They need help", systemImage: "cross.case.fill")
-                }
-                .buttonStyle(SmallInkButtonStyle(prominent: false))
-                .foregroundStyle(Color(.systemRed))
-                .accessibilityIdentifier("buddyNeedsHelp")
             }
+            Button { buddyNeedsHelp = buddy } label: {
+                Label("They need help", systemImage: "cross.case.fill")
+            }
+            .buttonStyle(InkButtonStyle(prominent: false, destructive: true))
+            .accessibilityIdentifier("buddyNeedsHelp")
         }
         .sheetRow()
         .accessibilityElement(children: .contain)
@@ -335,7 +337,7 @@ struct ResidentHomeView: View {
     private func textRow(title: LocalizedStringKey, subtitle: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).font(.sheetHeading)
-            Text(subtitle).font(.callout).foregroundStyle(.secondary)
+            Text(subtitle).font(.app(.callout)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .sheetRow()
@@ -346,11 +348,11 @@ struct ResidentHomeView: View {
         HStack(spacing: Spacing.m) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.sheetHeading)
-                Text(subtitle).font(.callout).foregroundStyle(.secondary)
+                Text(subtitle).font(.app(.callout)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
-            Image(systemName: "arrow.right").font(.headline).foregroundStyle(.secondary)
+            Image(systemName: "arrow.right").font(.app(.headline)).foregroundStyle(.secondary)
         }
         .contentShape(Rectangle())
         .sheetRow()

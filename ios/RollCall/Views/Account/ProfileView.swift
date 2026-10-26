@@ -40,7 +40,7 @@ struct ProfileView: View {
                             }
                             Button { showsPreview = true } label: {
                                 Label("See what neighbors see", systemImage: "eye")
-                                    .font(.callout.weight(.semibold))
+                                    .font(.app(.callout).weight(.semibold))
                                     .frame(maxWidth: .infinity, minHeight: minimumTapSize)
                             }
                             .buttonStyle(.plain)
@@ -71,7 +71,7 @@ struct ProfileView: View {
                             .accessibilityIdentifier("signOut")
                             SheetNote(text: "You stay signed in on this phone until you sign out.")
                             Button("Delete account", role: .destructive) { deletesAccount = true }
-                                .font(.callout.weight(.semibold))
+                                .font(.app(.callout).weight(.semibold))
                                 .underline()
                                 .frame(maxWidth: .infinity, minHeight: minimumTapSize)
                                 .accessibilityIdentifier("deleteAccount")
@@ -122,7 +122,7 @@ struct ProfileView: View {
                     }
                     .overlay(alignment: .bottomTrailing) {
                         Image(systemName: "pencil")
-                            .font(.headline.weight(.semibold))
+                            .font(.app(.headline).weight(.semibold))
                             .foregroundStyle(Color.primary)
                             .frame(width: 40, height: 40)
                             .background(Color.paperRaised, in: Circle())
@@ -133,11 +133,11 @@ struct ProfileView: View {
             .accessibilityIdentifier("profilePhoto")
             if me.photoUrl != nil {
                 Button("Remove picture", role: .destructive) { Task { await setPhoto(nil) } }
-                    .font(.footnote.weight(.semibold))
+                    .font(.app(.footnote).weight(.semibold))
             }
             VStack(spacing: 4) {
                 Text(verbatim: me.name).font(.heading(30))
-                Text(verbatim: me.email).font(.subheadline).foregroundStyle(.secondary)
+                Text(verbatim: me.email).font(.app(.subheadline)).foregroundStyle(.secondary)
             }
             badges(me)
         }
@@ -176,9 +176,9 @@ struct ProfileView: View {
             case .pending:
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Stamp(text: String(localized: "Waiting for review"), systemImage: "hourglass", color: Color(.systemOrange))
-                    Text("\(me.responderRole), \(me.responderAgency)").font(.headline)
+                    Text("\(me.responderRole), \(me.responderAgency)").font(.app(.headline))
                     Text("A person checks your ID and badge number. Your ID photo is deleted right after.")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.app(.callout)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .sheetBox()
@@ -186,12 +186,12 @@ struct ProfileView: View {
             case .none, .rejected:
                 Button { showsApplication = true } label: {
                     HStack(spacing: Spacing.m) {
-                        Image(systemName: "cross.case.fill").font(.title3).frame(width: 32)
+                        Image(systemName: "cross.case.fill").font(.app(.title3)).frame(width: 32)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(me.responderStatus == .rejected ? "Apply again as a first responder" : "Are you a first responder?")
-                                .font(.headline)
+                                .font(.app(.headline))
                             Text("Firefighters, EMS, police and emergency managers can apply to update incidents.")
-                                .font(.footnote).foregroundStyle(.secondary)
+                                .font(.app(.footnote)).foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 0)
@@ -209,10 +209,10 @@ struct ProfileView: View {
     private func editRow(_ title: LocalizedStringKey, _ value: String, field: EditField) -> some View {
         Button { editing = field } label: {
             HStack(spacing: Spacing.m) {
-                Text(title).font(.body)
+                Text(title).font(.app(.body))
                 Spacer(minLength: Spacing.m)
-                Text(verbatim: value).font(.body).foregroundStyle(.secondary).lineLimit(1)
-                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                Text(verbatim: value).font(.app(.body)).foregroundStyle(.secondary).lineLimit(1)
+                Image(systemName: "chevron.right").font(.app(.footnote).weight(.semibold)).foregroundStyle(.tertiary)
             }
             .sheetRow()
             .contentShape(Rectangle())
@@ -224,9 +224,9 @@ struct ProfileView: View {
     private func row(_ symbol: String, _ title: LocalizedStringKey, _ value: String) -> some View {
         HStack(spacing: Spacing.m) {
             Image(systemName: symbol).foregroundStyle(.secondary).frame(width: 24)
-            Text(title).font(.body)
+            Text(title).font(.app(.body))
             Spacer()
-            Text(verbatim: value).font(.body).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
+            Text(verbatim: value).font(.app(.body)).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
         }
         .sheetRow()
         .accessibilityElement(children: .combine)
@@ -292,7 +292,7 @@ private struct EditProfileFieldSheet: View {
                             .padding(Spacing.m)
                             .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
                             .accessibilityIdentifier("editField")
-                        Text("\(text.count) / 160").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        Text("\(text.count) / 160").font(.app(.caption)).foregroundStyle(.secondary).monospacedDigit()
                     }
                 case .phone:
                     LabeledField(label: "Phone", prompt: "(903) 555-0100", text: $text,
@@ -301,7 +301,7 @@ private struct EditProfileFieldSheet: View {
                               systemImage: "lock.fill")
                 }
                 if let error {
-                    Text(error.message).font(.callout).foregroundStyle(Color(.systemRed))
+                    Text(error.message).font(.app(.callout)).foregroundStyle(Color(.systemRed))
                 }
                 Button {
                     Task { await save() }
@@ -367,12 +367,12 @@ private struct DeleteAccountSheet: View {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     SheetTitle(title: "Delete your account?", kicker: String(localized: "Can't be undone"))
                     VStack(alignment: .leading, spacing: Spacing.s) {
-                        Text("This deletes, for good:").font(.body.weight(.semibold))
+                        Text("This deletes, for good:").font(.app(.body).weight(.semibold))
                         ForEach(Self.whatGoes.indices, id: \.self) { index in
-                            Label(Self.whatGoes[index], systemImage: "minus.circle").font(.callout)
+                            Label(Self.whatGoes[index], systemImage: "minus.circle").font(.app(.callout))
                         }
                         Text("Incident reports you sent stay on the map, because they aren't tied to your account.")
-                            .font(.callout).foregroundStyle(.secondary)
+                            .font(.app(.callout)).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .sheetBox()
@@ -389,7 +389,7 @@ private struct DeleteAccountSheet: View {
                             .accessibilityIdentifier("deletePasswordField")
                     }
                     if let error {
-                        Text(error.message).font(.callout).foregroundStyle(Color(.systemRed))
+                        Text(error.message).font(.app(.callout)).foregroundStyle(Color(.systemRed))
                     }
                     Button {
                         Task { await delete() }

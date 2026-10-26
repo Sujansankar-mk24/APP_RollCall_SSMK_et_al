@@ -97,13 +97,13 @@ struct ReportFormView: View {
     private var seriousOnlyReminder: some View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Image(systemName: "exclamationmark.shield.fill")
-                .font(.title2)
+                .font(.app(.title2))
                 .foregroundStyle(Color(.systemOrange))
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("Only report real emergencies")
-                    .font(.headline)
+                    .font(.app(.headline))
                 Text("Report things only firefighters, police or EMS can handle, like a spreading grass fire, a house fire, a flooded road or someone badly hurt. A campfire, a burn pile or a grill isn't an emergency.")
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -121,11 +121,11 @@ struct ReportFormView: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title)
-                    .font(.headline)
+                    .font(.app(.headline))
                     .accessibilityAddTraits(.isHeader)
                 if let note {
                     Text(note)
-                        .font(.footnote)
+                        .font(.app(.footnote))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -149,7 +149,7 @@ struct ReportFormView: View {
                     }
                     Text(viewModel.isLocating ? "Finding you…" : "Use my location")
                 }
-                .font(.body.weight(.semibold))
+                .font(.app(.body).weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: minimumTapSize)
             }
             .buttonStyle(.bordered)
@@ -190,11 +190,11 @@ struct ReportFormView: View {
                 Image(systemName: "mappin")
                     .foregroundStyle(Color(.systemRed))
             }
-            .font(.subheadline)
+            .font(.app(.subheadline))
 
             if let note = viewModel.locationNote {
                 Text(note)
-                    .font(.footnote)
+                    .font(.app(.footnote))
                     .foregroundStyle(Color(.systemOrange))
             }
         }
@@ -245,11 +245,11 @@ struct ReportFormView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(suggestion.title)
-                                .font(.subheadline.weight(.medium))
+                                .font(.app(.subheadline).weight(.medium))
                                 .foregroundStyle(.primary)
                             if !suggestion.subtitle.isEmpty {
                                 Text(suggestion.subtitle)
-                                    .font(.caption)
+                                    .font(.app(.caption))
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -281,7 +281,7 @@ struct ReportFormView: View {
                 .accessibilityLabel("Description")
                 .accessibilityIdentifier("reportDescription")
             Text("\(viewModel.description.count) / \(ReportViewModel.maxDescriptionLength)")
-                .font(.caption)
+                .font(.app(.caption))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
@@ -320,12 +320,12 @@ struct ReportFormView: View {
             Text(CameraCapture.isAvailable
                  ? "A clear photo from the last 2 days. Screenshots and saved images can't be used. The AI checks it for fire, smoke and people."
                  : "A clear photo from the last 2 days. The AI checks it for fire, smoke and people. (The simulator has no camera, so pick from the library.)")
-                .font(.caption)
+                .font(.app(.caption))
                 .foregroundStyle(.secondary)
 
             if let error = viewModel.attachmentError {
                 Text(error)
-                    .font(.footnote)
+                    .font(.app(.footnote))
                     .foregroundStyle(Color(.systemRed))
                     .accessibilityIdentifier("attachmentError")
             }
@@ -363,7 +363,7 @@ struct ReportFormView: View {
                     Label("Remove", systemImage: "trash")
                 }
             }
-            .font(.subheadline.weight(.medium))
+            .font(.app(.subheadline).weight(.medium))
             .frame(minHeight: minimumTapSize)
         }
     }
@@ -374,12 +374,12 @@ struct ReportFormView: View {
                 .foregroundStyle(Color(.systemOrange))
             VStack(alignment: .leading, spacing: 2) {
                 Text("Your report wasn't sent")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.app(.subheadline).weight(.semibold))
                 Text(error.message)
-                    .font(.footnote)
+                    .font(.app(.footnote))
                     .foregroundStyle(.secondary)
                 Text("Everything you entered is still here. Tap Send report to try again.")
-                    .font(.footnote)
+                    .font(.app(.footnote))
                     .foregroundStyle(.secondary)
             }
         }
@@ -414,7 +414,7 @@ struct ReportFormView: View {
                         Text("Send report")
                     }
                 }
-                .font(.body.weight(.semibold))
+                .font(.app(.body).weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 30)
             }
             .buttonStyle(.borderedProminent)
@@ -424,7 +424,7 @@ struct ReportFormView: View {
 
             if let missing = viewModel.whatsMissing {
                 Text(missing)
-                    .font(.footnote)
+                    .font(.app(.footnote))
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("reportMissing")
             }
@@ -449,9 +449,9 @@ private struct AttachmentChoiceLabel: View {
     var body: some View {
         VStack(spacing: Spacing.s) {
             Image(systemName: systemImage)
-                .font(.title2)
+                .font(.app(.title2))
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.app(.subheadline).weight(.semibold))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, minHeight: 100)

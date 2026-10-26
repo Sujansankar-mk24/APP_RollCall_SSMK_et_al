@@ -47,9 +47,9 @@ struct MessageCard: View {
 
             VStack(spacing: Spacing.xs) {
                 title
-                    .font(.headline)
+                    .font(.app(.headline))
                 message
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                     .foregroundStyle(.secondary)
             }
             .multilineTextAlignment(.center)

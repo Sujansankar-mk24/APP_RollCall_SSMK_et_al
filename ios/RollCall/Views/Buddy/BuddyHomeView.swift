@@ -71,7 +71,7 @@ struct BuddyHomeView: View {
                     }
                 }
                 Button("Stop volunteering", role: .destructive) { confirmsStopping = true }
-                    .font(.callout.weight(.semibold))
+                    .font(.app(.callout).weight(.semibold))
                     .underline()
                     .frame(maxWidth: .infinity, minHeight: minimumTapSize)
             }
@@ -101,13 +101,13 @@ struct BuddyHomeView: View {
         HStack(spacing: Spacing.m) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: neighbor.firstName).sheetEntryStyle()
-                Text(verbatim: "\(neighbor.street), \(neighbor.city)").font(.callout).foregroundStyle(.secondary)
+                Text(verbatim: "\(neighbor.street), \(neighbor.city)").font(.app(.callout)).foregroundStyle(.secondary)
                 // Who needs someone most: asked for a buddy, or nobody checks on them yet.
                 if neighbor.buddyCount == 0 && neighbor.askedForBuddy {
-                    Text("Asked for a buddy").font(.footnote.weight(.semibold)).foregroundStyle(Color(.systemOrange))
+                    Text("Asked for a buddy").font(.app(.footnote).weight(.semibold)).foregroundStyle(Color(.systemOrange))
                 } else if neighbor.buddyCount > 0 {
                     Text(AttributedString(localized: "Checked on by ^[\(neighbor.buddyCount) neighbor](inflect: true)"))
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.app(.footnote)).foregroundStyle(.secondary)
                 }
             }
             Spacer()
@@ -136,7 +136,7 @@ struct BuddyHomeView: View {
                     Avatar(url: resident.ownerPhotoURL, name: resident.displayName, size: 44)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(verbatim: resident.displayName).sheetEntryStyle()
-                        Text(verbatim: "\(resident.address), \(resident.city)").font(.subheadline).foregroundStyle(.secondary)
+                        Text(verbatim: "\(resident.address), \(resident.city)").font(.app(.subheadline)).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 0)
                     if resident.checkIn == "needs_help" {
@@ -175,8 +175,8 @@ struct BuddyHomeView: View {
     private func quickAction(_ title: LocalizedStringKey, _ symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: symbol).font(.headline)
-                Text(title).font(.caption.weight(.semibold))
+                Image(systemName: symbol).font(.app(.headline))
+                Text(title).font(.app(.caption).weight(.semibold))
             }
             .frame(maxWidth: .infinity, minHeight: 56)
             .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
@@ -194,7 +194,7 @@ struct BuddyHomeView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: request.label).sheetEntryStyle()
                 Text(request.status == .declined ? "They said no thanks" : "Waiting for them to accept")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.app(.callout)).foregroundStyle(.secondary)
             }
             Spacer()
             Button(request.status == .declined ? "Remove" : "Cancel") {
@@ -211,7 +211,7 @@ struct BuddyHomeView: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             SectionLabel(title)
             if let subtitle {
-                Text(subtitle).font(.callout).foregroundStyle(.secondary)
+                Text(subtitle).font(.app(.callout)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             SheetCard { content() }
@@ -220,7 +220,7 @@ struct BuddyHomeView: View {
 
     private func emptyNote(_ text: LocalizedStringKey) -> some View {
         Text(text)
-            .font(.callout).foregroundStyle(.secondary)
+            .font(.app(.callout)).foregroundStyle(.secondary)
             .sheetRow()
     }
 }

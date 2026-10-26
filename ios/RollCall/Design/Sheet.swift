@@ -22,6 +22,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 // MARK: - Page
 
@@ -57,30 +58,56 @@ extension Radius {
 // MARK: - Type
 
 extension Font {
-    // Headings use Animosa (Fonts/, free for personal and commercial use).
-    // `relativeTo` keeps Dynamic Type working: they grow with the user's text size.
+    // RollCall's fonts (Fonts/, see FONTS-LICENSE.txt):
+    //   main headings   Crature (falls back to Animosa if the file is missing)
+    //   Weekly Recap    Angelines Script
+    //   everything else Quitars
+    // `relativeTo` keeps Dynamic Type working: text grows with the user's text size.
+    // A missing font falls back to the iPhone's system font.
+
+    /// The font file names inside the fonts (their "PostScript names").
+    private static let headingFace = UIFont(name: "Crature-Demo", size: 12) != nil ? "Crature-Demo" : "Animosa-Bold"
+    private static let bodyFace = "QuitarsRegular"
+    private static let recapFace = "AngelinesScript"
 
     /// Page titles: "Roll Call", "Community".
-    static let sheetDisplay = Font.custom("Animosa-ExtraBold", size: 36, relativeTo: .largeTitle)
+    static let sheetDisplay = Font.custom(headingFace, size: 38, relativeTo: .largeTitle)
     /// Card and section headings: "Join the roll call?".
-    static let sheetHeading = Font.custom("Animosa-Bold", size: 21, relativeTo: .title3)
+    static let sheetHeading = Font.custom(headingFace, size: 22, relativeTo: .title3)
     /// The small uppercase labels ("YOUR HOUSEHOLD"), still 15 pt so they're easy to read.
-    static let sheetLabel = Font.system(.subheadline, weight: .semibold)
+    static let sheetLabel = Font.custom(bodyFace, size: 16, relativeTo: .subheadline)
     /// Someone's name or address in a list.
-    static let sheetEntry = Font.system(.body, weight: .semibold)
+    static let sheetEntry = Font.custom(bodyFace, size: 18, relativeTo: .body)
     /// A name at the top of a page or card.
-    static let sheetEntryLarge = Font.custom("Animosa-Bold", size: 24, relativeTo: .title2)
+    static let sheetEntryLarge = Font.custom(headingFace, size: 26, relativeTo: .title2)
 
-    /// Any heading at a given size, in Animosa.
+    /// A main heading at a given size, in Crature.
     static func heading(_ size: CGFloat, relativeTo style: Font.TextStyle = .title, extraBold: Bool = false) -> Font {
-        .custom(extraBold ? "Animosa-ExtraBold" : "Animosa-Bold", size: size, relativeTo: style)
+        .custom(headingFace, size: size, relativeTo: style)
     }
 
-    /// The Weekly Recap's friendly handwriting-like font, Quitars (free for
-    /// personal use, so it isn't in the public repo; see Fonts/FONTS-LICENSE.txt).
-    /// If the file is missing, iOS falls back to the system font.
+    /// The Weekly Recap's handwritten font, Angelines Script.
     static func recap(_ size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
-        .custom("QuitarsRegular", size: size, relativeTo: style)
+        .custom(recapFace, size: size, relativeTo: style)
+    }
+
+    /// Everyday text in Quitars, in place of the system's text styles
+    /// (.body, .callout, .headline ...). Quitars runs a little small, so
+    /// each size is nudged up to read like the system font.
+    static func app(_ style: Font.TextStyle) -> Font {
+        let size: CGFloat = switch style {
+        case .largeTitle: 34
+        case .title: 28
+        case .title2: 22
+        case .title3: 20
+        case .headline, .body: 17
+        case .callout: 16
+        case .subheadline: 15
+        case .footnote: 13
+        case .caption: 12
+        default: 11   // caption2
+        }
+        return .custom(bodyFace, size: (size * 1.06).rounded(), relativeTo: style)
     }
 }
 
@@ -226,7 +253,7 @@ struct SheetTabs<Value: Hashable>: View {
                 let isSelected = selection == option.value
                 Button { selection = option.value } label: {
                     Text(option.title)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.app(.subheadline).weight(.semibold))
                         .foregroundStyle(isSelected ? onBrand : Color.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -266,7 +293,7 @@ struct InkButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let red = Color(.systemRed)
         configuration.label
-            .font(.headline)
+            .font(.app(.headline))
             .multilineTextAlignment(.center)
             .padding(.horizontal, Spacing.l)
             .frame(maxWidth: .infinity, minHeight: 56)
@@ -288,7 +315,7 @@ struct SmallInkButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.callout.weight(.semibold))
+            .font(.app(.callout).weight(.semibold))
             .lineLimit(1)
             .padding(.horizontal, Spacing.l)
             .frame(minHeight: minimumTapSize)
@@ -303,7 +330,7 @@ struct SmallInkButtonStyle: ButtonStyle {
 
 // MARK: - Badges
 
-/// A small tinted status pill: "✓ Safe", "Needs help". This is where color
+/// A small tinted status tag: "✓ Safe", "Needs help". This is where color
 /// lives, always next to a word so color isn't the only clue.
 /// (`tilt` is ignored now. It's kept so older calls still work.)
 struct Stamp: View {
@@ -311,23 +338,48 @@ struct Stamp: View {
     var systemImage: String? = nil
     var color: Color = .ink
     var tilt: Double = 0
-    /// A smaller pill, for tags under a name in a list.
+    /// A smaller tag, for the stack under a name in a list.
     var small = false
 
     var body: some View {
-        // A soft, very rounded pill with the words in normal case, like the
-        // offer pills in banking apps: "⚡ Increased at ...".
+        // A paper tag that hangs down: a flat top, as if it's clipped to the
+        // edge of the card, and a rounded bottom. It sits on solid paper, so
+        // tags can overlap like layered paper and still be read.
         HStack(spacing: small ? 4 : 6) {
-            if let systemImage { Image(systemName: systemImage).font((small ? Font.caption : .subheadline).weight(.semibold)) }
-            Text(text).font(.heading(small ? 14 : 16, relativeTo: small ? .caption : .subheadline))
+            if let systemImage {
+                Image(systemName: systemImage).font(.system(size: small ? 11 : 13, weight: .semibold))
+            }
+            Text(text).font(.app(small ? .footnote : .subheadline))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
         .foregroundStyle(color)
-        .padding(.horizontal, small ? 10 : 14)
-        .padding(.vertical, small ? 4 : 7)
-        .background(color.opacity(0.13), in: Capsule())
+        .padding(.horizontal, small ? 10 : 13)
+        .padding(.top, small ? 5 : 8)
+        .padding(.bottom, small ? 6 : 9)
+        .background {
+            HangingTagShape()
+                .fill(color.opacity(0.16))
+                .background(HangingTagShape().fill(Color.paperRaised))
+        }
+        .overlay(HangingTagShape().stroke(color.opacity(0.25), lineWidth: 0.75))
+        .shadow(color: .black.opacity(0.12), radius: 2, x: 1, y: 1.5)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The tag's outline: nearly square at the top, round at the bottom.
+nonisolated struct HangingTagShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        UnevenRoundedRectangle(topLeadingRadius: 3, bottomLeadingRadius: 12, bottomTrailingRadius: 12,
+                               topTrailingRadius: 3, style: .continuous).path(in: rect)
+    }
+}
+
+extension View {
+    /// Hang a tag from the top edge of a card, like a paper tag clipped on.
+    func hangingTag(_ tag: Stamp, inset: CGFloat = Spacing.l) -> some View {
+        overlay(alignment: .topTrailing) { tag.padding(.trailing, inset) }
     }
 }
 
@@ -345,7 +397,7 @@ struct SheetNote: View {
                 .foregroundStyle(color == .ink ? Color.secondary : color)
                 .accessibilityHidden(true)
             Text(text)
-                .font(.callout)
+                .font(.app(.callout))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -386,10 +438,10 @@ struct SheetMessage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             Image(systemName: systemImage)
-                .font(.title2.weight(.semibold))
+                .font(.app(.title2).weight(.semibold))
                 .foregroundStyle(.secondary)
             title.font(.sheetHeading)
-            message.font(.body).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            message.font(.app(.body)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if let actionTitle, let action {
                 Button(actionTitle, action: action).buttonStyle(InkButtonStyle(prominent: false))
             }

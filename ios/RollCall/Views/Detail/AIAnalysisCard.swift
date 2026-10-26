@@ -21,14 +21,14 @@ struct AIAnalysisCard: View {
         SectionCard(title: "AI analysis", systemImage: "viewfinder", trailingNote: verifiedNote) {
             if detail.media.isEmpty {
                 Text("No photos or videos yet. When someone adds one, the AI checks it for fire, smoke and people.")
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                     .foregroundStyle(.secondary)
             } else {
                 if detail.summary.ai.analyzing {
                     HStack(spacing: Spacing.s) {
                         ProgressView()
                         Text("Analyzing new photos and videos…")
-                            .font(.subheadline)
+                            .font(.app(.subheadline))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -41,7 +41,7 @@ struct AIAnalysisCard: View {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(Color(.systemOrange))
                     }
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                 }
                 verdictLine
                 findings
@@ -49,7 +49,7 @@ struct AIAnalysisCard: View {
                     annotatedImages
                 }
                 Text(footnote)
-                    .font(.caption)
+                    .font(.app(.caption))
                     .foregroundStyle(.secondary)
             }
         }
@@ -108,7 +108,7 @@ struct AIAnalysisCard: View {
                 .foregroundStyle(highlighted ? .primary : .secondary)
                 .monospacedDigit()
         }
-        .font(.subheadline)
+        .font(.app(.subheadline))
         .padding(.vertical, 10)
         .accessibilityElement(children: .combine)
     }
@@ -126,7 +126,7 @@ struct AIAnalysisCard: View {
                 Image(systemName: confirmed.0 ? "checkmark.seal.fill" : "hourglass")
                     .foregroundStyle(confirmed.0 ? Color(.systemGreen) : Color(.systemOrange))
             }
-            .font(.subheadline.weight(.medium))
+            .font(.app(.subheadline).weight(.medium))
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier("aiVerdict")
         }
@@ -168,7 +168,7 @@ struct AIAnalysisCard: View {
                                 .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                                 .overlay(alignment: .topLeading) { aiTag(for: item) }
                             Text(item.analysis.shortSummary)
-                                .font(.caption.weight(.medium))
+                                .font(.app(.caption).weight(.medium))
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
                         }
@@ -185,7 +185,7 @@ struct AIAnalysisCard: View {
 
     private func aiTag(for item: MediaItem) -> some View {
         Label(item.kind == .video ? "AI · best frame" : "AI view", systemImage: "viewfinder")
-            .font(.caption2.weight(.semibold))
+            .font(.app(.caption2).weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(Color(.systemBackground).opacity(0.9), in: Capsule())

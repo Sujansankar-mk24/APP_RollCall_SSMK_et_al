@@ -62,7 +62,7 @@ struct IntroView: View {
                     pageDots
                     Spacer()
                     Button("Skip", action: onFinish)
-                        .font(.headline)
+                        .font(.app(.headline))
                         .foregroundStyle(.secondary)
                         .frame(minWidth: minimumTapSize, minHeight: minimumTapSize)
                         .opacity(page < pages.count - 1 ? 1 : 0)
@@ -84,7 +84,7 @@ struct IntroView: View {
                                     .font(.heading(34, relativeTo: .largeTitle, extraBold: true))
                                     .multilineTextAlignment(.center)
                                 Text(item.text)
-                                    .font(.title3)
+                                    .font(.app(.title3))
                                     .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.center)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -106,7 +106,7 @@ struct IntroView: View {
                     }
                 } label: {
                     Text(page < pages.count - 1 ? "Next" : "Get started")
-                        .font(.headline)
+                        .font(.app(.headline))
                         .foregroundStyle(Color.paper)
                         .frame(maxWidth: .infinity, minHeight: 56)
                         .background(Color.ink, in: Capsule())

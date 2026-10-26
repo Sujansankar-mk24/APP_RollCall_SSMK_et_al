@@ -19,7 +19,7 @@ struct MediaGallerySection: View {
                     trailingNote: media.isEmpty ? nil : "\(media.count)") {
             if media.isEmpty {
                 Text("No one has added a photo or video to this incident yet.")
-                    .font(.subheadline)
+                    .font(.app(.subheadline))
                     .foregroundStyle(.secondary)
             } else {
                 LazyVGrid(columns: columns, spacing: Spacing.s) {
@@ -55,7 +55,7 @@ struct MediaThumbnail: View {
                             .padding(6)
                     } else if item.analysis.foundSomething {
                         Image(systemName: "viewfinder")
-                            .font(.caption.weight(.bold))
+                            .font(.app(.caption).weight(.bold))
                             .padding(6)
                             .background(Color(.systemBackground).opacity(0.9), in: Circle())
                             .padding(6)
@@ -72,7 +72,7 @@ struct MediaThumbnail: View {
 struct PlayBadge: View {
     var body: some View {
         Image(systemName: "play.fill")
-            .font(.footnote.weight(.bold))
+            .font(.app(.footnote).weight(.bold))
             .foregroundStyle(.white)
             .frame(width: 30, height: 30)
             .background(.black.opacity(0.45), in: Circle())

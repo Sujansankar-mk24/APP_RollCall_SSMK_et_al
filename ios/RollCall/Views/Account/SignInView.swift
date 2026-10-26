@@ -48,7 +48,7 @@ struct SignInView: View {
                 .padding(.top, Spacing.xl)
             SheetTitle(title: "RollCall", kicker: String(localized: "North Texas · Emergency roll call"))
             Text("Make sure no one gets left behind.")
-                .font(.title3.weight(.medium))
+                .font(.app(.title3).weight(.medium))
                 .foregroundStyle(.secondary)
         }
     }
@@ -104,7 +104,7 @@ struct SignInView: View {
             if let error = viewModel.error {
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Label(error.message, systemImage: "exclamationmark.circle.fill")
-                        .font(.callout.weight(.medium))
+                        .font(.app(.callout).weight(.medium))
                         .foregroundStyle(Color(.systemRed))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityIdentifier("signInError")
@@ -132,9 +132,9 @@ struct SignInView: View {
             if viewModel.mode == .createAccount {
                 Toggle(isOn: Bindable(auth).opensResponderApplication) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Label("I'm a first responder", systemImage: "cross.case.fill").font(.headline)
+                        Label("I'm a first responder", systemImage: "cross.case.fill").font(.app(.headline))
                         Text("Firefighters, EMS, police and emergency managers. You'll add your agency and ID next, and a person checks it.")
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.app(.footnote)).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -169,14 +169,14 @@ struct SignInView: View {
                 let isThisMac = auth.serverURL == ServerSettings.thisMac
                 HStack(spacing: Spacing.m) {
                     Image(systemName: isThisMac ? "desktopcomputer" : "network")
-                        .font(.title3)
+                        .font(.app(.title3))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(verbatim: ServerSettings.displayName(for: auth.serverURL)).font(.headline)
+                        Text(verbatim: ServerSettings.displayName(for: auth.serverURL)).font(.app(.headline))
                         Text(isThisMac ? "Only accounts made on this Mac" : "Shared with everyone using this server")
-                            .font(.callout).foregroundStyle(.secondary)
+                            .font(.app(.callout)).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Text("Change").font(.callout.weight(.semibold)).underline()
+                    Text("Change").font(.app(.callout).weight(.semibold)).underline()
                 }
                 .contentShape(Rectangle())
                 .sheetBox(padding: Spacing.m)
@@ -207,7 +207,7 @@ struct SignInView: View {
                 showsPassword.toggle()
             } label: {
                 Image(systemName: showsPassword ? "eye.slash" : "eye")
-                    .font(.body)
+                    .font(.app(.body))
                     .foregroundStyle(.secondary)
                     .frame(width: minimumTapSize, height: minimumTapSize)
             }
@@ -223,7 +223,7 @@ struct SignInView: View {
     /// A small line under a field: a green check when it's right, gray otherwise.
     private func hint(_ text: String, ok: Bool) -> some View {
         Label(text, systemImage: ok ? "checkmark.circle.fill" : "info.circle")
-            .font(.callout)
+            .font(.app(.callout))
             .foregroundStyle(ok ? Color(.systemGreen) : .secondary)
     }
 
@@ -238,7 +238,7 @@ private extension View {
     /// A roomy text field in a box, like a paper form.
     func authField() -> some View {
         self
-            .font(.title3)
+            .font(.app(.title3))
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: 54)
             .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
@@ -263,7 +263,7 @@ struct ServerSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     Text("Everyone who uses the same server sees the same accounts, households and communities.")
-                        .font(.body)
+                        .font(.app(.body))
                         .fixedSize(horizontal: false, vertical: true)
 
                     VStack(alignment: .leading, spacing: Spacing.m) {
@@ -275,7 +275,7 @@ struct ServerSheet: View {
                             .autocorrectionDisabled()
                         if let problem {
                             Label(problem, systemImage: "exclamationmark.circle.fill")
-                                .font(.callout.weight(.medium))
+                                .font(.app(.callout).weight(.medium))
                                 .foregroundStyle(Color(.systemRed))
                         }
                         Button {

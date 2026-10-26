@@ -24,6 +24,15 @@ enum DebugLaunchOptions {
         #endif
     }
 
+    /// Open Roll Call on "I check on" instead of "My household": -RSSection buddy
+    static var opensBuddySection: Bool {
+        #if DEBUG
+        return UserDefaults.standard.string(forKey: "RSSection") == "buddy"
+        #else
+        return false
+        #endif
+    }
+
     /// Which tab to open on: -RSTab rollCall or community (the map otherwise).
     static var startTab: MainTabView.RootTab {
         #if DEBUG

@@ -26,7 +26,7 @@ struct SettingsButton: View {
             Button("Display", systemImage: "paintpalette") { showsDisplay = true }
         } label: {
             Image(systemName: "gearshape.fill")
-                .font(.title3.weight(.medium))
+                .font(.app(.title3).weight(.medium))
                 .foregroundStyle(brand)
                 .frame(width: minimumTapSize, height: minimumTapSize)
                 .flatSurface(cornerRadius: minimumTapSize / 2)

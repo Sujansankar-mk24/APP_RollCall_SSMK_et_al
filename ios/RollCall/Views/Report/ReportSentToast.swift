@@ -27,18 +27,18 @@ struct ReportSentToast: View {
     var body: some View {
         HStack(spacing: Spacing.m) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.title2)
+                .font(.app(.title2))
                 .foregroundStyle(Color(.systemGreen))
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Report sent")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.app(.subheadline).weight(.semibold))
                 Text(result.message)
-                    .font(.footnote)
+                    .font(.app(.footnote))
                     .foregroundStyle(.secondary)
                 analysisLine
-                    .font(.footnote.weight(.medium))
+                    .font(.app(.footnote).weight(.medium))
                     .padding(.top, 2)
             }
 
@@ -46,7 +46,7 @@ struct ReportSentToast: View {
 
             if let onView {
                 Button("View", action: onView)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.app(.subheadline).weight(.semibold))
                     .frame(minWidth: minimumTapSize, minHeight: minimumTapSize)
             }
         }

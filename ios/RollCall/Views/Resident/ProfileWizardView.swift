@@ -93,7 +93,7 @@ struct ProfileWizardView: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             SheetTitle(title: title)
             Text(why)
-                .font(.body)
+                .font(.app(.body))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
@@ -145,7 +145,7 @@ struct ProfileWizardView: View {
                 .overlay {
                     if !viewModel.hasPin {
                         Text(viewModel.isFindingAddress ? "Finding your address…" : "Type your address, or use your location")
-                            .font(.callout.weight(.semibold))
+                            .font(.app(.callout).weight(.semibold))
                             .padding(.horizontal, Spacing.m).padding(.vertical, Spacing.s)
                             .background(Color.paper, in: RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(Color.ink.opacity(0.3), lineWidth: 1))
@@ -154,12 +154,12 @@ struct ProfileWizardView: View {
                 }
                 if let note = viewModel.locationNote {
                     Label(note.text, systemImage: note.isGood ? "checkmark.circle.fill" : "info.circle.fill")
-                        .font(.callout.weight(.medium))
+                        .font(.app(.callout).weight(.medium))
                         .foregroundStyle(note.isGood ? Color(.systemGreen) : Color(.systemOrange))
                         .accessibilityIdentifier("locationNote")
                 } else {
                     Text("Drag the map or tap to move the pin if it's not exactly on your home.")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.app(.callout)).foregroundStyle(.secondary)
                 }
             }
         }
@@ -201,7 +201,7 @@ struct ProfileWizardView: View {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 SectionLabel("Powered medical equipment")
                 Text("If the power goes out, people who rely on this are checked first.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.app(.callout)).foregroundStyle(.secondary)
                 FlowLayout(spacing: Spacing.s) {
                     ForEach(MedicalEquipment.allCases) { item in
                         SelectChip(title: item.title, systemImage: item.symbol,
@@ -216,7 +216,7 @@ struct ProfileWizardView: View {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("Anything else responders should know? (optional)").sheetLabelStyle().foregroundStyle(.secondary)
                 TextField(text: $viewModel.input.notes,
-                          prompt: Text("For example: \"I'm deaf, please knock loudly\"").font(.body),
+                          prompt: Text("For example: \"I'm deaf, please knock loudly\"").font(.app(.body)),
                           axis: .vertical) { Text("Anything else responders should know?") }
                     .returnClosesKeyboard($viewModel.input.notes)
                     .sheetEntryStyle()
@@ -239,7 +239,7 @@ struct ProfileWizardView: View {
                         let selected = viewModel.input.language == language
                         Button { viewModel.input.language = language } label: {
                             HStack(spacing: Spacing.s) {
-                                Image(systemName: selected ? "checkmark" : "globe").font(.headline)
+                                Image(systemName: selected ? "checkmark" : "globe").font(.app(.headline))
                                 Text(language.nativeName).font(.sheetHeading)
                             }
                             .frame(maxWidth: .infinity, minHeight: 64)
@@ -265,7 +265,7 @@ struct ProfileWizardView: View {
                     Label("Ask a neighbor to check on me", systemImage: "person.2.wave.2.fill")
                         .font(.sheetHeading)
                     Text("A volunteer buddy will come by if you don't answer during an emergency. You choose who.")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.app(.callout)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -326,11 +326,11 @@ struct ProfileWizardView: View {
     private func sharingRow(_ symbol: String, _ who: LocalizedStringKey, _ what: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Image(systemName: symbol)
-                .font(.body.weight(.semibold))
+                .font(.app(.body).weight(.semibold))
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(who).font(.headline)
-                Text(what).font(.callout).foregroundStyle(.secondary)
+                Text(who).font(.app(.headline))
+                Text(what).font(.app(.callout)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -344,7 +344,7 @@ struct ProfileWizardView: View {
     private var consentToggle: some View {
         Toggle(isOn: $viewModel.consent) {
             Text("I agree to share this information as described above.")
-                .font(.callout.weight(.semibold))
+                .font(.app(.callout).weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .tint(brand)
@@ -356,7 +356,7 @@ struct ProfileWizardView: View {
             if viewModel.isLastStep && !isEditing {
                 consentToggle
             } else if let missing = viewModel.whatsMissing {
-                Text(missing).font(.callout).foregroundStyle(.secondary)
+                Text(missing).font(.app(.callout)).foregroundStyle(.secondary)
             }
             HStack(spacing: Spacing.m) {
                 if viewModel.step != .home {

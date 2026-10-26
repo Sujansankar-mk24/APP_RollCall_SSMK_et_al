@@ -26,7 +26,7 @@ struct RollCallTabView: View {
 private struct MemberRollCallView: View {
     let me: Me
     @Environment(AuthStore.self) private var auth
-    @State private var section: Section = .household
+    @State private var section: Section = DebugLaunchOptions.opensBuddySection ? .buddy : .household
     @State private var isJoining = false
     @State private var isWorking = false
     @State private var confirmsVolunteering = false
@@ -39,6 +39,7 @@ private struct MemberRollCallView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     SheetTitle(title: "Roll Call", kicker: kicker)
+                        .padding(.trailing, 56)   // a long community name wraps before the gear
                         .overlay(alignment: .topTrailing) { SettingsButton() }
                     SheetTabs(selection: $section,
                               options: [(value: .household, title: String(localized: "My household")),
@@ -101,7 +102,7 @@ private struct MemberRollCallView: View {
             Text("Join the roll call?")
                 .font(.sheetHeading)
             Text("When an emergency hits your area, RollCall asks if you're safe. If you don't answer, a neighbor checks on you, and responders know who still needs help.")
-                .font(.body)
+                .font(.app(.body))
                 .fixedSize(horizontal: false, vertical: true)
             SheetCard {
                 point("lock.fill", "Your details stay private until there's an emergency in your area.")
@@ -125,7 +126,7 @@ private struct MemberRollCallView: View {
                 .accessibilityIdentifier("optedOut")
                 .padding(.vertical, Spacing.s)
             Text("Responders won't know to check on you during an emergency. You can join anytime.")
-                .font(.body)
+                .font(.app(.body))
                 .fixedSize(horizontal: false, vertical: true)
             Button("Join the roll call") { isJoining = true }
                 .buttonStyle(InkButtonStyle())
@@ -137,7 +138,7 @@ private struct MemberRollCallView: View {
         Label { Text(text).fixedSize(horizontal: false, vertical: true) } icon: {
             Image(systemName: symbol)
         }
-        .font(.body)
+        .font(.app(.body))
         .sheetRow()
     }
 
@@ -152,7 +153,7 @@ private struct MemberRollCallView: View {
                 Text("Be a volunteer buddy")
                     .font(.sheetHeading)
                 Text("Check on neighbors who might need help in an emergency, like seniors living alone. You only see someone's details after they accept you.")
-                    .font(.body)
+                    .font(.app(.body))
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Become a volunteer buddy") { confirmsVolunteering = true }
                     .buttonStyle(InkButtonStyle())

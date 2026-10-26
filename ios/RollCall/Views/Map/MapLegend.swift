@@ -21,7 +21,7 @@ struct MapLegend: View {
                 Text("Community report")
             }
         }
-        .font(.footnote)
+        .font(.app(.footnote))
         .foregroundStyle(.secondary)
         .padding(.horizontal, 10)
         .padding(.vertical, Spacing.s)

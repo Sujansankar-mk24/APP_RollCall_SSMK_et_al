@@ -33,7 +33,7 @@ struct UpdateStatusPill: View {
                 updatedText(prefix: "Updated")
             }
         }
-        .font(.caption)
+        .font(.app(.caption))
         .padding(.leading, 10)
         .padding(.trailing, refreshError != nil ? 2 : 10)
         .frame(minHeight: 28)

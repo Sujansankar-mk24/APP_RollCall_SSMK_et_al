@@ -67,7 +67,7 @@ struct TagChips: View {
                         .foregroundStyle(tag.tint == .accentColor ? brand : tag.tint)   // ink on the sheet
                     Text(tag.text)
                 }
-                .font(.callout.weight(.medium))
+                .font(.app(.callout).weight(.medium))
                 .padding(.horizontal, 9)
                 .padding(.vertical, 6)
                 .background(Color.primary.opacity(0.05), in: Capsule())

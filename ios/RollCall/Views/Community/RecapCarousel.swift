@@ -112,8 +112,8 @@ struct RecapCarousel: View {
                 let reaction = photo.reactions.first { $0.emoji == emoji }
                 Button { onReact?(photo, emoji) } label: {
                     HStack(spacing: 3) {
-                        Text(verbatim: emoji).font(.title3)
-                        if let reaction { Text("\(reaction.count)").font(.caption.weight(.bold)).monospacedDigit() }
+                        Text(verbatim: emoji).font(.app(.title3))
+                        if let reaction { Text("\(reaction.count)").font(.app(.caption).weight(.bold)).monospacedDigit() }
                     }
                     .padding(.horizontal, 10)
                     .frame(minHeight: 40)
@@ -140,7 +140,7 @@ struct RecapCarousel: View {
             Text("No photos this week yet")
                 .font(.recap(24, relativeTo: .title3))
             Text("Share what's happening in the neighborhood: a cleanup, a block party, a storm you got through together.")
-                .font(.callout)
+                .font(.app(.callout))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -199,13 +199,13 @@ private struct RecapCard: View {
         HStack(spacing: Spacing.s) {
             if photo.pinned {
                 Label("Pinned", systemImage: "pin.fill")
-                    .font(.caption.weight(.bold))
+                    .font(.app(.caption).weight(.bold))
                     .padding(.horizontal, 10).frame(minHeight: 28)
                     .background(.black.opacity(0.45), in: Capsule())
             }
             Spacer()
             Text("\(index) / \(total)")
-                .font(.caption.weight(.bold)).monospacedDigit()
+                .font(.app(.caption).weight(.bold)).monospacedDigit()
                 .padding(.horizontal, 10).frame(minHeight: 28)
                 .background(.black.opacity(0.45), in: Capsule())
             if isAdmin {
@@ -218,7 +218,7 @@ private struct RecapCard: View {
                     Button("Remove", systemImage: "trash", role: .destructive) { onAction?(photo, .remove) }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.headline)
+                        .font(.app(.headline))
                         .frame(width: minimumTapSize, height: minimumTapSize)
                         .background(.black.opacity(0.45), in: Circle())
                 }
@@ -241,14 +241,14 @@ private struct RecapCard: View {
                     Text(verbatim: photo.caption).font(.recap(17, relativeTo: .subheadline)).lineLimit(3)
                 }
                 Text(photo.createdAt, format: .relative(presentation: .named))
-                    .font(.caption).opacity(0.8)
+                    .font(.app(.caption)).opacity(0.8)
             }
             Spacer(minLength: 0)
             // The stickers people added, piled up like on Locket.
             HStack(spacing: -8) {
                 ForEach(photo.reactions.prefix(4), id: \.emoji) { reaction in
                     Text(verbatim: reaction.emoji)
-                        .font(.title2)
+                        .font(.app(.title2))
                         .padding(4)
                         .background(.white.opacity(0.9), in: Circle())
                         .shadow(color: .black.opacity(0.2), radius: 3)

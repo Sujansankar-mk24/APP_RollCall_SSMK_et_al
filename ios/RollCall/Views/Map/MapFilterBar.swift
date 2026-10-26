@@ -170,11 +170,11 @@ struct FilterChipLabel: View {
             Image(systemName: systemImage)
                 .imageScale(.small)
             Text(title)
-                .font(.subheadline.weight(.medium))
+                .font(.app(.subheadline).weight(.medium))
                 .lineLimit(1)
             if showsChevron {
                 Image(systemName: "chevron.down")
-                    .font(.caption2.weight(.semibold))
+                    .font(.app(.caption2).weight(.semibold))
                     .foregroundStyle(.secondary)
             }
         }

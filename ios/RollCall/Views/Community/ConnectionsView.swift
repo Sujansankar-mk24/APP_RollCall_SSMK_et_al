@@ -114,7 +114,7 @@ struct ConnectionsView: View {
                         withAnimation(.snappy) { filter = option }
                     } label: {
                         Label("\(option.title) \(count)", systemImage: option.symbol)
-                            .font(.subheadline.weight(.semibold))
+                            .font(.app(.subheadline).weight(.semibold))
                             .padding(.horizontal, Spacing.m)
                             .frame(minHeight: 40)
                             .foregroundStyle(isOn ? onBrand : Color.primary)
@@ -141,7 +141,7 @@ struct ConnectionsView: View {
                 legendItem(Circle().strokeBorder(Color.secondary, style: StrokeStyle(lineWidth: 2, dash: [3, 2]))
                     .frame(width: 14, height: 14), "Away")
                 Spacer()
-                Text("Hold a bubble to pop it").font(.footnote).foregroundStyle(.secondary)
+                Text("Hold a bubble to pop it").font(.app(.footnote)).foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, Spacing.l)
@@ -154,7 +154,7 @@ struct ConnectionsView: View {
     }
 
     private func legendItem(_ mark: some View, _ text: LocalizedStringKey) -> some View {
-        HStack(spacing: 6) { mark; Text(text).font(.footnote) }
+        HStack(spacing: 6) { mark; Text(text).font(.app(.footnote)) }
     }
 }
 
@@ -251,8 +251,8 @@ struct ConnectionsWeb: View {
                 if isSelected && !isPopped {
                     Button { onOpenProfile?(member.userId) } label: {
                         HStack(spacing: 6) {
-                            Text(verbatim: member.name).font(.subheadline.weight(.semibold))
-                            Image(systemName: "chevron.right").font(.caption.weight(.bold))
+                            Text(verbatim: member.name).font(.app(.subheadline).weight(.semibold))
+                            Image(systemName: "chevron.right").font(.app(.caption).weight(.bold))
                         }
                         .padding(.horizontal, Spacing.m)
                         .frame(minHeight: 36)

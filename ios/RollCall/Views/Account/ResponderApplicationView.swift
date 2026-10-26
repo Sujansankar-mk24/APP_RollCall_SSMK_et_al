@@ -31,7 +31,7 @@ struct ResponderApplicationView: View {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     SheetTitle(title: "First responder", kicker: String(localized: "Apply"))
                     Text("Verified first responders can mark incidents responding or resolved. Residents can see who you are and report misuse, so every application is checked by a person.")
-                        .font(.body).foregroundStyle(.secondary)
+                        .font(.app(.body)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 
                     LabeledField(label: "Agency", prompt: "e.g. Greenville Fire-Rescue", text: $application.agency,
@@ -53,7 +53,7 @@ struct ResponderApplicationView: View {
                                         .clipShape(RoundedRectangle(cornerRadius: Radius.paperCard, style: .continuous))
                                         .overlay(alignment: .bottomTrailing) {
                                             Label("Replace", systemImage: "arrow.triangle.2.circlepath")
-                                                .font(.footnote.weight(.semibold))
+                                                .font(.app(.footnote).weight(.semibold))
                                                 .padding(.horizontal, Spacing.m).padding(.vertical, 6)
                                                 .background(.black.opacity(0.6), in: Capsule())
                                                 .foregroundStyle(.white)
@@ -62,7 +62,7 @@ struct ResponderApplicationView: View {
                                 } else {
                                     VStack(spacing: Spacing.s) {
                                         Image(systemName: "person.text.rectangle").font(.system(size: 36))
-                                        Text("Add a photo of your agency ID").font(.headline)
+                                        Text("Add a photo of your agency ID").font(.app(.headline))
                                     }
                                     .foregroundStyle(.secondary)
                                     .frame(maxWidth: .infinity, minHeight: 150)
@@ -76,7 +76,7 @@ struct ResponderApplicationView: View {
                     }
 
                     if let error {
-                        Text(error.message).font(.callout).foregroundStyle(Color(.systemRed))
+                        Text(error.message).font(.app(.callout)).foregroundStyle(Color(.systemRed))
                     }
                     Button {
                         Task { await send() }

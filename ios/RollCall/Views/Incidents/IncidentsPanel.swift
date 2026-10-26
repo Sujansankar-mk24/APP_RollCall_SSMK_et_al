@@ -62,7 +62,7 @@ struct IncidentsButton: View {
                     .fixedSize()   // never squeezed onto two lines by the chips beside it
                 if urgentCount > 0 {
                     Text("\(urgentCount)")
-                        .font(.caption.weight(.bold))
+                        .font(.app(.caption).weight(.bold))
                         .monospacedDigit()
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
@@ -70,11 +70,11 @@ struct IncidentsButton: View {
                         .background(Color(.systemRed), in: Capsule())
                 }
                 Image(systemName: "chevron.down")
-                    .font(.footnote.weight(.bold))
+                    .font(.app(.footnote).weight(.bold))
                     // Flip "v" to "^" (it passes through a flat line halfway).
                     .scaleEffect(x: 1, y: isOpen ? -1 : 1)
             }
-            .font(.subheadline.weight(.semibold))
+            .font(.app(.subheadline).weight(.semibold))
             .foregroundStyle(Color.themeAccent)
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: minimumTapSize)
@@ -130,7 +130,7 @@ struct IncidentsPanel: View {
             Spacer()
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.headline.weight(.bold))
+                    .font(.app(.headline).weight(.bold))
                     .frame(width: minimumTapSize, height: minimumTapSize)
                     .overlay(RoundedRectangle(cornerRadius: Radius.paperControl, style: .continuous).strokeBorder(Color.ink.opacity(0.3), lineWidth: 1))
                     .contentShape(Rectangle())
@@ -214,14 +214,14 @@ struct IncidentsPanel: View {
                     Button { onSelectHazard?(hazard) } label: {
                         HStack(spacing: Spacing.m) {
                             Image(systemName: hazard.kind.symbol)
-                                .font(.headline)
+                                .font(.app(.headline))
                                 .foregroundStyle(.white)
                                 .frame(width: 40, height: 40)
                                 .background(hazard.kind.color, in: Circle())
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(verbatim: hazard.title).font(.headline).lineLimit(2)
+                                Text(verbatim: hazard.title).font(.app(.headline)).lineLimit(2)
                                 Text(verbatim: "\(hazard.level.title) · \(hazard.sourceLabel)")
-                                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                                    .font(.app(.subheadline)).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer(minLength: 0)
                             if hazard.isDemo { Stamp(text: "Demo", color: Color(.systemPurple)) }
@@ -260,7 +260,7 @@ struct IncidentsPanel: View {
                     .frame(minHeight: minimumTapSize)
             }
         }
-        .font(.callout)
+        .font(.app(.callout))
         .foregroundStyle(.secondary)
         .accessibilityElement(children: .combine)
     }

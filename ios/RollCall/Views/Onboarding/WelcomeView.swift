@@ -41,12 +41,12 @@ struct WelcomeView: View {
                     HStack(spacing: Spacing.m) {
                         BrandMark(size: 58)
                         VStack(alignment: .leading, spacing: 0) {
-                            Text("Welcome to").font(.title3.weight(.medium)).foregroundStyle(.secondary)
+                            Text("Welcome to").font(.app(.title3).weight(.medium)).foregroundStyle(.secondary)
                             Text("RollCall").font(.heading(40, relativeTo: .largeTitle, extraBold: true))
                         }
                     }
                     Text("When disaster hits North Texas, the people who can't get out alone are the easiest to miss. RollCall makes sure someone checks on every one of them.")
-                        .font(.body)
+                        .font(.app(.body))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -67,7 +67,7 @@ struct WelcomeView: View {
                             .accessibilityIdentifier("welcomeSignIn")
                     }
                     Text("Photo: a rescue in Port Arthur, Texas, after Hurricane Harvey. South Carolina National Guard, public domain.")
-                        .font(.caption2)
+                        .font(.app(.caption2))
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity)
                         .multilineTextAlignment(.center)
@@ -87,7 +87,7 @@ struct WelcomeView: View {
 
     private func feature(_ symbol: String, _ text: LocalizedStringKey) -> some View {
         Label {
-            Text(text).font(.subheadline.weight(.medium)).fixedSize(horizontal: false, vertical: true)
+            Text(text).font(.app(.subheadline).weight(.medium)).fixedSize(horizontal: false, vertical: true)
         } icon: {
             Image(systemName: symbol).foregroundStyle(Color.ink).frame(width: 26)
         }
@@ -98,7 +98,7 @@ struct WelcomeView: View {
 struct OutlinePillStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
+            .font(.app(.headline))
             .frame(maxWidth: .infinity, minHeight: 56)
             .foregroundStyle(Color.primary)
             .overlay(Capsule().strokeBorder(Color.primary.opacity(0.35), lineWidth: 1.5))

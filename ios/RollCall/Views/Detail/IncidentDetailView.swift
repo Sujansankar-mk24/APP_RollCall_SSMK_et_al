@@ -33,7 +33,7 @@ struct IncidentDetailView: View {
         if auth.me?.isResponder == true && viewModel.summary.status != .resolved {
             VStack(alignment: .leading, spacing: Spacing.s) {
                 Label("Under review: the AI couldn't confirm this, so it isn't on the map.", systemImage: "eye.trianglebadge.exclamationmark")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.app(.footnote)).foregroundStyle(.secondary)
                 HStack(spacing: Spacing.m) {
                     Button {
                         Task { if await viewModel.review(real: false) { onStatusChanged() } }
@@ -64,7 +64,7 @@ struct IncidentDetailView: View {
     /// Shown at the bottom instead of the responder buttons.
     private func statusNote(_ text: LocalizedStringKey, systemImage: String) -> some View {
         Label(text, systemImage: systemImage)
-            .font(.footnote)
+            .font(.app(.footnote))
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.l)

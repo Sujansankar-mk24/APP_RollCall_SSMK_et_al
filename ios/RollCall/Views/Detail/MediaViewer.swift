@@ -84,7 +84,7 @@ struct MediaViewer: View {
     private var caption: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(item.analysis.shortSummary)
-                .font(.headline)
+                .font(.app(.headline))
             Group {
                 if item.analysis.lowLightUsed {
                     Text("This picture was dark, so it was brightened before the AI looked for people.")
@@ -94,7 +94,7 @@ struct MediaViewer: View {
                 }
                 Text("Added \(item.createdAt.formatted(.relative(presentation: .named)))")
             }
-            .font(.footnote)
+            .font(.app(.footnote))
             .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
